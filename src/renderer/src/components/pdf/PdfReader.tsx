@@ -1,0 +1,279 @@
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { usePdfStore } from '../../state/pdfStore'
+import { useSelectionStore } from '../../state/selectionStore'
+import { useDocumentStore } from '../../state/documentStore'
+import { PdfPage } from './PdfPage'
+import { SelectionMenu } from './SelectionMenu'
+import { normalizeRectsToPage } from '../../lib/rects'
+
+// Renders the active PDF, paginated. One page at a time keeps render work
+// bounded and lets the selection menu reason about a single page's text.
+export function PdfReader({ documentId }: { documentId: string }): React.JSX.Element {
+  const {
+    doc,
+    pageCount,
+    currentPage,
+    scale,
+    loading,
+    error,
+    loadForDocument,
+    setPage,
+    setScale,
+    markPagePersisted,
+    isPagePersisted
+  } = usePdfStore()
+
+  const documents = useDocumentStore((s) => s.documents)
+  const activeDoc = useMemo(
+    () => documents.find((d) => d.id === documentId) ?? null,
+    [documents, documentId]
+  )
+  const setSelection = useSelectionStore((s) => s.setSelection)
+  const clearSelection = useSelectionStore((s) => s.clear)
+
+  const pagesContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    loadForDocument(documentId)
+  }, [documentId, loadForDocument])
+
+  // Stale selection menu: dismiss when page, zoom, or scroll changes.
+  useEffect(() => {
+    clearSelection()
+  }, [currentPage, scale, clearSelection])
+
+  useEffect(() => {
+    const el = pagesContainerRef.current
+    if (!el) return
+    const onScroll = (): void => clearSelection()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    const onResize = (): void => clearSelection()
+    window.addEventListener('resize', onResize)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [clearSelection])
+
+  // Persist extracted text per page, as soon as it lands. Partial reading
+  // sessions still keep their pages because each one ships immediately
+  // instead of waiting on a "saw all pages" sentinel.
+  const handleTextExtracted = useCallback(
+    (pageNumber: number, text: string) => {
+      if (isPagePersisted(pageNumber)) return
+      const estimatedWordCount = text.trim() ? text.split(/\s+/).filter(Boolean).length : 0
+      window.fuzzy.documents
+        .recordPageExtraction(documentId, {
+          pageNumber,
+          textContent: text,
+          estimatedWordCount
+        })
+        .then(() => markPagePersisted(pageNumber))
+        .catch((err) => console.error('[fuzzy pdf] recordPageExtraction failed', err))
+    },
+    [documentId, isPagePersisted, markPagePersisted]
+  )
+
+  // Capture text selections inside the page text layer. The PDF.js text
+  // layer wraps real spans, so window.getSelection() works directly.
+  const handleMouseUp = useCallback(() => {
+    const win = window.getSelection()
+    const text = win?.toString().trim() ?? ''
+    if (!text || !win || win.rangeCount === 0) {
+      clearSelection()
+      return
+    }
+    const range = win.getRangeAt(0)
+    const node = (range.startContainer as HTMLElement | null) ?? null
+    const pageEl = (node?.parentElement?.closest?.('[data-page-number]') ??
+      null) as HTMLElement | null
+    if (!pageEl) {
+      clearSelection()
+      return
+    }
+    const pageNumber = Number(pageEl.dataset.pageNumber)
+    if (!Number.isFinite(pageNumber)) {
+      clearSelection()
+      return
+    }
+    const rect = range.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) {
+      clearSelection()
+      return
+    }
+    const pageRect = pageEl.getBoundingClientRect()
+    // One client rect per line of the selection — better than a single
+    // bounding box when the highlight spans multiple lines.
+    const rectsOnPage = normalizeRectsToPage(Array.from(range.getClientRects()), {
+      left: pageRect.left,
+      top: pageRect.top,
+      width: pageRect.width,
+      height: pageRect.height
+    })
+    setSelection({
+      documentId,
+      pageNumber,
+      text,
+      anchorRect: {
+        top: rect.top,
+        left: rect.left,
+        bottom: rect.bottom,
+        right: rect.right
+      },
+      rectsOnPage
+    })
+  }, [documentId, setSelection, clearSelection])
+
+  // Keyboard nav: arrows + page up/down. Skip when the user is typing.
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent): void {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault()
+        setPage(currentPage + 1)
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault()
+        setPage(currentPage - 1)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [currentPage, setPage])
+
+  if (loading) {
+    return (
+      <ReaderShell title={activeDoc?.title}>
+        <div className="flex flex-col items-center gap-2">
+          <span className="fz-spinner inline-block h-4 w-4 rounded-full border-2 border-fz-accent border-t-transparent" />
+          <div className="text-xs text-fz-fg-muted">Opening PDF…</div>
+        </div>
+      </ReaderShell>
+    )
+  }
+  if (error) {
+    return (
+      <ReaderShell title={activeDoc?.title}>
+        <div className="max-w-md text-center text-xs text-fz-danger">{error}</div>
+      </ReaderShell>
+    )
+  }
+  if (!doc) {
+    return (
+      <ReaderShell title={activeDoc?.title}>
+        <div className="text-xs text-fz-fg-muted">Loading…</div>
+      </ReaderShell>
+    )
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PdfToolbar
+        title={activeDoc?.title}
+        currentPage={currentPage}
+        pageCount={pageCount}
+        scale={scale}
+        onPrev={() => setPage(currentPage - 1)}
+        onNext={() => setPage(currentPage + 1)}
+        onZoomIn={() => setScale(scale + 0.1)}
+        onZoomOut={() => setScale(scale - 0.1)}
+      />
+      <div
+        ref={pagesContainerRef}
+        onMouseUp={handleMouseUp}
+        className="fz-selectable flex flex-1 justify-center overflow-auto bg-fz-bg p-8"
+      >
+        <PdfPage
+          doc={doc}
+          pageNumber={currentPage}
+          scale={scale}
+          onTextExtracted={handleTextExtracted}
+        />
+      </div>
+      <SelectionMenu />
+    </div>
+  )
+}
+
+function PdfToolbar({
+  title,
+  currentPage,
+  pageCount,
+  scale,
+  onPrev,
+  onNext,
+  onZoomIn,
+  onZoomOut
+}: {
+  title?: string
+  currentPage: number
+  pageCount: number
+  scale: number
+  onPrev: () => void
+  onNext: () => void
+  onZoomIn: () => void
+  onZoomOut: () => void
+}): React.JSX.Element {
+  return (
+    <div className="flex h-10 shrink-0 items-center gap-3 border-b border-fz-border bg-fz-surface-2 px-3 text-xs">
+      <span className="truncate text-fz-fg-muted" title={title}>
+        {title ?? 'Untitled'}
+      </span>
+      <div className="flex-1" />
+      <div className="flex items-center gap-1">
+        <ToolbarButton onClick={onPrev} disabled={currentPage <= 1} label="Prev" />
+        <span className="w-20 text-center text-[11px] text-fz-fg-muted">
+          {currentPage} / {pageCount}
+        </span>
+        <ToolbarButton onClick={onNext} disabled={currentPage >= pageCount} label="Next" />
+      </div>
+      <div className="ml-3 flex items-center gap-1">
+        <ToolbarButton onClick={onZoomOut} label="–" disabled={scale <= 0.5} />
+        <span className="w-12 text-center text-[11px] text-fz-fg-muted">
+          {Math.round(scale * 100)}%
+        </span>
+        <ToolbarButton onClick={onZoomIn} label="+" disabled={scale >= 3} />
+      </div>
+    </div>
+  )
+}
+
+function ToolbarButton({
+  label,
+  onClick,
+  disabled
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded border border-fz-border px-2 py-0.5 text-[11px] text-fz-fg-muted hover:bg-fz-bg disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {label}
+    </button>
+  )
+}
+
+function ReaderShell({
+  title,
+  children
+}: {
+  title?: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-10 shrink-0 items-center border-b border-fz-border bg-fz-surface-2 px-3 text-xs text-fz-fg-muted">
+        {title ?? 'Untitled'}
+      </div>
+      <div className="flex flex-1 items-center justify-center">{children}</div>
+    </div>
+  )
+}
