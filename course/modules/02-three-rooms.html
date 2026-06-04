@@ -1,0 +1,263 @@
+<section class="module" id="module-2" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">The three rooms</h1>
+      <p class="module-subtitle">Renderer, preload, main. Why every Electron app is built like a bank — with a public lobby, a teller window, and a vault in the back.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a bank, not a kitchen</h2>
+        <p>Picture a bank branch. There are three zones with deliberate walls between them.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🛋️</div>
+            <h4 class="pattern-title">The lobby (Renderer)</h4>
+            <p class="pattern-desc">Anyone can walk in. Nice carpet, water cooler, the React UI. Cannot touch the cash directly.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🪟</div>
+            <h4 class="pattern-title">The teller window (Preload)</h4>
+            <p class="pattern-desc">A small slot with a clerk on the other side. The lobby slides paper requests through; the clerk decides what's allowed.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🔐</div>
+            <h4 class="pattern-title">The vault (Main process)</h4>
+            <p class="pattern-desc">Where the money lives — files, the database, your <span class="term" data-definition="A secret stored on your computer that proves your app can use a paid API. Anyone who steals it can spend money on your account.">API key</span>. No customer ever sets foot in here.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why this matters for steering AI</strong>
+            <p>When you ask an AI to add a feature to an Electron app, knowing this split lets you say "<em>put the file logic in the main process and expose it through the preload bridge</em>" instead of vague instructions like "make it work." That's the vocabulary win.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The cast of three</h2>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">🖼️</div>
+            <div>
+              <strong>Renderer — <code>src/renderer/</code></strong>
+              <p>A real Chrome web page. <span class="term" data-definition="React is a popular library for building user interfaces — instead of manually editing the page when something changes, you describe what the UI should look like for any given state, and React does the updating.">React</span> + <span class="term" data-definition="TypeScript is JavaScript with type-checking added on top — it catches typos and shape mismatches before you run the code. Almost every modern web app is written in TypeScript now.">TypeScript</span> + <span class="term" data-definition="Tailwind is a styling library that lets you write CSS as short class names directly on your HTML elements. Instead of writing 'background: red', you write class='bg-red-500'.">Tailwind</span> + <span class="term" data-definition="Zustand is a tiny state management library for React. Think of it as a shared whiteboard that any component can read from or write to, without passing data through every parent.">Zustand</span> for state. Has <em>zero</em> Node.js access — it cannot read files, run shell commands, or talk to the database.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🪟</div>
+            <div>
+              <strong>Preload — <code>src/preload/index.ts</code></strong>
+              <p>Runs in a special "in-between" environment. It defines a hand-picked menu of <span class="term" data-definition="A function is a named recipe for doing one thing — you call it by name, optionally hand it some inputs, and it does its job and possibly hands you back a result.">functions</span> that the renderer is allowed to call. Anything not on the menu, the renderer cannot do.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">⚙️</div>
+            <div>
+              <strong>Main — <code>src/main/</code></strong>
+              <p>A <span class="term" data-definition="Node.js is a runtime that lets JavaScript run outside the browser — it has full access to the operating system: files, network, processes, the works.">Node.js</span> program. Owns the <span class="term" data-definition="A SQLite database is a file-based database — the entire database lives in a single file on your disk. No server, no setup. Phones, browsers, and tons of apps use SQLite under the hood.">SQLite</span> database, the file system, the OpenAI key, and the dialog boxes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The teller window in code</h2>
+        <p>This is the <em>entire</em> menu of buttons the renderer is allowed to press. Every UI interaction with the back office goes through one of these.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — preload/index.ts:5</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> fuzzy: FuzzyApi = {</span>
+<span class="code-line">  <span class="code-property">documents</span>: {</span>
+<span class="code-line">    <span class="code-property">list</span>: () =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsList),</span>
+<span class="code-line">    <span class="code-property">import</span>: () =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsImport),</span>
+<span class="code-line">    <span class="code-property">readFile</span>: (id) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsReadFile, id),</span>
+<span class="code-line">    <span class="code-comment">// ...more document methods</span></span>
+<span class="code-line">  },</span>
+<span class="code-line">  <span class="code-property">ai</span>: {</span>
+<span class="code-line">    <span class="code-property">runAction</span>: (request) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.aiRunAction, request)</span>
+<span class="code-line">  },</span>
+<span class="code-line">  <span class="code-property">settings</span>: {</span>
+<span class="code-line">    <span class="code-property">setOpenaiKey</span>: (key) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.settingsSetOpenaiKey, key),</span>
+<span class="code-line">    <span class="code-comment">// note: there is NO getOpenaiKey() — the key never leaves main</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">}</span>
+<span class="code-line">contextBridge.<span class="code-function">exposeInMainWorld</span>(<span class="code-string">'fuzzy'</span>, fuzzy)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Build an object called "fuzzy" — this is the public menu.</p>
+              <p class="tl">Group the document-related buttons together.</p>
+              <p class="tl">"list" → ask main for all documents. "import" → ask main to open the file picker.</p>
+              <p class="tl">"readFile" → hand main a document ID and ask for the raw bytes back.</p>
+              <p class="tl">Group the AI buttons. "runAction" sends an explanation request to main.</p>
+              <p class="tl">Settings: you can <em>set</em> the OpenAI key. Notice — no getter. The renderer can write the key but never read it back. This is intentional.</p>
+              <p class="tl">Hand the menu through the locked door so the React UI can find it as <code>window.fuzzy</code>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">The non-obvious safety move</strong>
+            <p>There is no <code>getOpenaiKey</code> on this menu. Once written, the API key is encrypted by the OS keychain and the renderer cannot read it back. Even if a malicious PDF somehow ran code in the renderer, it could not steal your key.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The window's security settings</h2>
+        <p>Down at the foundation, the main process creates the browser window with three settings that lock everything down.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/index.ts:8</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> mainWindow = <span class="code-keyword">new</span> <span class="code-function">BrowserWindow</span>({</span>
+<span class="code-line">  <span class="code-property">width</span>: <span class="code-number">1440</span>,</span>
+<span class="code-line">  <span class="code-property">height</span>: <span class="code-number">900</span>,</span>
+<span class="code-line">  <span class="code-property">webPreferences</span>: {</span>
+<span class="code-line">    <span class="code-property">preload</span>: <span class="code-function">join</span>(__dirname, <span class="code-string">'../preload/index.js'</span>),</span>
+<span class="code-line">    <span class="code-property">sandbox</span>: <span class="code-keyword">false</span>,</span>
+<span class="code-line">    <span class="code-property">contextIsolation</span>: <span class="code-keyword">true</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">})</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Make a new browser window — 1440 by 900 pixels.</p>
+              <p class="tl">Fancy settings live under <code>webPreferences</code>.</p>
+              <p class="tl">"preload" → load this script first, before the page. This is the teller window.</p>
+              <p class="tl">"contextIsolation: true" → keep the page's JavaScript world walled off from the preload's world. They share <em>nothing</em> except the menu we explicitly handed over.</p>
+              <p class="tl">Without that flag, malicious scripts on the page could reach into the preload and grab the keys to the kingdom.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">A conversation between the three rooms</h2>
+        <p>Here's what actually happens when you click "Import PDF". Watch them talk to each other — one message at a time.</p>
+
+        <div class="chat-window" id="chat-import">
+          <div class="chat-messages">
+            <div class="chat-message" data-msg="0" data-sender="renderer" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">UI</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">Renderer (React UI)</span>
+                <p>User just clicked "Import PDF". I have no way to open a file picker myself. Hey teller — could you forward this?</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="1" data-sender="preload" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">PL</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Preload (the bridge)</span>
+                <p>Sure. I see "documents.import()" on my menu. Forwarding to the channel "documents:import" in main.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="2" data-sender="main" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">M</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Main (the back office)</span>
+                <p>Got it. Opening the native macOS file picker now... user picked "paper.pdf". I'll copy it to the library folder, hash it for dedupe, and write a row in SQLite.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="3" data-sender="main" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">M</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Main (the back office)</span>
+                <p>Done. Here's the new document record: { id, title, filePath, ... }. Sending it back through the bridge.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="4" data-sender="renderer" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">UI</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">Renderer (React UI)</span>
+                <p>Got the new document! Adding it to the sidebar list and opening it in the reader. The user sees their PDF appear.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-typing" id="chat-typing" style="display:none">
+            <div class="chat-avatar" id="typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">Next Message</button>
+            <button class="btn chat-all-btn">Play All</button>
+            <button class="btn chat-reset-btn">Replay</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module2">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The renderer is a sandboxed browser page — it can't touch your files. To do anything system-level, it has to call a function the preload exposed, which then tells the main process to do the actual work."
+               data-explanation-wrong="The renderer is the React UI running in a Chrome window. Browser pages cannot directly read files on your disk — that would be a giant security hole. It has to ask through the bridge.">
+            <h3 class="quiz-question">You're asking an AI to "add a feature that exports all your highlights to a CSV file on disk." Where should the file-writing code live?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the renderer — it's a UI feature, the React component should write the file</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the main process, exposed as a new method on the preload bridge</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the preload — it has access to both worlds</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. The renderer doesn't get a 'getOpenaiKey' button on its menu. The key is encrypted in main and only used there — the renderer only ever sees a boolean ('do we have a key?') for UI state."
+               data-explanation-wrong="Look at the preload menu again — there's a setter, but no getter. The renderer is intentionally never given a way to read the key back. This is a deliberate security choice.">
+            <h3 class="quiz-question">A user reports: "I want to copy my OpenAI key out of Fuzzy to paste it elsewhere." Why is this not possible — and is that a bug?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>It's a bug — there's a getter on the preload, the UI just doesn't use it</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The key is in plain text but UI hides it — easy fix</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Not a bug — by design. The preload exposes no getter; the key is encrypted in main and never crosses back to the UI</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module2')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module2')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>

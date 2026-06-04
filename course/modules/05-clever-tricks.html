@@ -1,0 +1,279 @@
+<section class="module" id="module-5" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">05</span>
+      <h1 class="module-title">The clever tricks</h1>
+      <p class="module-subtitle">Five small engineering moves that make Fuzzy feel polished. Steal these patterns the next time you're directing AI to build something similar.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a magician's pockets</h2>
+        <p>A stage magician's tricks aren't magic — they're a bunch of small, well-chosen techniques that together feel impossible. Same here. Each of these is a known engineering pattern; together they make Fuzzy feel solid.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🎭</div>
+            <h4 class="pattern-title">Provider abstraction</h4>
+            <p class="pattern-desc">The renderer doesn't know if OpenAI or a mock is answering. One interface, two implementations.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🪄</div>
+            <h4 class="pattern-title">Graceful fallback</h4>
+            <p class="pattern-desc">Picked OpenAI but no key configured? Silently fall back to the mock so the UI never dead-ends.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">📑</div>
+            <h4 class="pattern-title">Text layer trick</h4>
+            <p class="pattern-desc">Render the page as an image. Float invisible selectable text on top. The browser does the highlighting for free.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">📡</div>
+            <h4 class="pattern-title">Single source of truth for channels</h4>
+            <p class="pattern-desc">All IPC channel names live in one constants file — no string typos between sender and receiver.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">📦</div>
+            <h4 class="pattern-title">Structured-clone-friendly bytes</h4>
+            <p class="pattern-desc">Wrap PDF buffers as <code>Uint8Array</code> so they survive the trip across the IPC bridge.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 1: provider abstraction</h2>
+        <p>Both the mock and OpenAI providers implement the same shape. The caller doesn't care which one runs.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — services/ai/provider.ts:13</span>
+<pre><code><span class="code-line"><span class="code-keyword">export function</span> <span class="code-function">resolveProviderMode</span>(): AiProviderResolution {</span>
+<span class="code-line">  <span class="code-keyword">const</span> settings = <span class="code-function">readSettings</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (settings.providerMode === <span class="code-string">'openai'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">const</span> key = <span class="code-function">getDecryptedOpenaiKey</span>()</span>
+<span class="code-line">    <span class="code-keyword">if</span> (!key) <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'mock'</span>, <span class="code-property">reason</span>: <span class="code-string">'no_api_key'</span> }</span>
+<span class="code-line">    <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'openai'</span> }</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'mock'</span> }</span>
+<span class="code-line">}</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">runAiAction</span>(request: AiActionRequest): <span class="code-keyword">Promise</span>&lt;AiActionResult&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> resolution = <span class="code-function">resolveProviderMode</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (resolution.mode === <span class="code-string">'openai'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-function">runOpenAiAction</span>(request)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">runMockAction</span>(request)</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Read the user's settings.</p>
+              <p class="tl">If they want OpenAI...</p>
+              <p class="tl">...check if a key is actually configured. If not, fall back to mock with a reason ("no_api_key") so the UI can show a hint.</p>
+              <p class="tl">If yes, OpenAI it is.</p>
+              <p class="tl">Otherwise, mock by default.</p>
+              <p class="tl">The runAiAction function picks one branch and calls it. From the caller's perspective, both functions return the same shape — output text, model name, provider. <em>No special-casing in the UI</em>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">"Strategy pattern" — vocabulary win</strong>
+            <p>Engineers call this the <em>strategy pattern</em>: pluggable implementations behind one interface. The next time you're talking to AI, you can say "<em>use the strategy pattern to swap between Anthropic and OpenAI</em>" and they'll know exactly what you mean.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 3: the invisible text layer</h2>
+        <p>This is the cleverest UI move in Fuzzy. PDFs are rendered as bitmaps — pixels — but the user expects to <em>select</em> text. How?</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — components/pdf/PdfPage.tsx:71</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> textContent = <span class="code-keyword">await</span> page.<span class="code-function">getTextContent</span>()</span>
+<span class="code-line"></span>
+<span class="code-line">textLayer = <span class="code-keyword">new</span> <span class="code-function">TextLayer</span>({</span>
+<span class="code-line">  <span class="code-property">textContentSource</span>: textContent,</span>
+<span class="code-line">  <span class="code-property">container</span>: textDiv,</span>
+<span class="code-line">  <span class="code-property">viewport</span></span>
+<span class="code-line">})</span>
+<span class="code-line"><span class="code-keyword">await</span> textLayer.<span class="code-function">render</span>()</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Ask <span class="term" data-definition="pdf.js (pdfjs-dist) is Mozilla's open-source PDF rendering library — the same engine that ships in Firefox. It runs in the browser, parses the PDF, and can both draw the page as an image and pull out the text positions.">pdf.js</span> for the text content of this page — every word with its on-page coordinates.</p>
+              <p class="tl">Build a TextLayer: a transparent <code>&lt;div&gt;</code> overlaying the canvas, with a <code>&lt;span&gt;</code> for every text run, positioned exactly where the printed pixels are.</p>
+              <p class="tl">Render. The user sees the bitmap. They drag to select. Their mouse is actually selecting the invisible spans, but the browser's native text selection works exactly as expected.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📑</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why not just render text?</strong>
+            <p>Fonts in PDFs are often weird, unembedded, or rely on layout the browser can't replicate. Rendering as a bitmap guarantees pixel-perfect fidelity. Layering invisible text on top gets you both — accurate visuals AND selectable text.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 4: one source of truth for channel names</h2>
+        <p>Sender and receiver agree on a channel name. If they disagree by even one character, messages disappear silently. So both sides import from the same constants file.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — shared/ipc/channels.ts:4</span>
+<pre><code><span class="code-line"><span class="code-keyword">export const</span> IpcChannels = {</span>
+<span class="code-line">  <span class="code-property">healthPing</span>: <span class="code-string">'health:ping'</span>,</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-property">documentsList</span>: <span class="code-string">'documents:list'</span>,</span>
+<span class="code-line">  <span class="code-property">documentsImport</span>: <span class="code-string">'documents:import'</span>,</span>
+<span class="code-line">  <span class="code-property">documentsReadFile</span>: <span class="code-string">'documents:readFile'</span>,</span>
+<span class="code-line">  <span class="code-comment">// ...one entry per channel, both ends import from this file</span></span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-property">aiRunAction</span>: <span class="code-string">'ai:runAction'</span>,</span>
+<span class="code-line">  <span class="code-property">settingsSetOpenaiKey</span>: <span class="code-string">'settings:setOpenaiKey'</span></span>
+<span class="code-line">} <span class="code-keyword">as const</span></span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define one big constants object listing every IPC channel name.</p>
+              <p class="tl">Each channel is a colon-separated string like "documents:import" — colon-style is just a convention, like a postal address.</p>
+              <p class="tl">Both the preload (sender) and main (receiver) import from this file. If you misspell <code>aiRunAction</code>, TypeScript yells at compile time. If you misspelled it as a raw string in two places, it would silently fail at runtime.</p>
+              <p class="tl">"as const" tells TypeScript: don't widen these to plain strings. Treat each one as its own exact type. This catches subtle bugs.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 5: surviving the bridge with Uint8Array</h2>
+        <p>Sending a PDF's bytes from main back to the renderer sounds simple. It isn't. <span class="term" data-definition="Inter-Process Communication. The system that lets two separate programs (or processes) exchange messages. Electron uses it to bridge the renderer and main.">IPC</span> serializes objects using a thing called <span class="term" data-definition="A built-in browser way to copy complex JavaScript objects across process boundaries. It handles arrays, dates, maps, typed arrays — but not every type. Plain Buffers can lose information; Uint8Arrays survive intact.">structured clone</span>, and not every type survives.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:78</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">readDocumentBytes</span>(filePath: string): <span class="code-keyword">Promise</span>&lt;Uint8Array&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> buf = <span class="code-keyword">await</span> <span class="code-function">readFile</span>(filePath)</span>
+<span class="code-line">  <span class="code-comment">// Wrap as a plain Uint8Array so it survives the structured-clone IPC.</span></span>
+<span class="code-line">  <span class="code-keyword">return new</span> <span class="code-function">Uint8Array</span>(buf.buffer, buf.byteOffset, buf.byteLength)</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Read the PDF file from disk into memory. Node hands back a "Buffer" — its own special bytes-container.</p>
+              <p class="tl">The comment explains the gotcha: Buffer is Node-specific. When IPC serializes it, weird stuff can happen.</p>
+              <p class="tl">Wrap it in a plain Uint8Array (a standard typed array). Same bytes underneath, but a type that structured clone handles cleanly. The renderer receives clean bytes that pdf.js can parse.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">A real bug that AI would miss</strong>
+            <p>If you asked an AI to "read the PDF and send it to the renderer," it would probably hand back the raw Node Buffer. It would <em>look</em> right in tests, then mysteriously corrupt in production. The one-line wrap is the kind of detail that comes from experience — exactly the kind of intervention you want to be able to make.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Final exam</h2>
+
+        <div class="quiz-container" id="quiz-module5">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The provider abstraction means the renderer just calls runAction — the main process picks Anthropic or OpenAI based on settings. You'd add a third implementation, register it in resolveProviderMode, and the UI gets it for free."
+               data-explanation-wrong="If you teach the renderer about each provider individually, every new provider means UI changes. The whole point of the strategy pattern is to keep all that branching in one place — the provider resolver in main.">
+            <h3 class="quiz-question">You want to add Anthropic Claude as a third provider option in Fuzzy. Where do you make changes — and what stays untouched?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Touch every component in the renderer to teach it about Anthropic</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Add an anthropicProvider.ts in main, extend the provider resolver — UI requires no changes because of the strategy pattern</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Modify the IPC channels file and that's it</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. The text layer is invisible spans floating on top of the bitmap. If they're missing or misaligned, the user sees the page fine but cannot select. PdfPage.tsx is where to look — specifically the textLayer.render() call and viewport calculation."
+               data-explanation-wrong="The bitmap is from page.render() — selecting doesn't depend on it. The mouseup handler only runs after a selection exists. The selection bug is upstream of all that — the text layer that makes selecting <em>possible</em> isn't being built or positioned right.">
+            <h3 class="quiz-question">A user reports: "I can SEE the PDF page fine but I can't select any text." Based on what you've learned, what's the first place you'd look?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The bitmap rendering — page.render() must be broken</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The mouseup handler — it's not capturing the selection</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The TextLayer — the invisible selectable spans aren't being rendered or positioned correctly over the canvas</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Yes — the encrypted key in safeStorage is tied to your OS account. A new install on the same Mac would still have the macOS Keychain entry, but the database file is fresh, so you'd re-paste the key (and it would re-encrypt cleanly). On a different Mac, the keychain is different, so the key has to be entered again. This is the whole point of encryption-at-rest."
+               data-explanation-wrong="The key isn't stored 'in' the OS Keychain as a free-floating secret — it's stored encrypted in the database, encrypted by a Keychain-backed key that's specific to your user account on that machine.">
+            <h3 class="quiz-question">You reinstall macOS but keep your Library folder. After reinstalling Fuzzy and pointing it at the same database, will your OpenAI key still work?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Probably not — the safeStorage encryption is tied to the OS user / keychain, which a fresh install rebuilds. You'd need to re-paste the key.</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes — the encrypted key is just bytes, it'll decrypt anywhere</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Only if the key is shorter than 50 characters</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module5')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module5')">Try Again</button>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">You made it</h2>
+        <p>You now know what every piece of Fuzzy does and why. You can read the codebase. You can debug "it's not showing up" problems by knowing which of the three rooms to check first. You can talk to AI about it using the right vocabulary — <em>strategy pattern, encryption at rest, structured clone, IPC bridge, content hash, WAL mode.</em></p>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">🚀</div>
+          <div class="callout-content">
+            <strong class="callout-title">Where to go from here</strong>
+            <p>Open the Fuzzy source. Pick any file you saw in this course. Read it top to bottom — you'll be surprised how much makes sense now. Try to make a small change with AI's help: add a seventh AI action, or surface "deduped" status more clearly in the UI. The codebase is yours.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>

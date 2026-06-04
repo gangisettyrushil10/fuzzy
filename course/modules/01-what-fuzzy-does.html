@@ -1,0 +1,195 @@
+<section class="module" id="module-1" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">What Fuzzy actually does</h1>
+      <p class="module-subtitle">A reading workspace where you highlight text and an AI explains it in the margin — and the whole thing lives on your laptop, not in the cloud.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The 30-second pitch</h2>
+        <p>Fuzzy is the "Cursor for reading." You import a <span class="term" data-definition="A PDF is a Portable Document Format file — basically a frozen, printable snapshot of a document. The text inside isn't always easy for software to grab, which is why Fuzzy has to work hard to extract it.">PDF</span>, you highlight a sentence that confuses you, and a little floating menu pops up with six AI buttons: <em>Explain, Simplify, Summarize, Define, Example, Quiz me</em>. Click one and the answer appears in a side panel — which you can save as a margin note.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📖</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why this metaphor: a margin annotator with a brain</strong>
+            <p>Think of a really patient friend reading the book alongside you with a pencil. You point at a confusing line — they scribble a plain-English explanation in the margin. That's Fuzzy. Everything in this course explains how that scribbling friend actually works.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The user journey, end to end</h2>
+        <p>Before we look at any code, let's trace what happens when you actually use the app. These are the five moments that matter.</p>
+
+        <div class="step-cards">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Import a PDF</strong>
+              <p>You hit "Import PDF". A native file picker opens. The file gets <span class="term" data-definition="Copying a file means duplicating its bytes from one place on disk to another. Fuzzy copies your PDF into its own private folder so even if you delete the original, your library still works.">copied</span> into Fuzzy's private library folder so the app owns its own copy.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>The PDF is rendered into a real, selectable page</strong>
+              <p>Each page is drawn as an image, with an invisible layer of selectable text floating on top — like a sheet of clear plastic with the words stencilled out.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>You highlight a sentence</strong>
+              <p>Your mouse drags across the text. A tiny floating toolbar with six buttons appears right where you let go.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>You click "Explain"</strong>
+              <p>The selected text plus a little surrounding context gets sent to an <span class="term" data-definition="An AI provider is the company or service that runs the actual AI model. Fuzzy can talk to OpenAI (the makers of ChatGPT) — or use a built-in mock provider for offline demos.">AI provider</span>, which writes a plain-English explanation back.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>You save it as a margin note</strong>
+              <p>The explanation can be saved as an <span class="term" data-definition="An annotation is just a fancy word for a saved note attached to a specific spot in a document — like a sticky note on a textbook page.">annotation</span> tied to that page. It shows up in the Notes sidebar forever.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The first surprise: Fuzzy is three apps in a trench coat</h2>
+        <p>Fuzzy looks like one app, but under the hood it's <strong>three separate programs</strong> that talk to each other through a tiny, locked door. This is how every <span class="term" data-definition="Electron is a framework that lets you build a desktop app using web technologies (HTML, CSS, JavaScript). Apps like VS Code, Slack, and Discord are all Electron apps. It bundles a stripped-down Chrome browser with a Node.js runtime.">Electron</span> app works — including VS Code, Slack, and Discord.</p>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">🖼️</div>
+            <div>
+              <strong>The Renderer (the window you see)</strong>
+              <p>A web page running React. This is the entire UI — sidebars, the PDF reader, the tutor panel. Knows nothing about your computer.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🚪</div>
+            <div>
+              <strong>The Preload (the locked door)</strong>
+              <p>A tiny script that exposes a small, safe set of "buttons" the renderer can press to ask the main process to do things.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">⚙️</div>
+            <div>
+              <strong>The Main process (the back office)</strong>
+              <p>A Node.js program that has full access to your laptop — files, dialogs, the SQLite database, the OpenAI <span class="term" data-definition="An API key is a secret password that proves your app is allowed to use a paid service like OpenAI. Treat it like a credit card number — never paste it where strangers can see it.">API key</span>, the works.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why split it up?</strong>
+            <p>If the rendering window had direct access to your filesystem, every PDF you opened could potentially read your tax returns. The split is a security wall. We'll spend all of Module 2 on this.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trace one click: Import PDF</h2>
+        <p>Here's the actual handler that runs when you press Import. Read the code on the left, the plain English on the right.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:34</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">openImportDialog</span>(parent: BrowserWindow | <span class="code-keyword">null</span>): <span class="code-keyword">Promise</span>&lt;ImportResult | <span class="code-keyword">null</span>&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> picker = parent</span>
+<span class="code-line">    ? dialog.<span class="code-function">showOpenDialog</span>(parent, {</span>
+<span class="code-line">        <span class="code-property">title</span>: <span class="code-string">'Import a PDF'</span>,</span>
+<span class="code-line">        <span class="code-property">properties</span>: [<span class="code-string">'openFile'</span>],</span>
+<span class="code-line">        <span class="code-property">filters</span>: [{ <span class="code-property">name</span>: <span class="code-string">'PDF'</span>, <span class="code-property">extensions</span>: [<span class="code-string">'pdf'</span>] }]</span>
+<span class="code-line">      })</span>
+<span class="code-line">    : dialog.<span class="code-function">showOpenDialog</span>({ <span class="code-comment">/* ...same options... */</span> })</span>
+<span class="code-line">  <span class="code-keyword">const</span> { canceled, filePaths } = <span class="code-keyword">await</span> picker</span>
+<span class="code-line">  <span class="code-keyword">if</span> (canceled || filePaths.length === <span class="code-number">0</span>) <span class="code-keyword">return</span> <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">importPdfFromPath</span>(filePaths[<span class="code-number">0</span>])</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define a job called "openImportDialog" — it'll do work and eventually hand back either a finished import or nothing.</p>
+              <p class="tl">Pop up the native macOS file picker. Title it "Import a PDF".</p>
+              <p class="tl">Only let the user pick one file, and only show files ending in <code>.pdf</code>.</p>
+              <p class="tl">Wait for the user to either pick a file or hit cancel.</p>
+              <p class="tl">If they cancelled, bail out — return nothing.</p>
+              <p class="tl">Otherwise, hand the chosen file path to the next step, which copies it into Fuzzy's library and saves a row in the database.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>That's the whole thing. The "magic" of importing a PDF is, on inspection, just: ask the OS for a file path, then copy bytes into a known folder. Most of Fuzzy is like this — boring plumbing, executed carefully.</p>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module1">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The pop-up is a native OS dialog that only the main process can summon. The web-page UI has to politely ask through the preload bridge — it cannot show a file picker by itself."
+               data-explanation-wrong="Not quite. Web pages cannot open native file pickers on their own; that's an OS-level capability. Try again — think about which of Fuzzy's three pieces actually has access to system dialogs.">
+            <h3 class="quiz-question">When you click "Import PDF", which piece of Fuzzy is responsible for actually showing the file picker?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The React UI in the renderer window</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The main process — the back-office Node program</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>OpenAI</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. Fuzzy is a local-first reading workspace — the file lives on your disk, the database lives on your disk, and the AI is the only optional outside call. That's the whole product premise."
+               data-explanation-wrong="Look again. Fuzzy is described as 'local-first' — the whole point is that your library, notes, and reading data don't live on someone else's server.">
+            <h3 class="quiz-question">A friend asks: "Where do my Fuzzy notes get stored?" What's the honest answer?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the cloud, on Fuzzy's servers</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>On OpenAI's servers along with the AI responses</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>On your own laptop, in a SQLite database file</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module1')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module1')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>

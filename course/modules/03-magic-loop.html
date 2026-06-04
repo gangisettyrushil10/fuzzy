@@ -1,0 +1,249 @@
+<section class="module" id="module-3" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">The magic loop</h1>
+      <p class="module-subtitle">Highlight a sentence. An explanation appears. Trace the journey of those words from your cursor to OpenAI and back.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a relay race</h2>
+        <p>Five runners stand on a track, each holding a baton-shaped piece of data. The selected text is the baton. Each runner does one focused job and hands off to the next.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🏃</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why a relay, not a phone call</strong>
+            <p>If one runner tried to do everything — read the selection, encrypt the API key, call OpenAI, save to the DB, update the UI — the code would be a tangle. By splitting the work into a chain of focused steps, each piece stays small enough to reason about.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Watch the baton get passed</h2>
+        <p>Click "Next Step" to walk through what happens, in order, when you select text and click "Explain".</p>
+
+        <div class="flow-animation" data-steps='[
+          {"highlight":"flow-actor-1","label":"Step 1 — You drag your cursor across a sentence in the PDF reader."},
+          {"highlight":"flow-actor-1","label":"Step 2 — A mouseup handler in PdfReader captures the Range, finds the page number, stores the selection in the Zustand store."},
+          {"highlight":"flow-actor-2","label":"Step 3 — SelectionMenu reads the store and renders a floating chip above the highlighted text.","packet":true,"from":"actor-1","to":"actor-2"},
+          {"highlight":"flow-actor-2","label":"Step 4 — User clicks Explain. The renderer calls window.fuzzy.ai.runAction(...) with the text + page context."},
+          {"highlight":"flow-actor-3","label":"Step 5 — The preload bridge forwards the call across the IPC channel ai:runAction.","packet":true,"from":"actor-2","to":"actor-3"},
+          {"highlight":"flow-actor-4","label":"Step 6 — Main validates the request: text not empty, length under 8000, action is one of six allowed values.","packet":true,"from":"actor-3","to":"actor-4"},
+          {"highlight":"flow-actor-4","label":"Step 7 — provider.ts checks settings: is the user using mock or OpenAI? If OpenAI but no key, fall back to mock."},
+          {"highlight":"flow-actor-5","label":"Step 8 — If OpenAI: decrypt the API key, send a chat completion request, await the response.","packet":true,"from":"actor-4","to":"actor-5"},
+          {"highlight":"flow-actor-4","label":"Step 9 — Response comes back. Main saves it as a row in the ai_responses table for history.","packet":true,"from":"actor-5","to":"actor-4"},
+          {"highlight":"flow-actor-2","label":"Step 10 — The text + model + provider info travels back through the bridge to the renderer.","packet":true,"from":"actor-4","to":"actor-2"},
+          {"highlight":"flow-actor-1","label":"Step 11 — TutorStore updates with the response. The right tutor panel re-renders and shows the explanation."}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-actor-1">
+              <div class="flow-actor-icon">📄</div>
+              <span>PDF Reader</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-2">
+              <div class="flow-actor-icon">🪟</div>
+              <span>Selection + Tutor</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-3">
+              <div class="flow-actor-icon">🚪</div>
+              <span>Preload</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-4">
+              <div class="flow-actor-icon">⚙️</div>
+              <span>Main / DB</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-5">
+              <div class="flow-actor-icon">🤖</div>
+              <span>OpenAI</span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-packet"></div>
+
+          <div class="flow-step-label" id="flow-label">Click "Next Step" to begin the relay</div>
+
+          <div class="flow-controls">
+            <button class="btn flow-next-btn">Next Step</button>
+            <button class="btn flow-reset-btn">Restart</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 2 in code: catching the selection</h2>
+        <p>The browser already has a built-in <code>window.getSelection()</code>. Fuzzy uses it directly — no fancy tracking — but adds one trick: walk up the DOM until you find the page number.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — PdfReader.tsx:61</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> handleMouseUp = <span class="code-function">useCallback</span>(() =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> win = window.<span class="code-function">getSelection</span>()</span>
+<span class="code-line">  <span class="code-keyword">const</span> text = win?.<span class="code-function">toString</span>().<span class="code-function">trim</span>() ?? <span class="code-string">''</span></span>
+<span class="code-line">  <span class="code-keyword">if</span> (!text || !win || win.rangeCount === <span class="code-number">0</span>) {</span>
+<span class="code-line">    <span class="code-function">clearSelection</span>(); <span class="code-keyword">return</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> range = win.<span class="code-function">getRangeAt</span>(<span class="code-number">0</span>)</span>
+<span class="code-line">  <span class="code-keyword">const</span> node = (range.startContainer <span class="code-keyword">as</span> HTMLElement | <span class="code-keyword">null</span>) ?? <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">const</span> pageEl = (node?.parentElement?.closest?.(<span class="code-string">'[data-page-number]'</span>) ??</span>
+<span class="code-line">    <span class="code-keyword">null</span>) <span class="code-keyword">as</span> HTMLElement | <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">if</span> (!pageEl) { <span class="code-function">clearSelection</span>(); <span class="code-keyword">return</span> }</span>
+<span class="code-line">  <span class="code-keyword">const</span> pageNumber = <span class="code-function">Number</span>(pageEl.dataset.pageNumber)</span>
+<span class="code-line">  <span class="code-comment">// ...read the rect, send to selectionStore</span></span>
+<span class="code-line">}, [documentId, setSelection, clearSelection])</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">When the user lifts the mouse, run this function.</p>
+              <p class="tl">Ask the browser: "what's currently selected?" and turn it into a string.</p>
+              <p class="tl">If nothing's selected (empty string, no range), wipe any old selection and bail.</p>
+              <p class="tl">Otherwise, grab the actual selected range — the start node, end node, and pixel coordinates.</p>
+              <p class="tl">Climb up the DOM tree from the selection's start node, looking for an ancestor that has a <code>data-page-number</code> attribute.</p>
+              <p class="tl">If we found that ancestor, read the page number off it. Now we know <em>which page</em> the user selected from. Save the whole thing into the shared store so the floating menu can show up.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">The "data-* attribute" trick</strong>
+            <p>Anywhere in HTML you can add custom attributes prefixed with <code>data-</code>. Fuzzy stamps each rendered page with <code>data-page-number="3"</code>. When the selection happens, the code climbs up the tree until it finds that stamp. This is one of the most common patterns in real-world web apps.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 6 in code: the gatekeeper</h2>
+        <p>Before main does anything with the renderer's request, it validates. Treat anything coming across the bridge as untrusted input — even though it's "your own app."</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/ipc/ai.ipc.ts:19</span>
+<pre><code><span class="code-line"><span class="code-keyword">function</span> <span class="code-function">validateRequest</span>(input: unknown): AiActionRequest {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!input || <span class="code-keyword">typeof</span> input !== <span class="code-string">'object'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'Invalid AI action request.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> r = input <span class="code-keyword">as</span> Partial&lt;AiActionRequest&gt;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (<span class="code-keyword">typeof</span> r.selectedText !== <span class="code-string">'string'</span> || !r.selectedText.<span class="code-function">trim</span>()) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'selectedText is required.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (r.selectedText.length &gt; <span class="code-number">8000</span>) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'selectedText is too long (max 8000 chars).'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!r.action || !VALID_ACTIONS.<span class="code-function">includes</span>(r.action)) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'action must be one of: explain, simplify, ...'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> { <span class="code-comment">/* sanitized request */</span> }</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Take whatever the renderer sent in. Treat its type as "unknown" until proven otherwise.</p>
+              <p class="tl">First sanity check: is this even an object?</p>
+              <p class="tl">Treat the input as <em>maybe</em> having the right shape, then verify each field one at a time.</p>
+              <p class="tl">"selectedText" must be a non-empty string.</p>
+              <p class="tl">Cap it at 8000 characters — protects against runaway prompts that would burn tokens or cost money.</p>
+              <p class="tl">"action" must be one of the six known values. Anything else is rejected.</p>
+              <p class="tl">Only after every check passes do we hand back a clean, typed request to the AI provider.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 9: the AI response gets logged</h2>
+        <p>Every AI response goes into a SQLite table called <code>ai_responses</code>. This is what lets you see "history" of explanations — and lets future Fuzzy features replay them without re-paying OpenAI.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/ipc/ai.ipc.ts:53</span>
+<pre><code><span class="code-line">ipcMain.<span class="code-function">handle</span>(IpcChannels.aiRunAction, <span class="code-keyword">async</span> (_e, raw: unknown) =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> request = <span class="code-function">validateRequest</span>(raw)</span>
+<span class="code-line">  <span class="code-keyword">const</span> result = <span class="code-keyword">await</span> <span class="code-function">runAiAction</span>(request)</span>
+<span class="code-line">  <span class="code-function">insertAiResponse</span>({</span>
+<span class="code-line">    <span class="code-property">documentId</span>: request.documentId,</span>
+<span class="code-line">    <span class="code-property">pageNumber</span>: request.pageNumber,</span>
+<span class="code-line">    <span class="code-property">actionType</span>: request.action,</span>
+<span class="code-line">    <span class="code-property">inputText</span>: request.selectedText,</span>
+<span class="code-line">    <span class="code-property">contextText</span>: request.contextText,</span>
+<span class="code-line">    <span class="code-property">outputText</span>: result.outputText,</span>
+<span class="code-line">    <span class="code-property">model</span>: result.model</span>
+<span class="code-line">  })</span>
+<span class="code-line">  <span class="code-keyword">return</span> result</span>
+<span class="code-line">})</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">When a request comes in on the "ai:runAction" channel, run this handler.</p>
+              <p class="tl">First validate the raw input (the previous slide).</p>
+              <p class="tl">Hand it to the AI provider — that returns text, model name, and which provider answered.</p>
+              <p class="tl">Save a row in the database: which document, which page, what action, what was asked, what was answered, by which model.</p>
+              <p class="tl">Hand the result back to the renderer. The UI will display it in the tutor panel.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module3">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Yes — that 8000-char ceiling lives in main, not the renderer. Why? Because the UI input is one of many possible callers; main is the trust boundary. Validation must always happen on the side that owns the resource being protected."
+               data-explanation-wrong="A friendlier UI message in the renderer is nice, but it's not a real safeguard — anyone could call the IPC bypassing the UI. The ceiling has to be enforced where it can't be ducked. That's main.">
+            <h3 class="quiz-question">A user reports: "I selected a giant 20,000-character paragraph and clicked Explain. Nothing happens." Where would you go to debug — and why?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The renderer's text input — it must be silently truncating</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The validateRequest function in main — there's an 8000-char ceiling that throws an error</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>OpenAI — they reject big requests</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Right. The IPC handler logs to ai_responses regardless of provider — that's the source of truth for history. You'd query that table directly to see if a row was inserted."
+               data-explanation-wrong="The renderer's local Zustand state is wiped on close — it can't be the source of truth. And OpenAI doesn't keep your prompts around for you to query. The DB row is what survives.">
+            <h3 class="quiz-question">You want to add a "show me everything I asked Fuzzy this week" feature. Which data source do you read from?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The ai_responses table in SQLite — every response is logged there</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The Zustand tutor store in the renderer</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Call OpenAI's API to fetch your usage history</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module3')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module3')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>

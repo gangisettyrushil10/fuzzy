@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inside Fuzzy — How Your Reading App Actually Works</title>
+
+  <!-- Google Fonts: Bricolage Grotesque · DM Sans · JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!--
+    Accent palette: coral — warm, inviting, fits a reading workspace.
+  -->
+  <style>
+    :root {
+      --color-accent:       #E06B56;
+      --color-accent-hover: #C85A47;
+      --color-accent-light: #FDECEA;
+      --color-accent-muted: #E89585;
+    }
+  </style>
+
+  <script src="main.js" defer></script>
+</head>
+<body>
+
+  <nav class="nav" id="nav">
+    <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="nav-inner">
+      <span class="nav-title">Inside Fuzzy</span>
+      <div class="nav-dots" id="nav-dots" role="tablist">
+        <button class="nav-dot" data-target="module-1" data-tooltip="What Fuzzy does" role="tab" aria-label="Module 1: What Fuzzy does"></button>
+        <button class="nav-dot" data-target="module-2" data-tooltip="The three rooms" role="tab" aria-label="Module 2: The three rooms"></button>
+        <button class="nav-dot" data-target="module-3" data-tooltip="The magic loop" role="tab" aria-label="Module 3: The magic loop"></button>
+        <button class="nav-dot" data-target="module-4" data-tooltip="Local-first by design" role="tab" aria-label="Module 4: Local-first by design"></button>
+        <button class="nav-dot" data-target="module-5" data-tooltip="The clever tricks" role="tab" aria-label="Module 5: The clever tricks"></button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <!-- modules/*.html content is assembled here by build.sh -->
+<section class="module" id="module-1" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">What Fuzzy actually does</h1>
+      <p class="module-subtitle">A reading workspace where you highlight text and an AI explains it in the margin — and the whole thing lives on your laptop, not in the cloud.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The 30-second pitch</h2>
+        <p>Fuzzy is the "Cursor for reading." You import a <span class="term" data-definition="A PDF is a Portable Document Format file — basically a frozen, printable snapshot of a document. The text inside isn't always easy for software to grab, which is why Fuzzy has to work hard to extract it.">PDF</span>, you highlight a sentence that confuses you, and a little floating menu pops up with six AI buttons: <em>Explain, Simplify, Summarize, Define, Example, Quiz me</em>. Click one and the answer appears in a side panel — which you can save as a margin note.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📖</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why this metaphor: a margin annotator with a brain</strong>
+            <p>Think of a really patient friend reading the book alongside you with a pencil. You point at a confusing line — they scribble a plain-English explanation in the margin. That's Fuzzy. Everything in this course explains how that scribbling friend actually works.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The user journey, end to end</h2>
+        <p>Before we look at any code, let's trace what happens when you actually use the app. These are the five moments that matter.</p>
+
+        <div class="step-cards">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Import a PDF</strong>
+              <p>You hit "Import PDF". A native file picker opens. The file gets <span class="term" data-definition="Copying a file means duplicating its bytes from one place on disk to another. Fuzzy copies your PDF into its own private folder so even if you delete the original, your library still works.">copied</span> into Fuzzy's private library folder so the app owns its own copy.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>The PDF is rendered into a real, selectable page</strong>
+              <p>Each page is drawn as an image, with an invisible layer of selectable text floating on top — like a sheet of clear plastic with the words stencilled out.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>You highlight a sentence</strong>
+              <p>Your mouse drags across the text. A tiny floating toolbar with six buttons appears right where you let go.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>You click "Explain"</strong>
+              <p>The selected text plus a little surrounding context gets sent to an <span class="term" data-definition="An AI provider is the company or service that runs the actual AI model. Fuzzy can talk to OpenAI (the makers of ChatGPT) — or use a built-in mock provider for offline demos.">AI provider</span>, which writes a plain-English explanation back.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>You save it as a margin note</strong>
+              <p>The explanation can be saved as an <span class="term" data-definition="An annotation is just a fancy word for a saved note attached to a specific spot in a document — like a sticky note on a textbook page.">annotation</span> tied to that page. It shows up in the Notes sidebar forever.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The first surprise: Fuzzy is three apps in a trench coat</h2>
+        <p>Fuzzy looks like one app, but under the hood it's <strong>three separate programs</strong> that talk to each other through a tiny, locked door. This is how every <span class="term" data-definition="Electron is a framework that lets you build a desktop app using web technologies (HTML, CSS, JavaScript). Apps like VS Code, Slack, and Discord are all Electron apps. It bundles a stripped-down Chrome browser with a Node.js runtime.">Electron</span> app works — including VS Code, Slack, and Discord.</p>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">🖼️</div>
+            <div>
+              <strong>The Renderer (the window you see)</strong>
+              <p>A web page running React. This is the entire UI — sidebars, the PDF reader, the tutor panel. Knows nothing about your computer.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🚪</div>
+            <div>
+              <strong>The Preload (the locked door)</strong>
+              <p>A tiny script that exposes a small, safe set of "buttons" the renderer can press to ask the main process to do things.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">⚙️</div>
+            <div>
+              <strong>The Main process (the back office)</strong>
+              <p>A Node.js program that has full access to your laptop — files, dialogs, the SQLite database, the OpenAI <span class="term" data-definition="An API key is a secret password that proves your app is allowed to use a paid service like OpenAI. Treat it like a credit card number — never paste it where strangers can see it.">API key</span>, the works.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why split it up?</strong>
+            <p>If the rendering window had direct access to your filesystem, every PDF you opened could potentially read your tax returns. The split is a security wall. We'll spend all of Module 2 on this.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trace one click: Import PDF</h2>
+        <p>Here's the actual handler that runs when you press Import. Read the code on the left, the plain English on the right.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:34</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">openImportDialog</span>(parent: BrowserWindow | <span class="code-keyword">null</span>): <span class="code-keyword">Promise</span>&lt;ImportResult | <span class="code-keyword">null</span>&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> picker = parent</span>
+<span class="code-line">    ? dialog.<span class="code-function">showOpenDialog</span>(parent, {</span>
+<span class="code-line">        <span class="code-property">title</span>: <span class="code-string">'Import a PDF'</span>,</span>
+<span class="code-line">        <span class="code-property">properties</span>: [<span class="code-string">'openFile'</span>],</span>
+<span class="code-line">        <span class="code-property">filters</span>: [{ <span class="code-property">name</span>: <span class="code-string">'PDF'</span>, <span class="code-property">extensions</span>: [<span class="code-string">'pdf'</span>] }]</span>
+<span class="code-line">      })</span>
+<span class="code-line">    : dialog.<span class="code-function">showOpenDialog</span>({ <span class="code-comment">/* ...same options... */</span> })</span>
+<span class="code-line">  <span class="code-keyword">const</span> { canceled, filePaths } = <span class="code-keyword">await</span> picker</span>
+<span class="code-line">  <span class="code-keyword">if</span> (canceled || filePaths.length === <span class="code-number">0</span>) <span class="code-keyword">return</span> <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">importPdfFromPath</span>(filePaths[<span class="code-number">0</span>])</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define a job called "openImportDialog" — it'll do work and eventually hand back either a finished import or nothing.</p>
+              <p class="tl">Pop up the native macOS file picker. Title it "Import a PDF".</p>
+              <p class="tl">Only let the user pick one file, and only show files ending in <code>.pdf</code>.</p>
+              <p class="tl">Wait for the user to either pick a file or hit cancel.</p>
+              <p class="tl">If they cancelled, bail out — return nothing.</p>
+              <p class="tl">Otherwise, hand the chosen file path to the next step, which copies it into Fuzzy's library and saves a row in the database.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>That's the whole thing. The "magic" of importing a PDF is, on inspection, just: ask the OS for a file path, then copy bytes into a known folder. Most of Fuzzy is like this — boring plumbing, executed carefully.</p>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module1">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The pop-up is a native OS dialog that only the main process can summon. The web-page UI has to politely ask through the preload bridge — it cannot show a file picker by itself."
+               data-explanation-wrong="Not quite. Web pages cannot open native file pickers on their own; that's an OS-level capability. Try again — think about which of Fuzzy's three pieces actually has access to system dialogs.">
+            <h3 class="quiz-question">When you click "Import PDF", which piece of Fuzzy is responsible for actually showing the file picker?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The React UI in the renderer window</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The main process — the back-office Node program</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>OpenAI</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. Fuzzy is a local-first reading workspace — the file lives on your disk, the database lives on your disk, and the AI is the only optional outside call. That's the whole product premise."
+               data-explanation-wrong="Look again. Fuzzy is described as 'local-first' — the whole point is that your library, notes, and reading data don't live on someone else's server.">
+            <h3 class="quiz-question">A friend asks: "Where do my Fuzzy notes get stored?" What's the honest answer?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the cloud, on Fuzzy's servers</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>On OpenAI's servers along with the AI responses</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>On your own laptop, in a SQLite database file</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module1')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module1')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-2" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">The three rooms</h1>
+      <p class="module-subtitle">Renderer, preload, main. Why every Electron app is built like a bank — with a public lobby, a teller window, and a vault in the back.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a bank, not a kitchen</h2>
+        <p>Picture a bank branch. There are three zones with deliberate walls between them.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🛋️</div>
+            <h4 class="pattern-title">The lobby (Renderer)</h4>
+            <p class="pattern-desc">Anyone can walk in. Nice carpet, water cooler, the React UI. Cannot touch the cash directly.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🪟</div>
+            <h4 class="pattern-title">The teller window (Preload)</h4>
+            <p class="pattern-desc">A small slot with a clerk on the other side. The lobby slides paper requests through; the clerk decides what's allowed.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🔐</div>
+            <h4 class="pattern-title">The vault (Main process)</h4>
+            <p class="pattern-desc">Where the money lives — files, the database, your <span class="term" data-definition="A secret stored on your computer that proves your app can use a paid API. Anyone who steals it can spend money on your account.">API key</span>. No customer ever sets foot in here.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why this matters for steering AI</strong>
+            <p>When you ask an AI to add a feature to an Electron app, knowing this split lets you say "<em>put the file logic in the main process and expose it through the preload bridge</em>" instead of vague instructions like "make it work." That's the vocabulary win.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The cast of three</h2>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">🖼️</div>
+            <div>
+              <strong>Renderer — <code>src/renderer/</code></strong>
+              <p>A real Chrome web page. <span class="term" data-definition="React is a popular library for building user interfaces — instead of manually editing the page when something changes, you describe what the UI should look like for any given state, and React does the updating.">React</span> + <span class="term" data-definition="TypeScript is JavaScript with type-checking added on top — it catches typos and shape mismatches before you run the code. Almost every modern web app is written in TypeScript now.">TypeScript</span> + <span class="term" data-definition="Tailwind is a styling library that lets you write CSS as short class names directly on your HTML elements. Instead of writing 'background: red', you write class='bg-red-500'.">Tailwind</span> + <span class="term" data-definition="Zustand is a tiny state management library for React. Think of it as a shared whiteboard that any component can read from or write to, without passing data through every parent.">Zustand</span> for state. Has <em>zero</em> Node.js access — it cannot read files, run shell commands, or talk to the database.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🪟</div>
+            <div>
+              <strong>Preload — <code>src/preload/index.ts</code></strong>
+              <p>Runs in a special "in-between" environment. It defines a hand-picked menu of <span class="term" data-definition="A function is a named recipe for doing one thing — you call it by name, optionally hand it some inputs, and it does its job and possibly hands you back a result.">functions</span> that the renderer is allowed to call. Anything not on the menu, the renderer cannot do.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">⚙️</div>
+            <div>
+              <strong>Main — <code>src/main/</code></strong>
+              <p>A <span class="term" data-definition="Node.js is a runtime that lets JavaScript run outside the browser — it has full access to the operating system: files, network, processes, the works.">Node.js</span> program. Owns the <span class="term" data-definition="A SQLite database is a file-based database — the entire database lives in a single file on your disk. No server, no setup. Phones, browsers, and tons of apps use SQLite under the hood.">SQLite</span> database, the file system, the OpenAI key, and the dialog boxes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The teller window in code</h2>
+        <p>This is the <em>entire</em> menu of buttons the renderer is allowed to press. Every UI interaction with the back office goes through one of these.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — preload/index.ts:5</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> fuzzy: FuzzyApi = {</span>
+<span class="code-line">  <span class="code-property">documents</span>: {</span>
+<span class="code-line">    <span class="code-property">list</span>: () =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsList),</span>
+<span class="code-line">    <span class="code-property">import</span>: () =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsImport),</span>
+<span class="code-line">    <span class="code-property">readFile</span>: (id) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.documentsReadFile, id),</span>
+<span class="code-line">    <span class="code-comment">// ...more document methods</span></span>
+<span class="code-line">  },</span>
+<span class="code-line">  <span class="code-property">ai</span>: {</span>
+<span class="code-line">    <span class="code-property">runAction</span>: (request) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.aiRunAction, request)</span>
+<span class="code-line">  },</span>
+<span class="code-line">  <span class="code-property">settings</span>: {</span>
+<span class="code-line">    <span class="code-property">setOpenaiKey</span>: (key) =&gt; ipcRenderer.<span class="code-function">invoke</span>(IpcChannels.settingsSetOpenaiKey, key),</span>
+<span class="code-line">    <span class="code-comment">// note: there is NO getOpenaiKey() — the key never leaves main</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">}</span>
+<span class="code-line">contextBridge.<span class="code-function">exposeInMainWorld</span>(<span class="code-string">'fuzzy'</span>, fuzzy)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Build an object called "fuzzy" — this is the public menu.</p>
+              <p class="tl">Group the document-related buttons together.</p>
+              <p class="tl">"list" → ask main for all documents. "import" → ask main to open the file picker.</p>
+              <p class="tl">"readFile" → hand main a document ID and ask for the raw bytes back.</p>
+              <p class="tl">Group the AI buttons. "runAction" sends an explanation request to main.</p>
+              <p class="tl">Settings: you can <em>set</em> the OpenAI key. Notice — no getter. The renderer can write the key but never read it back. This is intentional.</p>
+              <p class="tl">Hand the menu through the locked door so the React UI can find it as <code>window.fuzzy</code>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">The non-obvious safety move</strong>
+            <p>There is no <code>getOpenaiKey</code> on this menu. Once written, the API key is encrypted by the OS keychain and the renderer cannot read it back. Even if a malicious PDF somehow ran code in the renderer, it could not steal your key.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The window's security settings</h2>
+        <p>Down at the foundation, the main process creates the browser window with three settings that lock everything down.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/index.ts:8</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> mainWindow = <span class="code-keyword">new</span> <span class="code-function">BrowserWindow</span>({</span>
+<span class="code-line">  <span class="code-property">width</span>: <span class="code-number">1440</span>,</span>
+<span class="code-line">  <span class="code-property">height</span>: <span class="code-number">900</span>,</span>
+<span class="code-line">  <span class="code-property">webPreferences</span>: {</span>
+<span class="code-line">    <span class="code-property">preload</span>: <span class="code-function">join</span>(__dirname, <span class="code-string">'../preload/index.js'</span>),</span>
+<span class="code-line">    <span class="code-property">sandbox</span>: <span class="code-keyword">false</span>,</span>
+<span class="code-line">    <span class="code-property">contextIsolation</span>: <span class="code-keyword">true</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">})</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Make a new browser window — 1440 by 900 pixels.</p>
+              <p class="tl">Fancy settings live under <code>webPreferences</code>.</p>
+              <p class="tl">"preload" → load this script first, before the page. This is the teller window.</p>
+              <p class="tl">"contextIsolation: true" → keep the page's JavaScript world walled off from the preload's world. They share <em>nothing</em> except the menu we explicitly handed over.</p>
+              <p class="tl">Without that flag, malicious scripts on the page could reach into the preload and grab the keys to the kingdom.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">A conversation between the three rooms</h2>
+        <p>Here's what actually happens when you click "Import PDF". Watch them talk to each other — one message at a time.</p>
+
+        <div class="chat-window" id="chat-import">
+          <div class="chat-messages">
+            <div class="chat-message" data-msg="0" data-sender="renderer" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">UI</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">Renderer (React UI)</span>
+                <p>User just clicked "Import PDF". I have no way to open a file picker myself. Hey teller — could you forward this?</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="1" data-sender="preload" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">PL</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Preload (the bridge)</span>
+                <p>Sure. I see "documents.import()" on my menu. Forwarding to the channel "documents:import" in main.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="2" data-sender="main" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">M</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Main (the back office)</span>
+                <p>Got it. Opening the native macOS file picker now... user picked "paper.pdf". I'll copy it to the library folder, hash it for dedupe, and write a row in SQLite.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="3" data-sender="main" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">M</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Main (the back office)</span>
+                <p>Done. Here's the new document record: { id, title, filePath, ... }. Sending it back through the bridge.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="4" data-sender="renderer" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">UI</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">Renderer (React UI)</span>
+                <p>Got the new document! Adding it to the sidebar list and opening it in the reader. The user sees their PDF appear.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-typing" id="chat-typing" style="display:none">
+            <div class="chat-avatar" id="typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">Next Message</button>
+            <button class="btn chat-all-btn">Play All</button>
+            <button class="btn chat-reset-btn">Replay</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module2">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The renderer is a sandboxed browser page — it can't touch your files. To do anything system-level, it has to call a function the preload exposed, which then tells the main process to do the actual work."
+               data-explanation-wrong="The renderer is the React UI running in a Chrome window. Browser pages cannot directly read files on your disk — that would be a giant security hole. It has to ask through the bridge.">
+            <h3 class="quiz-question">You're asking an AI to "add a feature that exports all your highlights to a CSV file on disk." Where should the file-writing code live?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the renderer — it's a UI feature, the React component should write the file</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the main process, exposed as a new method on the preload bridge</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>In the preload — it has access to both worlds</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. The renderer doesn't get a 'getOpenaiKey' button on its menu. The key is encrypted in main and only used there — the renderer only ever sees a boolean ('do we have a key?') for UI state."
+               data-explanation-wrong="Look at the preload menu again — there's a setter, but no getter. The renderer is intentionally never given a way to read the key back. This is a deliberate security choice.">
+            <h3 class="quiz-question">A user reports: "I want to copy my OpenAI key out of Fuzzy to paste it elsewhere." Why is this not possible — and is that a bug?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>It's a bug — there's a getter on the preload, the UI just doesn't use it</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The key is in plain text but UI hides it — easy fix</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Not a bug — by design. The preload exposes no getter; the key is encrypted in main and never crosses back to the UI</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module2')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module2')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-3" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">The magic loop</h1>
+      <p class="module-subtitle">Highlight a sentence. An explanation appears. Trace the journey of those words from your cursor to OpenAI and back.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a relay race</h2>
+        <p>Five runners stand on a track, each holding a baton-shaped piece of data. The selected text is the baton. Each runner does one focused job and hands off to the next.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🏃</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why a relay, not a phone call</strong>
+            <p>If one runner tried to do everything — read the selection, encrypt the API key, call OpenAI, save to the DB, update the UI — the code would be a tangle. By splitting the work into a chain of focused steps, each piece stays small enough to reason about.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Watch the baton get passed</h2>
+        <p>Click "Next Step" to walk through what happens, in order, when you select text and click "Explain".</p>
+
+        <div class="flow-animation" data-steps='[
+          {"highlight":"flow-actor-1","label":"Step 1 — You drag your cursor across a sentence in the PDF reader."},
+          {"highlight":"flow-actor-1","label":"Step 2 — A mouseup handler in PdfReader captures the Range, finds the page number, stores the selection in the Zustand store."},
+          {"highlight":"flow-actor-2","label":"Step 3 — SelectionMenu reads the store and renders a floating chip above the highlighted text.","packet":true,"from":"actor-1","to":"actor-2"},
+          {"highlight":"flow-actor-2","label":"Step 4 — User clicks Explain. The renderer calls window.fuzzy.ai.runAction(...) with the text + page context."},
+          {"highlight":"flow-actor-3","label":"Step 5 — The preload bridge forwards the call across the IPC channel ai:runAction.","packet":true,"from":"actor-2","to":"actor-3"},
+          {"highlight":"flow-actor-4","label":"Step 6 — Main validates the request: text not empty, length under 8000, action is one of six allowed values.","packet":true,"from":"actor-3","to":"actor-4"},
+          {"highlight":"flow-actor-4","label":"Step 7 — provider.ts checks settings: is the user using mock or OpenAI? If OpenAI but no key, fall back to mock."},
+          {"highlight":"flow-actor-5","label":"Step 8 — If OpenAI: decrypt the API key, send a chat completion request, await the response.","packet":true,"from":"actor-4","to":"actor-5"},
+          {"highlight":"flow-actor-4","label":"Step 9 — Response comes back. Main saves it as a row in the ai_responses table for history.","packet":true,"from":"actor-5","to":"actor-4"},
+          {"highlight":"flow-actor-2","label":"Step 10 — The text + model + provider info travels back through the bridge to the renderer.","packet":true,"from":"actor-4","to":"actor-2"},
+          {"highlight":"flow-actor-1","label":"Step 11 — TutorStore updates with the response. The right tutor panel re-renders and shows the explanation."}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-actor-1">
+              <div class="flow-actor-icon">📄</div>
+              <span>PDF Reader</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-2">
+              <div class="flow-actor-icon">🪟</div>
+              <span>Selection + Tutor</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-3">
+              <div class="flow-actor-icon">🚪</div>
+              <span>Preload</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-4">
+              <div class="flow-actor-icon">⚙️</div>
+              <span>Main / DB</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-5">
+              <div class="flow-actor-icon">🤖</div>
+              <span>OpenAI</span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-packet"></div>
+
+          <div class="flow-step-label" id="flow-label">Click "Next Step" to begin the relay</div>
+
+          <div class="flow-controls">
+            <button class="btn flow-next-btn">Next Step</button>
+            <button class="btn flow-reset-btn">Restart</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 2 in code: catching the selection</h2>
+        <p>The browser already has a built-in <code>window.getSelection()</code>. Fuzzy uses it directly — no fancy tracking — but adds one trick: walk up the DOM until you find the page number.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — PdfReader.tsx:61</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> handleMouseUp = <span class="code-function">useCallback</span>(() =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> win = window.<span class="code-function">getSelection</span>()</span>
+<span class="code-line">  <span class="code-keyword">const</span> text = win?.<span class="code-function">toString</span>().<span class="code-function">trim</span>() ?? <span class="code-string">''</span></span>
+<span class="code-line">  <span class="code-keyword">if</span> (!text || !win || win.rangeCount === <span class="code-number">0</span>) {</span>
+<span class="code-line">    <span class="code-function">clearSelection</span>(); <span class="code-keyword">return</span></span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> range = win.<span class="code-function">getRangeAt</span>(<span class="code-number">0</span>)</span>
+<span class="code-line">  <span class="code-keyword">const</span> node = (range.startContainer <span class="code-keyword">as</span> HTMLElement | <span class="code-keyword">null</span>) ?? <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">const</span> pageEl = (node?.parentElement?.closest?.(<span class="code-string">'[data-page-number]'</span>) ??</span>
+<span class="code-line">    <span class="code-keyword">null</span>) <span class="code-keyword">as</span> HTMLElement | <span class="code-keyword">null</span></span>
+<span class="code-line">  <span class="code-keyword">if</span> (!pageEl) { <span class="code-function">clearSelection</span>(); <span class="code-keyword">return</span> }</span>
+<span class="code-line">  <span class="code-keyword">const</span> pageNumber = <span class="code-function">Number</span>(pageEl.dataset.pageNumber)</span>
+<span class="code-line">  <span class="code-comment">// ...read the rect, send to selectionStore</span></span>
+<span class="code-line">}, [documentId, setSelection, clearSelection])</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">When the user lifts the mouse, run this function.</p>
+              <p class="tl">Ask the browser: "what's currently selected?" and turn it into a string.</p>
+              <p class="tl">If nothing's selected (empty string, no range), wipe any old selection and bail.</p>
+              <p class="tl">Otherwise, grab the actual selected range — the start node, end node, and pixel coordinates.</p>
+              <p class="tl">Climb up the DOM tree from the selection's start node, looking for an ancestor that has a <code>data-page-number</code> attribute.</p>
+              <p class="tl">If we found that ancestor, read the page number off it. Now we know <em>which page</em> the user selected from. Save the whole thing into the shared store so the floating menu can show up.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">The "data-* attribute" trick</strong>
+            <p>Anywhere in HTML you can add custom attributes prefixed with <code>data-</code>. Fuzzy stamps each rendered page with <code>data-page-number="3"</code>. When the selection happens, the code climbs up the tree until it finds that stamp. This is one of the most common patterns in real-world web apps.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 6 in code: the gatekeeper</h2>
+        <p>Before main does anything with the renderer's request, it validates. Treat anything coming across the bridge as untrusted input — even though it's "your own app."</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/ipc/ai.ipc.ts:19</span>
+<pre><code><span class="code-line"><span class="code-keyword">function</span> <span class="code-function">validateRequest</span>(input: unknown): AiActionRequest {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!input || <span class="code-keyword">typeof</span> input !== <span class="code-string">'object'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'Invalid AI action request.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> r = input <span class="code-keyword">as</span> Partial&lt;AiActionRequest&gt;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (<span class="code-keyword">typeof</span> r.selectedText !== <span class="code-string">'string'</span> || !r.selectedText.<span class="code-function">trim</span>()) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'selectedText is required.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (r.selectedText.length &gt; <span class="code-number">8000</span>) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'selectedText is too long (max 8000 chars).'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!r.action || !VALID_ACTIONS.<span class="code-function">includes</span>(r.action)) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'action must be one of: explain, simplify, ...'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> { <span class="code-comment">/* sanitized request */</span> }</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Take whatever the renderer sent in. Treat its type as "unknown" until proven otherwise.</p>
+              <p class="tl">First sanity check: is this even an object?</p>
+              <p class="tl">Treat the input as <em>maybe</em> having the right shape, then verify each field one at a time.</p>
+              <p class="tl">"selectedText" must be a non-empty string.</p>
+              <p class="tl">Cap it at 8000 characters — protects against runaway prompts that would burn tokens or cost money.</p>
+              <p class="tl">"action" must be one of the six known values. Anything else is rejected.</p>
+              <p class="tl">Only after every check passes do we hand back a clean, typed request to the AI provider.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Step 9: the AI response gets logged</h2>
+        <p>Every AI response goes into a SQLite table called <code>ai_responses</code>. This is what lets you see "history" of explanations — and lets future Fuzzy features replay them without re-paying OpenAI.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/ipc/ai.ipc.ts:53</span>
+<pre><code><span class="code-line">ipcMain.<span class="code-function">handle</span>(IpcChannels.aiRunAction, <span class="code-keyword">async</span> (_e, raw: unknown) =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> request = <span class="code-function">validateRequest</span>(raw)</span>
+<span class="code-line">  <span class="code-keyword">const</span> result = <span class="code-keyword">await</span> <span class="code-function">runAiAction</span>(request)</span>
+<span class="code-line">  <span class="code-function">insertAiResponse</span>({</span>
+<span class="code-line">    <span class="code-property">documentId</span>: request.documentId,</span>
+<span class="code-line">    <span class="code-property">pageNumber</span>: request.pageNumber,</span>
+<span class="code-line">    <span class="code-property">actionType</span>: request.action,</span>
+<span class="code-line">    <span class="code-property">inputText</span>: request.selectedText,</span>
+<span class="code-line">    <span class="code-property">contextText</span>: request.contextText,</span>
+<span class="code-line">    <span class="code-property">outputText</span>: result.outputText,</span>
+<span class="code-line">    <span class="code-property">model</span>: result.model</span>
+<span class="code-line">  })</span>
+<span class="code-line">  <span class="code-keyword">return</span> result</span>
+<span class="code-line">})</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">When a request comes in on the "ai:runAction" channel, run this handler.</p>
+              <p class="tl">First validate the raw input (the previous slide).</p>
+              <p class="tl">Hand it to the AI provider — that returns text, model name, and which provider answered.</p>
+              <p class="tl">Save a row in the database: which document, which page, what action, what was asked, what was answered, by which model.</p>
+              <p class="tl">Hand the result back to the renderer. The UI will display it in the tutor panel.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module3">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Yes — that 8000-char ceiling lives in main, not the renderer. Why? Because the UI input is one of many possible callers; main is the trust boundary. Validation must always happen on the side that owns the resource being protected."
+               data-explanation-wrong="A friendlier UI message in the renderer is nice, but it's not a real safeguard — anyone could call the IPC bypassing the UI. The ceiling has to be enforced where it can't be ducked. That's main.">
+            <h3 class="quiz-question">A user reports: "I selected a giant 20,000-character paragraph and clicked Explain. Nothing happens." Where would you go to debug — and why?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The renderer's text input — it must be silently truncating</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The validateRequest function in main — there's an 8000-char ceiling that throws an error</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>OpenAI — they reject big requests</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Right. The IPC handler logs to ai_responses regardless of provider — that's the source of truth for history. You'd query that table directly to see if a row was inserted."
+               data-explanation-wrong="The renderer's local Zustand state is wiped on close — it can't be the source of truth. And OpenAI doesn't keep your prompts around for you to query. The DB row is what survives.">
+            <h3 class="quiz-question">You want to add a "show me everything I asked Fuzzy this week" feature. Which data source do you read from?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The ai_responses table in SQLite — every response is logged there</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The Zustand tutor store in the renderer</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Call OpenAI's API to fetch your usage history</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module3')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module3')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-4" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h1 class="module-title">Local-first by design</h1>
+      <p class="module-subtitle">Your library lives in a folder you can find with Finder. Your notes live in a single file. Your API key is locked in the macOS keychain. Here's how Fuzzy enforces all of that.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a personal filing cabinet</h2>
+        <p>Most apps today keep your data on their servers — you're renting a locker in their warehouse. Fuzzy keeps your data in a filing cabinet in your room. You own the key. You can move it. You can back it up.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🗄️</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why local-first matters for vibe coders</strong>
+            <p>Local-first apps don't need server bills, user accounts, or cloud syncing infrastructure. That radically simplifies what you have to build. The trade-off: no cross-device sync. For a personal reading workspace, that's a great trade.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Where everything lives on disk</h2>
+
+        <div class="file-tree">
+          <div class="ft-folder open">
+            <span class="ft-name">~/Library/Application Support/fuzzy/</span>
+            <span class="ft-desc">macOS's per-app storage area — Electron's app.getPath('userData') points here</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">fuzzy.db</span>
+                <span class="ft-desc">The entire SQLite database — documents, notes, AI responses, settings</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">fuzzy.db-wal</span>
+                <span class="ft-desc">Write-ahead log — uncommitted changes buffered for speed and crash safety</span>
+              </div>
+              <div class="ft-folder">
+                <span class="ft-name">library/</span>
+                <span class="ft-desc">Imported PDFs, named by their content hash</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">a3f9...c2e1.pdf</span>
+                    <span class="ft-desc">Each file's name IS its SHA-256 fingerprint</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p>That's it. No login, no cloud account, no sync server. Delete that folder and Fuzzy is back to factory state.</p>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The database setup</h2>
+        <p>Three lines of <span class="term" data-definition="A pragma in SQLite is a special configuration command that tweaks how the database behaves — like setting preferences in an app's settings.">pragmas</span> turn a plain SQLite file into a fast, safe-against-crashes database.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/services/dbService.ts:24</span>
+<pre><code><span class="code-line">db = <span class="code-keyword">new</span> <span class="code-function">Database</span>(dbPath)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'journal_mode = WAL'</span>)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'foreign_keys = ON'</span>)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'synchronous = NORMAL'</span>)</span>
+<span class="code-line">db.<span class="code-function">exec</span>(schemaSql)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Open or create the database file at the chosen path.</p>
+              <p class="tl">Switch to "WAL" mode — <span class="term" data-definition="Write-Ahead Log. Instead of editing the main database file directly on every change, SQLite writes the change to a side log first, then merges it in later. This makes writes much faster and reads can happen at the same time.">write-ahead logging</span>. Faster writes, simultaneous reads, better crash recovery.</p>
+              <p class="tl">Turn on foreign keys — if you delete a document, all its pages and notes get cleaned up automatically.</p>
+              <p class="tl">Use "NORMAL" sync — a sweet spot between speed (FAST) and durability (FULL).</p>
+              <p class="tl">Run the schema file — creates all the tables if they don't exist yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The database tables</h2>
+        <p>Seven tables, all defined in one schema file. Each one corresponds to a feature.</p>
+
+        <div class="badge-list">
+          <div class="badge-item">
+            <code class="badge-code">documents</code>
+            <span class="badge-desc">One row per imported PDF: id, title, file path, hash, page count</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">pages</code>
+            <span class="badge-desc">Extracted text content per page — for AI context and full-text search later</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">annotations</code>
+            <span class="badge-desc">Margin notes the user saved, anchored to a page</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">ai_responses</code>
+            <span class="badge-desc">History of every Explain/Simplify/etc. — the input, the output, the model</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">reading_sessions</code>
+            <span class="badge-desc">Time-budgeted plans (read these N pages in M minutes)</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">study_packs</code>
+            <span class="badge-desc">Generated flashcards, summary, key concepts for a document</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">settings</code>
+            <span class="badge-desc">Key/value blob — provider mode, model name, encrypted API key</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The encrypted API key</h2>
+        <p>If your Fuzzy database leaked, the API key inside it would still be useless to a thief. Here's the trick: <span class="term" data-definition="A built-in Electron service that encrypts strings using the operating system's native secret store — Keychain on macOS, DPAPI on Windows. Decryption only works on the same user account on the same machine.">safeStorage</span> wraps the OS keychain.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — settingsService.ts:43</span>
+<pre><code><span class="code-line"><span class="code-keyword">export function</span> <span class="code-function">writeOpenaiKey</span>(plaintextKey: string): AppSettings {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!safeStorage.<span class="code-function">isEncryptionAvailable</span>()) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'Secure storage is not available...'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> trimmed = plaintextKey.<span class="code-function">trim</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!trimmed) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'API key cannot be empty.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> enc = safeStorage.<span class="code-function">encryptString</span>(trimmed)</span>
+<span class="code-line">  <span class="code-function">setSetting</span>(KEY_OPENAI_API_KEY_ENC, enc.<span class="code-function">toString</span>(<span class="code-string">'base64'</span>))</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">readSettings</span>()</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Take a plaintext OpenAI key from the user.</p>
+              <p class="tl">First check: does this OS support secure encryption? On macOS that means the Keychain is available.</p>
+              <p class="tl">Strip whitespace. Refuse if the key is empty.</p>
+              <p class="tl">Encrypt the key — the OS keychain does the work, and only this user account on this machine can decrypt it.</p>
+              <p class="tl">Save the encrypted bytes (as base64 text) into the settings table.</p>
+              <p class="tl">Even if someone copied the database file off your laptop, they couldn't read the key.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">🔐</div>
+          <div class="callout-content">
+            <strong class="callout-title">"Encryption at rest" — vocabulary win</strong>
+            <p>This pattern is called <em>encryption at rest</em>: the data is encrypted while sitting on disk, decrypted only when actively in use. It's a phrase you'll hear constantly when reviewing security with AI or engineers — now you know what it means.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Dedupe via SHA-256: never store the same PDF twice</h2>
+        <p>Imagine you import the same paper from two different folders. Fuzzy notices, doesn't waste disk space, and just opens the existing one.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:51</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">importPdfFromPath</span>(sourcePath: string): <span class="code-keyword">Promise</span>&lt;ImportResult&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> dir = <span class="code-keyword">await</span> <span class="code-function">ensureLibraryDir</span>()</span>
+<span class="code-line">  <span class="code-keyword">const</span> fileHash = <span class="code-keyword">await</span> <span class="code-function">sha256</span>(sourcePath)</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-keyword">const</span> existing = <span class="code-function">getDocumentByHash</span>(fileHash)</span>
+<span class="code-line">  <span class="code-keyword">if</span> (existing) {</span>
+<span class="code-line">    <span class="code-function">touchLastOpened</span>(existing.id)</span>
+<span class="code-line">    <span class="code-keyword">return</span> { <span class="code-property">document</span>: existing, <span class="code-property">deduped</span>: <span class="code-keyword">true</span> }</span>
+<span class="code-line">  }</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-keyword">const</span> targetName = <span class="code-string">`${fileHash}.pdf`</span></span>
+<span class="code-line">  <span class="code-keyword">const</span> targetPath = <span class="code-function">join</span>(dir, targetName)</span>
+<span class="code-line">  <span class="code-keyword">await</span> <span class="code-function">copyFile</span>(sourcePath, targetPath)</span>
+<span class="code-line">  <span class="code-comment">// ...insert row in `documents`</span></span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Make sure the library folder exists.</p>
+              <p class="tl">Compute the <span class="term" data-definition="A SHA-256 hash is a one-way fingerprint of a file — read every byte of the file, run it through a recipe, get back a fixed-length 64-character string. The same input always produces the same output. Different inputs essentially never collide.">SHA-256 fingerprint</span> of the file by hashing every byte.</p>
+              <p class="tl">Look up: have we ever imported a file with this exact fingerprint before?</p>
+              <p class="tl">If yes, just bump its "last opened" timestamp and return the existing record. We tell the caller it was deduped so the UI doesn't show "imported!" twice.</p>
+              <p class="tl">Otherwise, name the file by its hash and copy it in. Future imports of identical content will land back in the "yes, exists" branch.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module4">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Exactly. safeStorage encrypts using a key derived from the OS user account. Move the file to a different machine or user, and the bytes look like noise. The DB itself is just a regular SQLite file — easy to copy. The protection is on the secret inside, not the file."
+               data-explanation-wrong="The database file itself is not encrypted — anyone who copies fuzzy.db can read most of it (titles, notes, AI responses). Only the API key inside the settings table is encrypted, and only by safeStorage tied to your OS account.">
+            <h3 class="quiz-question">A friend asks: "If I copy fuzzy.db to a USB stick and open it on another laptop, what can the new laptop see?"</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Nothing — the entire database is encrypted</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Most things (titles, notes, AI history) but not the OpenAI API key — that's encrypted with the original user's keychain</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Everything — SQLite has no protection at all</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Right — the hash IS the file name, so even if you renamed your downloaded file 'paper-FINAL-v2.pdf', the bytes are identical, the hash is identical, and Fuzzy spots the duplicate instantly. This is why dedupe via hash is so beautiful: the filename doesn't matter, only the contents."
+               data-explanation-wrong="Filenames are unreliable — the same paper might be 'paper.pdf' or 'paper-final.pdf'. Fuzzy ignores the original name entirely and uses a content hash. The two imports collide on the hash and the second one is recognized as a duplicate.">
+            <h3 class="quiz-question">You import "paper.pdf" from your Downloads. Then you import the exact same file (renamed to "paper-FINAL.pdf") from your Desktop. What does Fuzzy do?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Recognizes the duplicate by SHA-256 hash, returns the existing record, and refreshes its "last opened" timestamp</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Stores both — different filenames mean different documents</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Asks you which one to keep</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module4')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module4')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+<section class="module" id="module-5" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">05</span>
+      <h1 class="module-title">The clever tricks</h1>
+      <p class="module-subtitle">Five small engineering moves that make Fuzzy feel polished. Steal these patterns the next time you're directing AI to build something similar.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a magician's pockets</h2>
+        <p>A stage magician's tricks aren't magic — they're a bunch of small, well-chosen techniques that together feel impossible. Same here. Each of these is a known engineering pattern; together they make Fuzzy feel solid.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🎭</div>
+            <h4 class="pattern-title">Provider abstraction</h4>
+            <p class="pattern-desc">The renderer doesn't know if OpenAI or a mock is answering. One interface, two implementations.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🪄</div>
+            <h4 class="pattern-title">Graceful fallback</h4>
+            <p class="pattern-desc">Picked OpenAI but no key configured? Silently fall back to the mock so the UI never dead-ends.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">📑</div>
+            <h4 class="pattern-title">Text layer trick</h4>
+            <p class="pattern-desc">Render the page as an image. Float invisible selectable text on top. The browser does the highlighting for free.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">📡</div>
+            <h4 class="pattern-title">Single source of truth for channels</h4>
+            <p class="pattern-desc">All IPC channel names live in one constants file — no string typos between sender and receiver.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">📦</div>
+            <h4 class="pattern-title">Structured-clone-friendly bytes</h4>
+            <p class="pattern-desc">Wrap PDF buffers as <code>Uint8Array</code> so they survive the trip across the IPC bridge.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 1: provider abstraction</h2>
+        <p>Both the mock and OpenAI providers implement the same shape. The caller doesn't care which one runs.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — services/ai/provider.ts:13</span>
+<pre><code><span class="code-line"><span class="code-keyword">export function</span> <span class="code-function">resolveProviderMode</span>(): AiProviderResolution {</span>
+<span class="code-line">  <span class="code-keyword">const</span> settings = <span class="code-function">readSettings</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (settings.providerMode === <span class="code-string">'openai'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">const</span> key = <span class="code-function">getDecryptedOpenaiKey</span>()</span>
+<span class="code-line">    <span class="code-keyword">if</span> (!key) <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'mock'</span>, <span class="code-property">reason</span>: <span class="code-string">'no_api_key'</span> }</span>
+<span class="code-line">    <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'openai'</span> }</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> { <span class="code-property">mode</span>: <span class="code-string">'mock'</span> }</span>
+<span class="code-line">}</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">runAiAction</span>(request: AiActionRequest): <span class="code-keyword">Promise</span>&lt;AiActionResult&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> resolution = <span class="code-function">resolveProviderMode</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (resolution.mode === <span class="code-string">'openai'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-function">runOpenAiAction</span>(request)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">runMockAction</span>(request)</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Read the user's settings.</p>
+              <p class="tl">If they want OpenAI...</p>
+              <p class="tl">...check if a key is actually configured. If not, fall back to mock with a reason ("no_api_key") so the UI can show a hint.</p>
+              <p class="tl">If yes, OpenAI it is.</p>
+              <p class="tl">Otherwise, mock by default.</p>
+              <p class="tl">The runAiAction function picks one branch and calls it. From the caller's perspective, both functions return the same shape — output text, model name, provider. <em>No special-casing in the UI</em>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">"Strategy pattern" — vocabulary win</strong>
+            <p>Engineers call this the <em>strategy pattern</em>: pluggable implementations behind one interface. The next time you're talking to AI, you can say "<em>use the strategy pattern to swap between Anthropic and OpenAI</em>" and they'll know exactly what you mean.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 3: the invisible text layer</h2>
+        <p>This is the cleverest UI move in Fuzzy. PDFs are rendered as bitmaps — pixels — but the user expects to <em>select</em> text. How?</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — components/pdf/PdfPage.tsx:71</span>
+<pre><code><span class="code-line"><span class="code-keyword">const</span> textContent = <span class="code-keyword">await</span> page.<span class="code-function">getTextContent</span>()</span>
+<span class="code-line"></span>
+<span class="code-line">textLayer = <span class="code-keyword">new</span> <span class="code-function">TextLayer</span>({</span>
+<span class="code-line">  <span class="code-property">textContentSource</span>: textContent,</span>
+<span class="code-line">  <span class="code-property">container</span>: textDiv,</span>
+<span class="code-line">  <span class="code-property">viewport</span></span>
+<span class="code-line">})</span>
+<span class="code-line"><span class="code-keyword">await</span> textLayer.<span class="code-function">render</span>()</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Ask <span class="term" data-definition="pdf.js (pdfjs-dist) is Mozilla's open-source PDF rendering library — the same engine that ships in Firefox. It runs in the browser, parses the PDF, and can both draw the page as an image and pull out the text positions.">pdf.js</span> for the text content of this page — every word with its on-page coordinates.</p>
+              <p class="tl">Build a TextLayer: a transparent <code>&lt;div&gt;</code> overlaying the canvas, with a <code>&lt;span&gt;</code> for every text run, positioned exactly where the printed pixels are.</p>
+              <p class="tl">Render. The user sees the bitmap. They drag to select. Their mouse is actually selecting the invisible spans, but the browser's native text selection works exactly as expected.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📑</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why not just render text?</strong>
+            <p>Fonts in PDFs are often weird, unembedded, or rely on layout the browser can't replicate. Rendering as a bitmap guarantees pixel-perfect fidelity. Layering invisible text on top gets you both — accurate visuals AND selectable text.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 4: one source of truth for channel names</h2>
+        <p>Sender and receiver agree on a channel name. If they disagree by even one character, messages disappear silently. So both sides import from the same constants file.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — shared/ipc/channels.ts:4</span>
+<pre><code><span class="code-line"><span class="code-keyword">export const</span> IpcChannels = {</span>
+<span class="code-line">  <span class="code-property">healthPing</span>: <span class="code-string">'health:ping'</span>,</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-property">documentsList</span>: <span class="code-string">'documents:list'</span>,</span>
+<span class="code-line">  <span class="code-property">documentsImport</span>: <span class="code-string">'documents:import'</span>,</span>
+<span class="code-line">  <span class="code-property">documentsReadFile</span>: <span class="code-string">'documents:readFile'</span>,</span>
+<span class="code-line">  <span class="code-comment">// ...one entry per channel, both ends import from this file</span></span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-property">aiRunAction</span>: <span class="code-string">'ai:runAction'</span>,</span>
+<span class="code-line">  <span class="code-property">settingsSetOpenaiKey</span>: <span class="code-string">'settings:setOpenaiKey'</span></span>
+<span class="code-line">} <span class="code-keyword">as const</span></span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define one big constants object listing every IPC channel name.</p>
+              <p class="tl">Each channel is a colon-separated string like "documents:import" — colon-style is just a convention, like a postal address.</p>
+              <p class="tl">Both the preload (sender) and main (receiver) import from this file. If you misspell <code>aiRunAction</code>, TypeScript yells at compile time. If you misspelled it as a raw string in two places, it would silently fail at runtime.</p>
+              <p class="tl">"as const" tells TypeScript: don't widen these to plain strings. Treat each one as its own exact type. This catches subtle bugs.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Trick 5: surviving the bridge with Uint8Array</h2>
+        <p>Sending a PDF's bytes from main back to the renderer sounds simple. It isn't. <span class="term" data-definition="Inter-Process Communication. The system that lets two separate programs (or processes) exchange messages. Electron uses it to bridge the renderer and main.">IPC</span> serializes objects using a thing called <span class="term" data-definition="A built-in browser way to copy complex JavaScript objects across process boundaries. It handles arrays, dates, maps, typed arrays — but not every type. Plain Buffers can lose information; Uint8Arrays survive intact.">structured clone</span>, and not every type survives.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:78</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">readDocumentBytes</span>(filePath: string): <span class="code-keyword">Promise</span>&lt;Uint8Array&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> buf = <span class="code-keyword">await</span> <span class="code-function">readFile</span>(filePath)</span>
+<span class="code-line">  <span class="code-comment">// Wrap as a plain Uint8Array so it survives the structured-clone IPC.</span></span>
+<span class="code-line">  <span class="code-keyword">return new</span> <span class="code-function">Uint8Array</span>(buf.buffer, buf.byteOffset, buf.byteLength)</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Read the PDF file from disk into memory. Node hands back a "Buffer" — its own special bytes-container.</p>
+              <p class="tl">The comment explains the gotcha: Buffer is Node-specific. When IPC serializes it, weird stuff can happen.</p>
+              <p class="tl">Wrap it in a plain Uint8Array (a standard typed array). Same bytes underneath, but a type that structured clone handles cleanly. The renderer receives clean bytes that pdf.js can parse.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">A real bug that AI would miss</strong>
+            <p>If you asked an AI to "read the PDF and send it to the renderer," it would probably hand back the raw Node Buffer. It would <em>look</em> right in tests, then mysteriously corrupt in production. The one-line wrap is the kind of detail that comes from experience — exactly the kind of intervention you want to be able to make.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Final exam</h2>
+
+        <div class="quiz-container" id="quiz-module5">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Right. The provider abstraction means the renderer just calls runAction — the main process picks Anthropic or OpenAI based on settings. You'd add a third implementation, register it in resolveProviderMode, and the UI gets it for free."
+               data-explanation-wrong="If you teach the renderer about each provider individually, every new provider means UI changes. The whole point of the strategy pattern is to keep all that branching in one place — the provider resolver in main.">
+            <h3 class="quiz-question">You want to add Anthropic Claude as a third provider option in Fuzzy. Where do you make changes — and what stays untouched?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Touch every component in the renderer to teach it about Anthropic</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Add an anthropicProvider.ts in main, extend the provider resolver — UI requires no changes because of the strategy pattern</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Modify the IPC channels file and that's it</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="c"
+               data-explanation-right="Exactly. The text layer is invisible spans floating on top of the bitmap. If they're missing or misaligned, the user sees the page fine but cannot select. PdfPage.tsx is where to look — specifically the textLayer.render() call and viewport calculation."
+               data-explanation-wrong="The bitmap is from page.render() — selecting doesn't depend on it. The mouseup handler only runs after a selection exists. The selection bug is upstream of all that — the text layer that makes selecting <em>possible</em> isn't being built or positioned right.">
+            <h3 class="quiz-question">A user reports: "I can SEE the PDF page fine but I can't select any text." Based on what you've learned, what's the first place you'd look?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The bitmap rendering — page.render() must be broken</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The mouseup handler — it's not capturing the selection</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The TextLayer — the invisible selectable spans aren't being rendered or positioned correctly over the canvas</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Yes — the encrypted key in safeStorage is tied to your OS account. A new install on the same Mac would still have the macOS Keychain entry, but the database file is fresh, so you'd re-paste the key (and it would re-encrypt cleanly). On a different Mac, the keychain is different, so the key has to be entered again. This is the whole point of encryption-at-rest."
+               data-explanation-wrong="The key isn't stored 'in' the OS Keychain as a free-floating secret — it's stored encrypted in the database, encrypted by a Keychain-backed key that's specific to your user account on that machine.">
+            <h3 class="quiz-question">You reinstall macOS but keep your Library folder. After reinstalling Fuzzy and pointing it at the same database, will your OpenAI key still work?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Probably not — the safeStorage encryption is tied to the OS user / keychain, which a fresh install rebuilds. You'd need to re-paste the key.</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes — the encrypted key is just bytes, it'll decrypt anywhere</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Only if the key is shorter than 50 characters</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module5')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module5')">Try Again</button>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">You made it</h2>
+        <p>You now know what every piece of Fuzzy does and why. You can read the codebase. You can debug "it's not showing up" problems by knowing which of the three rooms to check first. You can talk to AI about it using the right vocabulary — <em>strategy pattern, encryption at rest, structured clone, IPC bridge, content hash, WAL mode.</em></p>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">🚀</div>
+          <div class="callout-content">
+            <strong class="callout-title">Where to go from here</strong>
+            <p>Open the Fuzzy source. Pick any file you saw in this course. Read it top to bottom — you'll be surprised how much makes sense now. Try to make a small change with AI's help: add a seventh AI action, or surface "deduped" status more clearly in the UI. The codebase is yours.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+  </main>
+
+</body>
+</html>

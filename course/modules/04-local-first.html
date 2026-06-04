@@ -1,0 +1,252 @@
+<section class="module" id="module-4" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h1 class="module-title">Local-first by design</h1>
+      <p class="module-subtitle">Your library lives in a folder you can find with Finder. Your notes live in a single file. Your API key is locked in the macOS keychain. Here's how Fuzzy enforces all of that.</p>
+    </header>
+
+    <div class="module-body">
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The metaphor: a personal filing cabinet</h2>
+        <p>Most apps today keep your data on their servers — you're renting a locker in their warehouse. Fuzzy keeps your data in a filing cabinet in your room. You own the key. You can move it. You can back it up.</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🗄️</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why local-first matters for vibe coders</strong>
+            <p>Local-first apps don't need server bills, user accounts, or cloud syncing infrastructure. That radically simplifies what you have to build. The trade-off: no cross-device sync. For a personal reading workspace, that's a great trade.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Where everything lives on disk</h2>
+
+        <div class="file-tree">
+          <div class="ft-folder open">
+            <span class="ft-name">~/Library/Application Support/fuzzy/</span>
+            <span class="ft-desc">macOS's per-app storage area — Electron's app.getPath('userData') points here</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">fuzzy.db</span>
+                <span class="ft-desc">The entire SQLite database — documents, notes, AI responses, settings</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">fuzzy.db-wal</span>
+                <span class="ft-desc">Write-ahead log — uncommitted changes buffered for speed and crash safety</span>
+              </div>
+              <div class="ft-folder">
+                <span class="ft-name">library/</span>
+                <span class="ft-desc">Imported PDFs, named by their content hash</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">a3f9...c2e1.pdf</span>
+                    <span class="ft-desc">Each file's name IS its SHA-256 fingerprint</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p>That's it. No login, no cloud account, no sync server. Delete that folder and Fuzzy is back to factory state.</p>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The database setup</h2>
+        <p>Three lines of <span class="term" data-definition="A pragma in SQLite is a special configuration command that tweaks how the database behaves — like setting preferences in an app's settings.">pragmas</span> turn a plain SQLite file into a fast, safe-against-crashes database.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — main/services/dbService.ts:24</span>
+<pre><code><span class="code-line">db = <span class="code-keyword">new</span> <span class="code-function">Database</span>(dbPath)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'journal_mode = WAL'</span>)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'foreign_keys = ON'</span>)</span>
+<span class="code-line">db.<span class="code-function">pragma</span>(<span class="code-string">'synchronous = NORMAL'</span>)</span>
+<span class="code-line">db.<span class="code-function">exec</span>(schemaSql)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Open or create the database file at the chosen path.</p>
+              <p class="tl">Switch to "WAL" mode — <span class="term" data-definition="Write-Ahead Log. Instead of editing the main database file directly on every change, SQLite writes the change to a side log first, then merges it in later. This makes writes much faster and reads can happen at the same time.">write-ahead logging</span>. Faster writes, simultaneous reads, better crash recovery.</p>
+              <p class="tl">Turn on foreign keys — if you delete a document, all its pages and notes get cleaned up automatically.</p>
+              <p class="tl">Use "NORMAL" sync — a sweet spot between speed (FAST) and durability (FULL).</p>
+              <p class="tl">Run the schema file — creates all the tables if they don't exist yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The database tables</h2>
+        <p>Seven tables, all defined in one schema file. Each one corresponds to a feature.</p>
+
+        <div class="badge-list">
+          <div class="badge-item">
+            <code class="badge-code">documents</code>
+            <span class="badge-desc">One row per imported PDF: id, title, file path, hash, page count</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">pages</code>
+            <span class="badge-desc">Extracted text content per page — for AI context and full-text search later</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">annotations</code>
+            <span class="badge-desc">Margin notes the user saved, anchored to a page</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">ai_responses</code>
+            <span class="badge-desc">History of every Explain/Simplify/etc. — the input, the output, the model</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">reading_sessions</code>
+            <span class="badge-desc">Time-budgeted plans (read these N pages in M minutes)</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">study_packs</code>
+            <span class="badge-desc">Generated flashcards, summary, key concepts for a document</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">settings</code>
+            <span class="badge-desc">Key/value blob — provider mode, model name, encrypted API key</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The encrypted API key</h2>
+        <p>If your Fuzzy database leaked, the API key inside it would still be useless to a thief. Here's the trick: <span class="term" data-definition="A built-in Electron service that encrypts strings using the operating system's native secret store — Keychain on macOS, DPAPI on Windows. Decryption only works on the same user account on the same machine.">safeStorage</span> wraps the OS keychain.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — settingsService.ts:43</span>
+<pre><code><span class="code-line"><span class="code-keyword">export function</span> <span class="code-function">writeOpenaiKey</span>(plaintextKey: string): AppSettings {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!safeStorage.<span class="code-function">isEncryptionAvailable</span>()) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'Secure storage is not available...'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> trimmed = plaintextKey.<span class="code-function">trim</span>()</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!trimmed) {</span>
+<span class="code-line">    <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'API key cannot be empty.'</span>)</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> enc = safeStorage.<span class="code-function">encryptString</span>(trimmed)</span>
+<span class="code-line">  <span class="code-function">setSetting</span>(KEY_OPENAI_API_KEY_ENC, enc.<span class="code-function">toString</span>(<span class="code-string">'base64'</span>))</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">readSettings</span>()</span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Take a plaintext OpenAI key from the user.</p>
+              <p class="tl">First check: does this OS support secure encryption? On macOS that means the Keychain is available.</p>
+              <p class="tl">Strip whitespace. Refuse if the key is empty.</p>
+              <p class="tl">Encrypt the key — the OS keychain does the work, and only this user account on this machine can decrypt it.</p>
+              <p class="tl">Save the encrypted bytes (as base64 text) into the settings table.</p>
+              <p class="tl">Even if someone copied the database file off your laptop, they couldn't read the key.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">🔐</div>
+          <div class="callout-content">
+            <strong class="callout-title">"Encryption at rest" — vocabulary win</strong>
+            <p>This pattern is called <em>encryption at rest</em>: the data is encrypted while sitting on disk, decrypted only when actively in use. It's a phrase you'll hear constantly when reviewing security with AI or engineers — now you know what it means.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Dedupe via SHA-256: never store the same PDF twice</h2>
+        <p>Imagine you import the same paper from two different folders. Fuzzy notices, doesn't waste disk space, and just opens the existing one.</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE — fileService.ts:51</span>
+<pre><code><span class="code-line"><span class="code-keyword">export async function</span> <span class="code-function">importPdfFromPath</span>(sourcePath: string): <span class="code-keyword">Promise</span>&lt;ImportResult&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> dir = <span class="code-keyword">await</span> <span class="code-function">ensureLibraryDir</span>()</span>
+<span class="code-line">  <span class="code-keyword">const</span> fileHash = <span class="code-keyword">await</span> <span class="code-function">sha256</span>(sourcePath)</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-keyword">const</span> existing = <span class="code-function">getDocumentByHash</span>(fileHash)</span>
+<span class="code-line">  <span class="code-keyword">if</span> (existing) {</span>
+<span class="code-line">    <span class="code-function">touchLastOpened</span>(existing.id)</span>
+<span class="code-line">    <span class="code-keyword">return</span> { <span class="code-property">document</span>: existing, <span class="code-property">deduped</span>: <span class="code-keyword">true</span> }</span>
+<span class="code-line">  }</span>
+<span class="code-line"></span>
+<span class="code-line">  <span class="code-keyword">const</span> targetName = <span class="code-string">`${fileHash}.pdf`</span></span>
+<span class="code-line">  <span class="code-keyword">const</span> targetPath = <span class="code-function">join</span>(dir, targetName)</span>
+<span class="code-line">  <span class="code-keyword">await</span> <span class="code-function">copyFile</span>(sourcePath, targetPath)</span>
+<span class="code-line">  <span class="code-comment">// ...insert row in `documents`</span></span>
+<span class="code-line">}</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Make sure the library folder exists.</p>
+              <p class="tl">Compute the <span class="term" data-definition="A SHA-256 hash is a one-way fingerprint of a file — read every byte of the file, run it through a recipe, get back a fixed-length 64-character string. The same input always produces the same output. Different inputs essentially never collide.">SHA-256 fingerprint</span> of the file by hashing every byte.</p>
+              <p class="tl">Look up: have we ever imported a file with this exact fingerprint before?</p>
+              <p class="tl">If yes, just bump its "last opened" timestamp and return the existing record. We tell the caller it was deduped so the UI doesn't show "imported!" twice.</p>
+              <p class="tl">Otherwise, name the file by its hash and copy it in. Future imports of identical content will land back in the "yes, exists" branch.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Quick check</h2>
+
+        <div class="quiz-container" id="quiz-module4">
+          <div class="quiz-question-block"
+               data-correct="b"
+               data-explanation-right="Exactly. safeStorage encrypts using a key derived from the OS user account. Move the file to a different machine or user, and the bytes look like noise. The DB itself is just a regular SQLite file — easy to copy. The protection is on the secret inside, not the file."
+               data-explanation-wrong="The database file itself is not encrypted — anyone who copies fuzzy.db can read most of it (titles, notes, AI responses). Only the API key inside the settings table is encrypted, and only by safeStorage tied to your OS account.">
+            <h3 class="quiz-question">A friend asks: "If I copy fuzzy.db to a USB stick and open it on another laptop, what can the new laptop see?"</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Nothing — the entire database is encrypted</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Most things (titles, notes, AI history) but not the OpenAI API key — that's encrypted with the original user's keychain</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Everything — SQLite has no protection at all</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="a"
+               data-explanation-right="Right — the hash IS the file name, so even if you renamed your downloaded file 'paper-FINAL-v2.pdf', the bytes are identical, the hash is identical, and Fuzzy spots the duplicate instantly. This is why dedupe via hash is so beautiful: the filename doesn't matter, only the contents."
+               data-explanation-wrong="Filenames are unreliable — the same paper might be 'paper.pdf' or 'paper-final.pdf'. Fuzzy ignores the original name entirely and uses a content hash. The two imports collide on the hash and the second one is recognized as a duplicate.">
+            <h3 class="quiz-question">You import "paper.pdf" from your Downloads. Then you import the exact same file (renamed to "paper-FINAL.pdf") from your Desktop. What does Fuzzy do?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Recognizes the duplicate by SHA-256 hash, returns the existing record, and refreshes its "last opened" timestamp</span>
+              </button>
+              <button class="quiz-option" data-value="b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Stores both — different filenames mean different documents</span>
+              </button>
+              <button class="quiz-option" data-value="c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Asks you which one to keep</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module4')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module4')">Try Again</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
