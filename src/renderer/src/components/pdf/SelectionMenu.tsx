@@ -5,6 +5,7 @@ import { useTutorStore } from '../../state/tutorStore'
 import { usePdfStore } from '../../state/pdfStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useOnboardingStore } from '../../state/onboardingStore'
+import { Button, IconButton } from '../ui'
 
 interface ActionDef {
   id: AiActionType
@@ -50,7 +51,7 @@ export function SelectionMenu(): React.JSX.Element | null {
   if (!selection || !pos) return null
 
   const handle = (action: AiActionType): void => {
-    const context = pageTexts.get(selection.pageNumber) ?? null
+    const context = selection.contextText ?? pageTexts.get(selection.pageNumber) ?? null
     runAction(selection, action, context)
       .then(() => advanceOnboarding())
       .catch((err) => console.error('[fuzzy] runAction', err))
@@ -72,27 +73,22 @@ export function SelectionMenu(): React.JSX.Element | null {
         // we read it.
         e.preventDefault()
       }}
-      className="flex items-center gap-1 rounded-lg border border-fz-border bg-fz-surface-2/95 p-1 shadow-lg backdrop-blur"
+      className="flex items-center gap-0.5 rounded-lg border border-fz-border bg-fz-elevated/95 p-1 shadow-fz-pop backdrop-blur"
     >
       {ACTIONS.map((a) => (
-        <button
+        <Button
           key={a.id}
-          type="button"
+          variant="ghost"
+          size="sm"
           title={a.hint}
           onClick={() => handle(a.id)}
-          className="rounded px-2 py-1 text-[11px] text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg"
         >
           {a.label}
-        </button>
+        </Button>
       ))}
-      <button
-        type="button"
-        title="Dismiss"
-        onClick={() => clear()}
-        className="ml-1 rounded px-1.5 py-1 text-[11px] text-fz-fg-subtle hover:text-fz-fg-muted"
-      >
+      <IconButton aria-label="Dismiss" variant="ghost" size="sm" onClick={() => clear()}>
         ✕
-      </button>
+      </IconButton>
     </div>
   )
 }

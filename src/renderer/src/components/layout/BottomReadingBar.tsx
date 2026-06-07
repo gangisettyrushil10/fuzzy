@@ -4,6 +4,8 @@ import { useAnnotationStore } from '../../state/annotationStore'
 import { useReadingSessionStore } from '../../state/readingSessionStore'
 import { useDocumentStore } from '../../state/documentStore'
 import { useAppUiStore } from '../../state/appUiStore'
+import { usePacerStore } from '../../state/pacerStore'
+import { useFocusSessionStore } from '../../state/focusSessionStore'
 import { ReadingPlanModal } from '../reading/ReadingPlanModal'
 
 export function BottomReadingBar(): React.JSX.Element {
@@ -18,6 +20,12 @@ export function BottomReadingBar(): React.JSX.Element {
 
   const planModalOpen = useAppUiStore((s) => s.planModalOpen)
   const setPlanModalOpen = useAppUiStore((s) => s.setPlanModalOpen)
+  const pacerVisible = usePacerStore((s) => s.visible)
+  const togglePacer = usePacerStore((s) => s.toggleVisible)
+  const focusActive = useFocusSessionStore((s) => s.active !== null)
+  const startFocus = useFocusSessionStore((s) => s.start)
+  const endFocus = useFocusSessionStore((s) => s.end)
+  const setStatsOpen = useAppUiStore((s) => s.setStatsOpen)
   const [now, setNow] = useState(() => Date.now())
 
   // Tick once per second while a session has been started. Cheap — single
@@ -98,6 +106,44 @@ export function BottomReadingBar(): React.JSX.Element {
           </>
         )}
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setStatsOpen(true)}
+          className="rounded border border-fz-border px-2 py-0.5 text-[10px] text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg"
+          title="Reading insights"
+        >
+          Insights
+        </button>
+        {activeDocumentId && (
+          <button
+            type="button"
+            onClick={() => (focusActive ? void endFocus() : void startFocus(activeDocumentId))}
+            className={[
+              'rounded border px-2 py-0.5 text-[10px]',
+              focusActive
+                ? 'border-fz-success/60 bg-fz-success/15 text-fz-success'
+                : 'border-fz-border text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg'
+            ].join(' ')}
+            title="Start a timed, distraction-free focus session"
+          >
+            {focusActive ? 'End focus' : 'Focus'}
+          </button>
+        )}
+        {activeDocumentId && (
+          <button
+            type="button"
+            onClick={togglePacer}
+            className={[
+              'rounded border px-2 py-0.5 text-[10px]',
+              pacerVisible
+                ? 'border-fz-accent-2/60 bg-fz-accent-2/20 text-fz-accent'
+                : 'border-fz-border text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg'
+            ].join(' ')}
+            title="Guided reading pacer (Space to play/pause)"
+          >
+            {pacerVisible ? 'Pacing' : 'Pace'}
+          </button>
+        )}
         {activeDocumentId && (
           <button
             type="button"

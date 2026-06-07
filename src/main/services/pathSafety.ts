@@ -8,7 +8,7 @@ export class PathEscapeError extends Error {
   readonly code = 'EPATH_ESCAPE' as const
   constructor(message: string) {
     super(message)
-    this.name = 'PathEscapeError'
+    this.name = 'PathEscapeError' 
   }
 }
 

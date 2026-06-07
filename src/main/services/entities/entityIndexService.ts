@@ -1,0 +1,32 @@
+// Orchestrates the entity/structure index built at import. Default path is the
+// pure, zero-cost local NER (entityExtractorMock); an optional LLM roster
+// refinement can upgrade quality later (gated behind a key + setting — left as a
+// future opt-in so a plain import never spends the user's key).
+
+import type { ExtractedDocument } from '@shared/types/database'
+import { buildLocalEntityIndex, isLikelyFiction } from './entityExtractorMock'
+import { hasEntities, replaceEntityIndex } from '../../db/repositories/entityRepository'
+
+// Build (or rebuild) the character index for a document. Best-effort and
+// idempotent — safe to call from the background import path. Returns the number
+// of entities indexed (0 when skipped).
+export async function buildEntityIndex(
+  documentId: string,
+  extracted: ExtractedDocument,
+  opts: { force?: boolean } = {}
+): Promise<number> {
+  if (extracted.pages.length === 0) return 0
+  // Skip if already indexed (re-import / re-open) unless forced.
+  if (!opts.force && hasEntities(documentId)) return 0
+  // Genre gate: only run character extraction on fiction-like prose, so the
+  // roster never fills non-fiction with spurious "characters".
+  if (!isLikelyFiction(extracted)) return 0
+
+  const entities = buildLocalEntityIndex(
+    extracted.pages.map((p) => ({ pageNumber: p.pageNumber, textContent: p.textContent }))
+  )
+  if (entities.length === 0) return 0
+
+  replaceEntityIndex(documentId, entities, 'character', 'local')
+  return entities.length
+}

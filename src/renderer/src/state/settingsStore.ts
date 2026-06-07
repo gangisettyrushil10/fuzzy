@@ -10,6 +10,7 @@ interface SettingsState {
   setProviderMode: (mode: ProviderMode) => Promise<void>
   setOpenaiKey: (key: string) => Promise<void>
   setOpenaiModel: (model: string) => Promise<void>
+  setOpenaiBaseUrl: (url: string | null) => Promise<void>
   clearOpenaiKey: () => Promise<void>
 }
 
@@ -43,6 +44,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   setOpenaiModel: async (model) => {
     const settings = await window.fuzzy.settings.setOpenaiModel(model)
+    set({ settings })
+  },
+
+  setOpenaiBaseUrl: async (url) => {
+    const settings = await window.fuzzy.settings.setOpenaiBaseUrl(url)
     set({ settings })
   },
 

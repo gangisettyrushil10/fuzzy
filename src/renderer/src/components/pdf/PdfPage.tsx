@@ -5,10 +5,20 @@ import { usePdfStore } from '../../state/pdfStore'
 import { useAnnotationStore } from '../../state/annotationStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useTutorStore } from '../../state/tutorStore'
+import { usePacerStore } from '../../state/pacerStore'
+import { useReaderPrefsStore } from '../../state/readerPrefsStore'
+import {
+  buildPdfGeometry,
+  locateSnippetRects,
+  type ItemBox,
+  type PdfGeometry
+} from '../../lib/pdfWordGeometry'
+import { ComplexWordOverlay } from './ComplexWordOverlay'
 import type { AnnotationRecord } from '@shared/types/database'
 
 interface Props {
   doc: PDFDocumentProxy
+  documentId: string
   pageNumber: number
   scale: number
   onTextExtracted: (pageNumber: number, text: string) => void
@@ -18,20 +28,42 @@ interface Props {
 // canvas. The text layer is what the user actually selects from — pdf.js
 // places transparent absolutely-positioned spans at the right offsets so
 // native browser selection works on top of the bitmap.
-export function PdfPage({ doc, pageNumber, scale, onTextExtracted }: Props): React.JSX.Element {
+export function PdfPage({
+  doc,
+  documentId,
+  pageNumber,
+  scale,
+  onTextExtracted
+}: Props): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textLayerRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
+  // Per-word boxes for this page (pacer / complex-word / thesis highlights),
+  // derived from the rendered text-layer spans after each render.
+  const [geometry, setGeometry] = useState<PdfGeometry | null>(null)
   const setPageText = usePdfStore((s) => s.setPageText)
   const cachedText = usePdfStore((s) => s.pageTexts.get(pageNumber))
 
-  const annotationsForPage = useAnnotationStore((s) =>
-    s.annotations.filter((a) => a.pageNumber === pageNumber && a.position?.rectsOnPage?.length)
+  // Select the stable array reference, then derive the per-page subset with a
+  // memo. Filtering *inside* the selector would return a fresh array on every
+  // render, which makes zustand v5's useSyncExternalStore loop forever
+  // ("Maximum update depth exceeded").
+  const annotations = useAnnotationStore((s) => s.annotations)
+  const annotationsForPage = useMemo(
+    () =>
+      annotations.filter(
+        (a) => a.pageNumber === pageNumber && a.position?.rectsOnPage?.length
+      ),
+    [annotations, pageNumber]
   )
   const passageFlash = useAppUiStore((s) => s.passageFlash)
   const clearPassageFlash = useAppUiStore((s) => s.clearPassageFlash)
+  const passageHighlight = useAppUiStore((s) => s.passageHighlight)
+  const flashPassage = useAppUiStore((s) => s.flashPassage)
+  const clearPassageHighlight = useAppUiStore((s) => s.clearPassageHighlight)
   const openFromAnnotation = useTutorStore((s) => s.openFromAnnotation)
+  const complexitySensitivity = useReaderPrefsStore((s) => s.prefs.complexitySensitivity)
 
   const flashRects = useMemo(() => {
     if (!passageFlash || passageFlash.pageNumber !== pageNumber) return null
@@ -43,6 +75,25 @@ export function PdfPage({ doc, pageNumber, scale, onTextExtracted }: Props): Rea
     const t = window.setTimeout(() => clearPassageFlash(), 750)
     return () => window.clearTimeout(t)
   }, [flashRects, clearPassageFlash])
+
+  // Resolve a thesis "show in page" request: locate the snippet in this page's
+  // word geometry and flash the exact rects (precise, full-fidelity highlight).
+  useEffect(() => {
+    if (!passageHighlight || !geometry) return
+    if (passageHighlight.documentId !== documentId || passageHighlight.pageNumber !== pageNumber) {
+      return
+    }
+    const rects = locateSnippetRects(geometry, passageHighlight.snippet)
+    clearPassageHighlight()
+    if (rects.length > 0) flashPassage({ pageNumber, rectsOnPage: rects })
+  }, [
+    passageHighlight,
+    geometry,
+    documentId,
+    pageNumber,
+    flashPassage,
+    clearPassageHighlight
+  ])
 
   useEffect(() => {
     let cancelled = false
@@ -120,8 +171,38 @@ export function PdfPage({ doc, pageNumber, scale, onTextExtracted }: Props): Rea
         .replace(/[ \t]+/g, ' ')
         .trim()
 
-      setPageText(pageNumber, flat)
-      onTextExtracted(pageNumber, flat)
+      // Per-word geometry from the rendered spans. Read each text-layer span's
+      // box relative to the layer, then subdivide into per-word rects. The flat
+      // text it produces becomes the page's canonical text so the pacer /
+      // highlighters tokenize the SAME string the rects are keyed against.
+      let pageGeometry: PdfGeometry | null = null
+      try {
+        const layerRect = textDiv.getBoundingClientRect()
+        const items: ItemBox[] = []
+        for (const child of Array.from(textDiv.children)) {
+          if (!(child instanceof HTMLElement)) continue
+          const text = child.textContent ?? ''
+          if (!text.trim()) continue
+          const r = child.getBoundingClientRect()
+          if (r.width <= 0 || r.height <= 0) continue
+          items.push({
+            text,
+            left: r.left - layerRect.left,
+            top: r.top - layerRect.top,
+            width: r.width,
+            height: r.height
+          })
+        }
+        pageGeometry = buildPdfGeometry(items, { width: viewport.width, height: viewport.height })
+      } catch (err) {
+        console.error('[fuzzy pdf] geometry error', err)
+      }
+      if (cancelled) return
+
+      const pageText = pageGeometry && pageGeometry.flatText.trim() ? pageGeometry.flatText : flat
+      setGeometry(pageGeometry)
+      setPageText(pageNumber, pageText)
+      onTextExtracted(pageNumber, pageText)
     }
 
     render()
@@ -152,6 +233,16 @@ export function PdfPage({ doc, pageNumber, scale, onTextExtracted }: Props): Rea
       <div ref={textLayerRef} className="textLayer fz-text-layer absolute inset-0" />
       {size && (
         <>
+          {geometry && <PacerWordOverlay geometry={geometry} pageSize={size} />}
+          {geometry && complexitySensitivity !== 'off' && (
+            <ComplexWordOverlay
+              geometry={geometry}
+              pageSize={size}
+              documentId={documentId}
+              pageNumber={pageNumber}
+              sensitivity={complexitySensitivity}
+            />
+          )}
           {flashRects && flashRects.length > 0 && (
             <PassageFlashOverlay rects={flashRects} pageSize={size} />
           )}
@@ -164,6 +255,95 @@ export function PdfPage({ doc, pageNumber, scale, onTextExtracted }: Props): Rea
           )}
         </>
       )}
+    </div>
+  )
+}
+
+// Per-word pacer highlight on PDF. The pacer's active token index resolves
+// against this page's geometry (same flat text was tokenized), so the sweep
+// lands on the right word. Renders nothing when the pacer is idle or the
+// active token isn't on this page.
+function PacerWordOverlay({
+  geometry,
+  pageSize
+}: {
+  geometry: PdfGeometry
+  pageSize: { width: number; height: number }
+}): React.JSX.Element | null {
+  const status = usePacerStore((s) => s.status)
+  const animations = useReaderPrefsStore((s) => s.prefs.animations)
+  const blobRef = useRef<HTMLDivElement>(null)
+  const engaged = status === 'playing' || status === 'paused'
+
+  // Continuous flow: instead of snapping per word and CSS-sliding (which stutters
+  // — wait, glide, wait), we interpolate the blob's position EVERY frame from the
+  // current word toward the next, synced to the reading pace. The blob is always
+  // in motion, so the sweep reads like a current. We mutate the DOM directly in
+  // the rAF loop (no React re-render per frame).
+  useEffect(() => {
+    if (!engaged) return
+    const reduce =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const flow = animations && !reduce
+    const W = pageSize.width
+    const H = pageSize.height
+    const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
+    const smooth = (t: number): number => t * t * (3 - 2 * t)
+    const padX = 4
+    const padY = 3
+
+    let raf = 0
+    let lastPos = -1
+    let startTs = 0
+
+    const frame = (now: number): void => {
+      const st = usePacerStore.getState()
+      const el = blobRef.current
+      if (el && st.words.length > 0) {
+        const pos = st.position < 0 ? 0 : st.position
+        const cur = st.words[pos]
+        const curRect = cur ? geometry.rectByToken.get(cur.index) : undefined
+        if (curRect) {
+          if (pos !== lastPos) {
+            lastPos = pos
+            startTs = now
+          }
+          const dwell = Math.max(st.currentDelayMs(), 1)
+          // Progress through the current word; frozen while paused or motion off.
+          const t = flow && st.status === 'playing' ? Math.min(1, (now - startTs) / dwell) : 0
+          const nextTok = st.words[pos + 1]
+          const nextRect = nextTok ? geometry.rectByToken.get(nextTok.index) : undefined
+          // Only glide toward the next word if it's on the same line — otherwise
+          // we'd fly diagonally across a wrap. At a line end we ease to the word
+          // and let the next frame pick up the new line.
+          const sameLine = nextRect && Math.abs(nextRect.y - curRect.y) < curRect.height * 0.8
+          const target = flow && sameLine ? nextRect! : curRect
+          const et = smooth(t)
+          const x = lerp(curRect.x, target.x, et) * W - padX
+          const y = lerp(curRect.y, target.y, et) * H - padY
+          const w = Math.max(lerp(curRect.width, target.width, et) * W, 6) + padX * 2
+          const h = Math.max(curRect.height * H, 6) + padY * 2
+          el.style.transform = `translate3d(${x}px, ${y}px, 0)`
+          el.style.width = `${w}px`
+          el.style.height = `${h}px`
+        }
+      }
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [engaged, geometry, pageSize.width, pageSize.height, animations])
+
+  if (!engaged) return null
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-[14]">
+      <div
+        ref={blobRef}
+        className="fz-pace-glider absolute left-0 top-0"
+        style={{ width: 6, height: 6, transform: 'translate3d(-9999px, -9999px, 0)' }}
+      />
     </div>
   )
 }
@@ -190,8 +370,8 @@ function PassageFlashOverlay({
             top: r.y * pageSize.height,
             width: Math.max(r.width * pageSize.width, 2),
             height: Math.max(r.height * pageSize.height, 2),
-            backgroundColor: 'rgba(124, 92, 255, 0.55)',
-            boxShadow: '0 0 0 2px rgba(183, 148, 244, 0.9)'
+            backgroundColor: 'var(--fz-accent-fill-strong)',
+            boxShadow: '0 0 0 2px var(--fz-accent-ring-strong)'
           }}
         />
       ))}
@@ -241,8 +421,8 @@ function MarginNoteOverlay({
             top: b.top,
             width: Math.max(b.width, 2),
             height: Math.max(b.height, 2),
-            backgroundColor: 'rgba(183, 148, 244, 0.22)',
-            boxShadow: 'inset 0 0 0 1px rgba(124, 92, 255, 0.45)'
+            backgroundColor: 'var(--fz-accent-tint)',
+            boxShadow: 'inset 0 0 0 1px var(--fz-accent-ring)'
           }}
         />
       ))}
@@ -259,7 +439,7 @@ function MarginNoteOverlay({
               top: first.y * pageSize.height,
               width: 10,
               height: 10,
-              backgroundColor: 'rgba(124, 92, 255, 0.9)'
+              backgroundColor: 'var(--fz-accent-marker)'
             }}
             title={ann.note.split('\n')[0]}
             aria-label="Open saved note in tutor"

@@ -1,6 +1,8 @@
 import { useDocumentStore } from '../../state/documentStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useTutorStore } from '../../state/tutorStore'
+import { useAppUiStore } from '../../state/appUiStore'
+import { Button } from '../ui'
 
 export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): React.JSX.Element {
   const documents = useDocumentStore((s) => s.documents)
@@ -9,6 +11,7 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
   const activeDocumentId = useDocumentStore((s) => s.activeDocumentId)
   const settings = useSettingsStore((s) => s.settings)
   const tutorStatus = useTutorStore((s) => s.status)
+  const setEssayOpen = useAppUiStore((s) => s.setEssayOpen)
 
   const active = documents.find((d) => d.id === activeDocumentId) ?? null
 
@@ -43,27 +46,30 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
       </div>
       <div className="flex-1" />
       <div className="fz-no-drag flex items-center gap-2 text-fz-fg-muted">
-        <span className="flex items-center gap-1.5 rounded border border-fz-border px-2 py-0.5 text-[10px] uppercase tracking-wider">
+        <span className="flex items-center gap-1.5 rounded-md border border-fz-border px-2 py-1 text-fz-micro uppercase tracking-wider">
           <span className={`h-1.5 w-1.5 rounded-full ${aiStatusDot}`} />
           {aiBadgeLabel}
         </span>
-        <button
-          type="button"
+        <Button
+          size="sm"
+          variant="primary"
           onClick={() => importDocument()}
-          disabled={importing}
-          className="rounded border border-fz-border px-2 py-0.5 text-[11px] hover:bg-fz-bg disabled:opacity-50"
-          title="Import PDF (⌘O)"
+          loading={importing}
+          title="Import document (⌘O)"
         >
-          {importing ? 'Importing…' : 'Import PDF'}
-        </button>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="rounded border border-fz-border px-2 py-0.5 text-[11px] hover:bg-fz-bg"
-          title="Settings (⌘,)"
+          {importing ? 'Importing…' : 'Import'}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setEssayOpen(true)}
+          title="Open the Essay Workspace"
         >
+          Write
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onOpenSettings} title="Settings (⌘,)">
           Settings
-        </button>
+        </Button>
       </div>
     </header>
   )

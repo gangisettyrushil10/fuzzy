@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
-import { isTypingTarget, matchShortcut } from '../lib/keyboard'
+import { isMetaKey, isTypingTarget, matchShortcut } from '../lib/keyboard'
 import { useAppUiStore } from '../state/appUiStore'
 import { useSelectionStore } from '../state/selectionStore'
+import { usePacerStore } from '../state/pacerStore'
+import { useReaderPrefsStore } from '../state/readerPrefsStore'
 
 export interface ShortcutActions {
   importPdf: () => void
@@ -23,6 +25,32 @@ export function useAppShortcuts(actions: ShortcutActions): void {
         e.preventDefault()
         clearSelection()
         dismissTransient()
+        return
+      }
+
+      // --- Reading pacer (non-meta keys) ---
+      const pacer = usePacerStore.getState()
+      if (e.key === ' ' && !isMetaKey(e) && pacer.visible) {
+        e.preventDefault()
+        pacer.toggle()
+        return
+      }
+      if ((e.key === '[' || e.key === ']') && !isMetaKey(e) && pacer.visible) {
+        e.preventDefault()
+        pacer.setWpm(pacer.wpm + (e.key === ']' ? 10 : -10))
+        return
+      }
+      if (e.key.toLowerCase() === 'f' && e.shiftKey && !isMetaKey(e)) {
+        e.preventDefault()
+        const rp = useReaderPrefsStore.getState()
+        void rp.set({ focusMode: !rp.prefs.focusMode })
+        return
+      }
+
+      // `?` opens the shortcuts cheatsheet (non-meta).
+      if (e.key === '?' && !isMetaKey(e)) {
+        e.preventDefault()
+        useAppUiStore.getState().setShortcutsOpen(true)
         return
       }
 

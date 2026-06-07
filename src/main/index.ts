@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/registerHandlers'
 import { closeDb, initDb } from './services/dbService'
+import { backfillEmbeddings } from './services/embeddings/embeddingService'
 import { isAllowedExternalScheme } from './services/urlSafety'
 
 // Isolated userData for Playwright smoke tests (see e2e/smoke.spec.ts).
@@ -68,6 +69,11 @@ app.whenReady().then(() => {
   initDb()
   registerIpcHandlers()
   createWindow()
+
+  // Build semantic embeddings for any existing documents in the background
+  // (best-effort, idempotent). Lights up vector recall for docs imported before
+  // embeddings existed; downloads the local model once on first run.
+  void backfillEmbeddings()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

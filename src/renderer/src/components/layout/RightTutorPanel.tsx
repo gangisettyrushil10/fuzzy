@@ -1,7 +1,23 @@
 import { useCallback, useState } from 'react'
-import { actionLabel, tutorProviderLabel, useTutorStore } from '../../state/tutorStore'
+import { actionLabel, tutorProviderLabel, useTutorStore, type TutorMessage } from '../../state/tutorStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useStudyPackStore } from '../../state/studyPackStore'
+import { DEFAULT_STUDY_PACK_OPTIONS } from '@shared/types/database'
+import { useTypewriter } from '../../hooks/useTypewriter'
+import { Tabs } from '../ui'
+import { ThesisPanel } from '../thesis/ThesisPanel'
+import { EvidencePanel } from '../evidence/EvidencePanel'
+import { TonePanel } from '../tone/TonePanel'
+import { AskPanel } from '../ask/AskPanel'
+
+type PanelTab = 'tutor' | 'thesis' | 'evidence' | 'tone' | 'ask'
+const PANEL_TABS = [
+  { id: 'tutor' as const, label: 'Tutor' },
+  { id: 'thesis' as const, label: 'Thesis' },
+  { id: 'evidence' as const, label: 'Evidence' },
+  { id: 'tone' as const, label: 'Tone' },
+  { id: 'ask' as const, label: 'Ask' }
+]
 export function RightTutorPanel({
   onOpenSettings
 }: {
@@ -25,9 +41,10 @@ export function RightTutorPanel({
   } = useTutorStore()
   const settings = useSettingsStore((s) => s.settings)
   const pack = useStudyPackStore((s) => s.pack)
-  const generatePack = useStudyPackStore((s) => s.generateForActive)
+  const generatePack = useStudyPackStore((s) => s.generate)
   const activeDocumentId = useStudyPackStore((s) => s.documentId)
   const [copyOk, setCopyOk] = useState(false)
+  const [tab, setTab] = useState<PanelTab>('tutor')
 
   const headerStatus =
     status === 'loading'
@@ -58,12 +75,12 @@ export function RightTutorPanel({
     } catch {
       /* ignore */
     }
-  }, [result?.outputText])
+  }, [result])
 
   const addFlashcardFromResponse = useCallback(async () => {
     if (!result?.outputText || !activeDocumentId) return
     if (!pack) {
-      await generatePack(activeDocumentId).catch(() => undefined)
+      await generatePack(activeDocumentId, DEFAULT_STUDY_PACK_OPTIONS).catch(() => undefined)
     }
     const question = request?.selectedText.slice(0, 200) ?? 'Key idea'
     const answer = result.outputText.slice(0, 500)
@@ -75,20 +92,28 @@ export function RightTutorPanel({
 
   return (
     <aside className="flex w-96 shrink-0 flex-col bg-fz-surface-2 text-sm">
-      <header className="flex h-9 shrink-0 items-center justify-between border-b border-fz-border px-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-fz-fg-subtle">
-          AI Tutor
-        </span>
-        <span className="text-[10px] text-fz-fg-subtle">{headerStatus}</span>
+      <header className="flex h-10 shrink-0 items-center justify-between border-b border-fz-border px-3">
+        <Tabs tabs={PANEL_TABS} value={tab} onChange={setTab} className="min-w-0 overflow-x-auto" />
+        {tab === 'tutor' && (
+          <span className="shrink-0 pl-2 text-fz-micro text-fz-fg-subtle">{headerStatus}</span>
+        )}
       </header>
 
-      {providerBanner && (
+      {tab === 'thesis' && <ThesisPanel />}
+
+      {tab === 'evidence' && <EvidencePanel />}
+
+      {tab === 'tone' && <TonePanel />}
+
+      {tab === 'ask' && <AskPanel />}
+
+      {tab === 'tutor' && providerBanner && (
         <div className="border-b border-fz-warning/30 bg-fz-warning/10 px-3 py-1.5 text-[10px] text-fz-warning">
           {providerBanner}
         </div>
       )}
 
-      {status === 'idle' && (
+      {tab === 'tutor' && status === 'idle' && (
         <div className="flex flex-1 items-center justify-center px-6 text-center">
           <p className="text-xs leading-relaxed text-fz-fg-muted">
             Select text in a document to ask Fuzzy to <span className="text-fz-fg">explain</span>,{' '}
@@ -98,7 +123,7 @@ export function RightTutorPanel({
         </div>
       )}
 
-      {status !== 'idle' && request && (
+      {tab === 'tutor' && status !== 'idle' && request && (
         <div className="fz-selectable flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
           <div className="rounded-md border border-fz-border bg-fz-bg/50 p-2 text-[11px] text-fz-fg-muted">
             <div className="mb-1 flex items-center justify-between">
@@ -158,7 +183,7 @@ export function RightTutorPanel({
 
           {messages.length > 0 && (
             <div className="space-y-2">
-              {messages.map((m) => (
+              {messages.map((m, i) => (
                 <div
                   key={m.id}
                   className={[
@@ -173,7 +198,10 @@ export function RightTutorPanel({
                       You
                     </span>
                   ) : null}
-                  {m.content}
+                  <TutorMessageBody
+                    message={m}
+                    reveal={i === messages.length - 1 && m.role === 'assistant'}
+                  />
                 </div>
               ))}
             </div>
@@ -219,21 +247,32 @@ export function RightTutorPanel({
                 />
                 <button
                   type="submit"
-                  disabled={!followUpDraft.trim() || status === 'loading'}
+                  disabled={!followUpDraft.trim()}
                   className="rounded border border-fz-border px-2 py-1 text-[10px] hover:bg-fz-bg disabled:opacity-40"
                 >
                   Ask
                 </button>
               </form>
-              <p className="text-[10px] text-fz-fg-subtle">
-                Streaming deferred this pass — responses arrive as a single completion.
-              </p>
             </>
           )}
         </div>
       )}
-    </div>
+    </aside>
   )
+}
+
+// Renders a tutor message body, progressively revealing the latest assistant
+// reply (typewriter) so a single mocked completion feels alive. Older messages
+// and user messages render instantly (reveal=false).
+function TutorMessageBody({
+  message,
+  reveal
+}: {
+  message: TutorMessage
+  reveal: boolean
+}): React.JSX.Element {
+  const { display } = useTypewriter({ id: message.id, text: message.content, enabled: reveal })
+  return <>{display}</>
 }
 
 function ActionChip({

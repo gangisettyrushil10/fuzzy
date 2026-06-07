@@ -24,7 +24,14 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/literata": "^5.2.8",
+    "@fontsource/opendyslexic": "^5.2.5",
+    "@huggingface/transformers": "^4.2.0",
     "better-sqlite3": "^12.9.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.0",
+    "marked": "^18.0.5",
     "openai": "^6.37.0",
     "pdfjs-dist": "^5.7.284",
     "zustand": "^5.0.2"
@@ -33,6 +40,7 @@
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.1",
@@ -52,8 +60,7 @@
     "tailwindcss": "^4.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
-    "vitest": "^4.1.6",
-    "@playwright/test": "^1.52.0"
+    "vitest": "^4.1.6"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

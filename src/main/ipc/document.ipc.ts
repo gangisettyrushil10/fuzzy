@@ -123,6 +123,7 @@ export function registerDocumentIpc(): void {
         title: `Test Document ${new Date().toLocaleTimeString()}`,
         filePath: '/dev/null',
         fileHash: null,
+        fileType: 'pdf',
         pageCount: 0
       })
     })

@@ -5,6 +5,9 @@ import { useDocumentStore } from '../../state/documentStore'
 import { useSelectionStore } from '../../state/selectionStore'
 import { usePdfStore } from '../../state/pdfStore'
 import { useTutorStore } from '../../state/tutorStore'
+import { useProjectStore } from '../../state/projectStore'
+import { useFocusSessionStore } from '../../state/focusSessionStore'
+import { fuzzyFilter } from '../../lib/fuzzy'
 
 export interface CommandPaletteHandlers {
   onImport: () => void
@@ -39,6 +42,14 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
   const pageCount = usePdfStore((s) => s.pageCount)
   const runAction = useTutorStore((s) => s.runAction)
   const pageTexts = usePdfStore((s) => s.pageTexts)
+  const projects = useProjectStore((s) => s.projects)
+  const setActiveProject = useProjectStore((s) => s.setActive)
+  const focusActive = useFocusSessionStore((s) => s.active !== null)
+  const startFocus = useFocusSessionStore((s) => s.start)
+  const endFocus = useFocusSessionStore((s) => s.end)
+  const setStatsOpen = useAppUiStore((s) => s.setStatsOpen)
+  const setShortcutsOpen = useAppUiStore((s) => s.setShortcutsOpen)
+  const setDigestOpen = useAppUiStore((s) => s.setDigestOpen)
 
   const runAi = useCallback(
     (action: AiActionType) => {
@@ -138,15 +149,64 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
         disabled: !hasSelection,
         disabledReason: 'Select text in the document',
         run: () => runAi('quiz')
+      },
+      {
+        id: 'insights',
+        label: 'View reading insights',
+        run: () => {
+          setStatsOpen(true)
+          setOpen(false)
+        }
+      },
+      {
+        id: 'focus',
+        label: focusActive ? 'End focus session' : 'Start focus session',
+        disabled: !focusActive && !hasDoc,
+        disabledReason: 'Open a document first',
+        run: () => {
+          if (focusActive) void endFocus()
+          else if (activeDocumentId) void startFocus(activeDocumentId)
+          setOpen(false)
+        }
+      },
+      {
+        id: 'shortcuts',
+        label: 'Show keyboard shortcuts',
+        shortcut: '?',
+        run: () => {
+          setShortcutsOpen(true)
+          setOpen(false)
+        }
+      },
+      {
+        id: 'digest',
+        label: 'Digest / chapter summaries',
+        disabled: !hasDoc,
+        disabledReason: 'Open a document first',
+        run: () => {
+          setDigestOpen(true)
+          setOpen(false)
+        }
       }
     ]
 
     for (const doc of documents.slice(0, 8)) {
       list.push({
         id: `doc:${doc.id}`,
-        label: `Open: ${doc.title}`,
+        label: `Open document: ${doc.title}`,
         run: () => {
           setActiveDocument(doc.id)
+          setOpen(false)
+        }
+      })
+    }
+
+    for (const project of projects.slice(0, 8)) {
+      list.push({
+        id: `project:${project.id}`,
+        label: `Open project: ${project.title}`,
+        run: () => {
+          void setActiveProject(project.id)
           setOpen(false)
         }
       })
@@ -157,17 +217,25 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
     activeDocumentId,
     selection,
     documents,
+    projects,
     pageCount,
     handlers,
     runAi,
     setActiveDocument,
+    setActiveProject,
+    focusActive,
+    startFocus,
+    endFocus,
+    setStatsOpen,
+    setShortcutsOpen,
+    setDigestOpen,
     setOpen
   ])
 
+  // Fuzzy-rank, but keep disabled commands sorted after enabled ones.
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return commands
-    return commands.filter((c) => c.label.toLowerCase().includes(q))
+    const ranked = fuzzyFilter(query, commands, (c) => c.label)
+    return [...ranked].sort((a, b) => Number(!!a.disabled) - Number(!!b.disabled))
   }, [commands, query])
 
   useEffect(() => {

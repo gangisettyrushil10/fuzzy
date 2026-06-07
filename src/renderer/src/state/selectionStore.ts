@@ -23,6 +23,10 @@ export interface PdfSelection {
   // Page-relative rects (normalised 0..1) for every line of the selection.
   // Empty if we could not compute them (e.g. selection outside a page).
   rectsOnPage: NormalizedRect[]
+  // Optional nearby context for the AI request. PDF leaves this undefined and
+  // the SelectionMenu falls back to the pdf store's per-page text; reflowable
+  // readers (epub/txt/…) supply the current section's text directly here.
+  contextText?: string | null
 }
 
 interface SelectionState {

@@ -1,10 +1,11 @@
 import OpenAI from 'openai'
 import type { AiActionRequest, AiActionResult } from '@shared/types/database'
 import { buildUserMessage, getSystemPrompt } from './prompts'
-import { getDecryptedOpenaiKey, readSettings } from '../settingsService'
+import { getDecryptedOpenaiKey, getOpenaiBaseUrl, readSettings } from '../settingsService'
 
 let client: OpenAI | null = null
 let cachedKey: string | null = null
+let cachedBaseUrl: string | null = null
 
 const MAX_COMPLETION_TOKENS = 900
 const REQUEST_TIMEOUT_MS = 30_000
@@ -17,9 +18,11 @@ function getClient(): OpenAI {
       'No OpenAI key configured. Add one in Settings or switch to mock mode.'
     )
   }
-  if (!client || cachedKey !== key) {
-    client = new OpenAI({ apiKey: key, timeout: REQUEST_TIMEOUT_MS })
+  const baseURL = getOpenaiBaseUrl()
+  if (!client || cachedKey !== key || cachedBaseUrl !== baseURL) {
+    client = new OpenAI({ apiKey: key, timeout: REQUEST_TIMEOUT_MS, baseURL: baseURL ?? undefined })
     cachedKey = key
+    cachedBaseUrl = baseURL
   }
   return client
 }

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { usePdfStore } from '../../state/pdfStore'
 import { useSelectionStore } from '../../state/selectionStore'
 import { useDocumentStore } from '../../state/documentStore'
+import { usePacerStore } from '../../state/pacerStore'
+import { useFocusSessionStore } from '../../state/focusSessionStore'
 import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { normalizeRectsToPage } from '../../lib/rects'
@@ -31,6 +33,18 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const setSelection = useSelectionStore((s) => s.setSelection)
   const clearSelection = useSelectionStore((s) => s.clear)
 
+  // Pacer: feed the current page's text once it's extracted, while the pacer
+  // is engaged. PdfPage's geometry uses the same flat text, so the sweep lines
+  // up per word.
+  const pacerVisible = usePacerStore((s) => s.visible)
+  const loadPacerSource = usePacerStore((s) => s.loadSource)
+  const pageText = usePdfStore((s) => s.pageTexts.get(currentPage))
+
+  useEffect(() => {
+    if (!pacerVisible || !pageText) return
+    loadPacerSource(`${documentId}:${currentPage}`, pageText)
+  }, [pacerVisible, pageText, documentId, currentPage, loadPacerSource])
+
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,6 +55,21 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   useEffect(() => {
     clearSelection()
   }, [currentPage, scale, clearSelection])
+
+  // Count words read into the active focus session when leaving a page.
+  const prevPageRef = useRef(currentPage)
+  useEffect(() => {
+    const prev = prevPageRef.current
+    if (prev !== currentPage) {
+      const fs = useFocusSessionStore.getState()
+      if (fs.active) {
+        const text = usePdfStore.getState().pageTexts.get(prev) ?? ''
+        const words = text ? text.split(/\s+/).filter(Boolean).length : 0
+        fs.notePageAdvance(words, currentPage)
+      }
+      prevPageRef.current = currentPage
+    }
+  }, [currentPage])
 
   useEffect(() => {
     const el = pagesContainerRef.current
@@ -110,6 +139,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       width: pageRect.width,
       height: pageRect.height
     })
+    // Pause the sweep when the reader starts grabbing a quote.
+    if (usePacerStore.getState().status === 'playing') usePacerStore.getState().pause()
     setSelection({
       documentId,
       pageNumber,
@@ -187,6 +218,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       >
         <PdfPage
           doc={doc}
+          documentId={documentId}
           pageNumber={currentPage}
           scale={scale}
           onTextExtracted={handleTextExtracted}

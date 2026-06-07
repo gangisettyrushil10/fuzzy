@@ -14,12 +14,61 @@
   --color-fz-warning: #fbbf24;
   --color-fz-success: #4ade80;
   --color-fz-elevated: #1c1c22;
+
+  /* Typography scale — named steps replacing ad-hoc text-[10px]/[11px].
+     Tailwind v4 emits text-fz-* utilities from these. The floor for any
+     interactive/label text is fz-label (12px); buttons/inputs use fz-ui. */
+  --text-fz-micro: 0.6875rem; /* 11px — dense metadata only (counts, timestamps) */
+  --text-fz-label: 0.75rem; /* 12px — section headers / uppercase labels */
+  --text-fz-ui: 0.8125rem; /* 13px — default for buttons, inputs, menu items */
+  --text-fz-body: 0.875rem; /* 14px — panel body copy */
+  --text-fz-title: 1rem; /* 16px — modal / panel titles */
+
+  --radius-fz: 0.5rem;
+  --shadow-fz-pop: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+    'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
   --font-mono:
     ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
+}
+
+/* Reader typography — runtime-tunable via readerPrefsStore (it overrides these
+   custom properties inline on the reader root). Defaults live here so first
+   paint is correct before prefs load. */
+:root {
+  --fz-reader-font-size: 1.0625rem; /* 17px */
+  --fz-reader-line-height: 1.7;
+  --fz-reader-width: 48rem; /* "normal" column */
+  --fz-reader-font-family:
+    'Literata Variable', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --fz-reader-text-align: left;
+  --fz-reader-para-spacing: 0.8em;
+  --fz-reader-letter-spacing: 0;
+  /* Reading surface (page) colors. Default = "match app theme"; overridden
+     inline by readerPrefsStore when a fixed/custom reading theme is chosen. */
+  --fz-reader-page-bg: var(--color-fz-surface);
+  --fz-reader-page-fg: var(--color-fz-fg);
+
+  /* Semantic accent-derived fills/rings. Everything that used to hardcode the
+     violet rgba() (pacer sweep, complex-word underline, text selection,
+     evidence flash, annotation overlays) now references these, so swapping the
+     theme/accent at runtime — which only rewrites --color-fz-accent[-2] —
+     recolors the whole app in a single paint. color-mix keeps the alpha steps
+     intact across any accent hue. Shared by globals.css and the PdfPage
+     inline-styled overlays. */
+  --fz-accent-fill-weak: color-mix(in srgb, var(--color-fz-accent-2) 16%, transparent);
+  --fz-accent-fill: color-mix(in srgb, var(--color-fz-accent-2) 30%, transparent);
+  --fz-accent-fill-strong: color-mix(in srgb, var(--color-fz-accent-2) 55%, transparent);
+  --fz-accent-ring: color-mix(in srgb, var(--color-fz-accent) 42%, transparent);
+  --fz-accent-ring-strong: color-mix(in srgb, var(--color-fz-accent) 90%, transparent);
+  --fz-accent-line: color-mix(in srgb, var(--color-fz-accent) 65%, transparent);
+  --fz-accent-tint: color-mix(in srgb, var(--color-fz-accent) 22%, transparent);
+  --fz-accent-marker: color-mix(in srgb, var(--color-fz-accent-2) 90%, transparent);
+  --fz-accent-selection: color-mix(in srgb, var(--color-fz-accent-2) 40%, transparent);
+  --fz-accent-evidence-end: color-mix(in srgb, var(--color-fz-accent-2) 18%, transparent);
 }
 
 html,
@@ -97,11 +146,11 @@ body {
   height: 0;
 }
 .textLayer ::selection {
-  background: rgba(124, 92, 255, 0.4);
+  background: var(--fz-accent-selection);
   color: transparent;
 }
 .textLayer ::-moz-selection {
-  background: rgba(124, 92, 255, 0.4);
+  background: var(--fz-accent-selection);
   color: transparent;
 }
 
@@ -181,5 +230,306 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+.fz-toast-out {
+  animation: fz-fade-out 0.18s ease-in forwards;
+}
+@keyframes fz-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reflowable reader body. A full typographic stylesheet driven entirely by the
+   runtime-tunable reader vars (readerPrefsStore writes them inline on :root), so
+   font / size / spacing / alignment / page colors all update live. Used for
+   both the rich-HTML branch and the plain-text TokenizedText branch. */
+.prose-fz {
+  font-family: var(--fz-reader-font-family);
+  font-size: var(--fz-reader-font-size);
+  line-height: var(--fz-reader-line-height);
+  letter-spacing: var(--fz-reader-letter-spacing);
+  text-align: var(--fz-reader-text-align);
+  color: var(--fz-reader-page-fg);
+  /* The right column edge can hug the text without looking ragged. */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* Block rhythm — paragraphs and other blocks share one tunable vertical gap. */
+.prose-fz p,
+.prose-fz ul,
+.prose-fz ol,
+.prose-fz blockquote,
+.prose-fz figure,
+.prose-fz pre,
+.prose-fz table {
+  margin: 0 0 var(--fz-reader-para-spacing);
+}
+.prose-fz > :first-child {
+  margin-top: 0;
+}
+.prose-fz > :last-child {
+  margin-bottom: 0;
+}
+
+/* Headings — scale off the reader font size so they grow with it. Sans for a
+   crisp contrast against a serif body; left-aligned regardless of body align. */
+.prose-fz h1,
+.prose-fz h2,
+.prose-fz h3,
+.prose-fz h4,
+.prose-fz h5,
+.prose-fz h6 {
+  font-family: var(--font-sans);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-wrap: balance;
+  margin: 1.6em 0 0.6em;
+  color: var(--fz-reader-page-fg);
+}
+.prose-fz h1 {
+  font-size: 1.9em;
+}
+.prose-fz h2 {
+  font-size: 1.5em;
+}
+.prose-fz h3 {
+  font-size: 1.25em;
+}
+.prose-fz h4 {
+  font-size: 1.08em;
+}
+.prose-fz h5,
+.prose-fz h6 {
+  font-size: 1em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.prose-fz em,
+.prose-fz i {
+  font-style: italic;
+}
+.prose-fz strong,
+.prose-fz b {
+  font-weight: 700;
+}
+.prose-fz a {
+  color: var(--color-fz-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Lists — keep markers and comfortable indentation. */
+.prose-fz ul,
+.prose-fz ol {
+  padding-left: 1.5em;
+}
+.prose-fz ul {
+  list-style: disc;
+}
+.prose-fz ol {
+  list-style: decimal;
+}
+.prose-fz li {
+  margin: 0.2em 0;
+}
+.prose-fz li > ul,
+.prose-fz li > ol {
+  margin: 0.2em 0;
+}
+
+/* Blockquote — a calm accent rule, slightly dimmed text. */
+.prose-fz blockquote {
+  border-left: 3px solid var(--fz-accent-line);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  opacity: 0.92;
+}
+
+.prose-fz hr {
+  border: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--fz-reader-page-fg) 22%, transparent);
+  margin: 1.8em auto;
+  width: 40%;
+}
+
+/* Inline + block code keep mono and preserved whitespace (so the Phase-8 word
+   wrapper can skip them and they read as code). */
+.prose-fz code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--fz-reader-page-fg) 8%, transparent);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-fz pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+  letter-spacing: 0;
+  background: color-mix(in srgb, var(--fz-reader-page-fg) 7%, transparent);
+  padding: 0.9em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.prose-fz pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Images / figures — never overflow the column; centered with a caption. */
+.prose-fz img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.4em auto;
+  border-radius: 4px;
+}
+.prose-fz figure {
+  text-align: center;
+}
+.prose-fz figcaption {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-top: 0.4em;
+  text-align: center;
+}
+
+/* Tables — light, legible grid that inherits the page colors. */
+.prose-fz table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.prose-fz th,
+.prose-fz td {
+  border: 1px solid color-mix(in srgb, var(--fz-reader-page-fg) 18%, transparent);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose-fz th {
+  font-weight: 650;
+}
+
+/* WPM pacer — a calm, watery highlight. The reflowable active word gets a soft
+   glow (no hard ring) that eases in; the PDF glider (.fz-pace-glider) is a
+   blurred accent blob that GLIDES between words and gently breathes, so the
+   sweep feels like a current rather than a jump. */
+.fz-pace-active {
+  background-color: var(--fz-accent-fill);
+  border-radius: 5px;
+  color: var(--color-fz-fg);
+  box-shadow: 0 0 10px 1px var(--fz-accent-ring);
+  transition:
+    background-color 0.28s ease,
+    box-shadow 0.28s ease;
+}
+.fz-pace-dim {
+  color: var(--color-fz-fg-subtle);
+  transition: color 0.35s ease;
+}
+.fz-pace-dim .fz-pace-active {
+  color: var(--color-fz-fg);
+}
+
+/* The PDF pacer blob. Position (transform) + size transitions are set inline
+   so they can track the reading pace; here we own the soft look + a slow,
+   watery breathe. */
+.fz-pace-glider {
+  border-radius: 7px;
+  background: var(--fz-accent-fill);
+  box-shadow:
+    0 0 16px 2px var(--fz-accent-ring),
+    inset 0 0 6px 0 var(--fz-accent-ring);
+  will-change: transform, width, height;
+  animation: fz-pace-breathe 2.8s ease-in-out infinite;
+}
+@keyframes fz-pace-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    box-shadow: 0 0 10px 0 var(--fz-accent-ring);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px 3px var(--fz-accent-ring);
+  }
+}
+
+/* Auto-sensed complex words: a faint dotted underline that brightens on hover,
+   click to define. Reflowable uses the inline span; PDF uses a thin strip
+   overlay so it doesn't block text selection. */
+.fz-complex-word {
+  text-decoration: underline dotted var(--fz-accent-line);
+  text-underline-offset: 3px;
+  cursor: help;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+.fz-complex-word:hover {
+  background-color: var(--fz-accent-fill-weak);
+}
+.fz-complex-underline {
+  border-bottom: 2px dotted var(--fz-accent-line);
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
+}
+.fz-complex-underline:hover {
+  border-bottom-color: var(--color-fz-accent);
+  background-color: var(--fz-accent-fill-weak);
+}
+
+/* Thesis "go to source" projection onto reflowable text — a brief glow on the
+   matched words. */
+.fz-evidence-flash {
+  background-color: var(--fz-accent-fill);
+  box-shadow: 0 0 0 1px var(--fz-accent-ring);
+  border-radius: 2px;
+  animation: fz-evidence 1.6s ease-out;
+}
+@keyframes fz-evidence {
+  0% {
+    background-color: var(--fz-accent-fill-strong);
+  }
+  100% {
+    background-color: var(--fz-accent-evidence-end);
+  }
+}
+
+/* Trim non-essential motion for users who ask for it. The spinner is left
+   alone — a non-spinning spinner reads as broken. */
+@media (prefers-reduced-motion: reduce) {
+  .fz-skeleton,
+  .fz-passage-flash,
+  .fz-toast,
+  .fz-toast-out,
+  .fz-palette-enter,
+  .fz-modal-backdrop {
+    animation-duration: 0.01ms !important;
+  }
+  .fz-pace-active,
+  .fz-pace-dim {
+    transition: none !important;
+  }
+  .fz-pace-glider {
+    animation: none !important;
+    transition: none !important;
   }
 }
