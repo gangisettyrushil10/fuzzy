@@ -7,6 +7,7 @@ interface PageRow {
   document_id: string
   page_number: number
   text_content: string | null
+  html_content: string | null
   estimated_word_count: number
   complexity_score: number
   created_at: string
@@ -18,6 +19,7 @@ function toRecord(row: PageRow): PageRecord {
     documentId: row.document_id,
     pageNumber: row.page_number,
     textContent: row.text_content,
+    htmlContent: row.html_content ?? null,
     estimatedWordCount: row.estimated_word_count,
     complexityScore: row.complexity_score,
     createdAt: row.created_at
@@ -28,6 +30,7 @@ export interface UpsertPageInput {
   documentId: string
   pageNumber: number
   textContent: string | null
+  htmlContent?: string | null
   estimatedWordCount: number
   complexityScore?: number
 }
@@ -41,10 +44,16 @@ export function upsertPage(input: UpsertPageInput): PageRecord {
     getDb()
       .prepare(
         `UPDATE pages
-         SET text_content = ?, estimated_word_count = ?, complexity_score = ?
+         SET text_content = ?, html_content = ?, estimated_word_count = ?, complexity_score = ?
          WHERE id = ?`
       )
-      .run(input.textContent, input.estimatedWordCount, input.complexityScore ?? 0, existing.id)
+      .run(
+        input.textContent,
+        input.htmlContent ?? null,
+        input.estimatedWordCount,
+        input.complexityScore ?? 0,
+        existing.id
+      )
     return getPageById(existing.id)!
   }
 
@@ -52,15 +61,16 @@ export function upsertPage(input: UpsertPageInput): PageRecord {
   const createdAt = new Date().toISOString()
   getDb()
     .prepare(
-      `INSERT INTO pages (id, document_id, page_number, text_content,
+      `INSERT INTO pages (id, document_id, page_number, text_content, html_content,
         estimated_word_count, complexity_score, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
       input.documentId,
       input.pageNumber,
       input.textContent,
+      input.htmlContent ?? null,
       input.estimatedWordCount,
       input.complexityScore ?? 0,
       createdAt
@@ -70,6 +80,7 @@ export function upsertPage(input: UpsertPageInput): PageRecord {
     documentId: input.documentId,
     pageNumber: input.pageNumber,
     textContent: input.textContent,
+    htmlContent: input.htmlContent ?? null,
     estimatedWordCount: input.estimatedWordCount,
     complexityScore: input.complexityScore ?? 0,
     createdAt
@@ -106,13 +117,13 @@ export function bulkUpsertPages(documentId: string, pages: UpsertPageInput[]): v
   const db = getDb()
   const select = db.prepare(`SELECT id FROM pages WHERE document_id = ? AND page_number = ?`)
   const insert = db.prepare(
-    `INSERT INTO pages (id, document_id, page_number, text_content,
+    `INSERT INTO pages (id, document_id, page_number, text_content, html_content,
       estimated_word_count, complexity_score, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const update = db.prepare(
     `UPDATE pages
-     SET text_content = ?, estimated_word_count = ?, complexity_score = ?
+     SET text_content = ?, html_content = ?, estimated_word_count = ?, complexity_score = ?
      WHERE id = ?`
   )
   const runAll = db.transaction((items: UpsertPageInput[]) => {
@@ -120,13 +131,20 @@ export function bulkUpsertPages(documentId: string, pages: UpsertPageInput[]): v
     for (const p of items) {
       const existing = select.get(documentId, p.pageNumber) as { id: string } | undefined
       if (existing) {
-        update.run(p.textContent, p.estimatedWordCount, p.complexityScore ?? 0, existing.id)
+        update.run(
+          p.textContent,
+          p.htmlContent ?? null,
+          p.estimatedWordCount,
+          p.complexityScore ?? 0,
+          existing.id
+        )
       } else {
         insert.run(
           randomUUID(),
           documentId,
           p.pageNumber,
           p.textContent,
+          p.htmlContent ?? null,
           p.estimatedWordCount,
           p.complexityScore ?? 0,
           createdAt

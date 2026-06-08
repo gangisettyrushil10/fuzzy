@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { EntityRecord } from '@shared/types/database'
 import { useDocumentStore } from '../../state/documentStore'
 import { useEvidenceStore } from '../../state/evidenceStore'
 import { usePdfStore } from '../../state/pdfStore'
+import { useDocumentEntities } from '../../hooks/useDocumentEntities'
 
 // The document's detected characters (the entity index). Clicking a name drops
 // it into the evidence query (build "Elizabeth and Darcy"); the page chip cycles
@@ -13,30 +14,11 @@ export function CastSection(): React.JSX.Element | null {
   const setQuery = useEvidenceStore((s) => s.setQuery)
   const setPage = usePdfStore((s) => s.setPage)
 
-  const [entities, setEntities] = useState<EntityRecord[]>([])
+  const entities = useDocumentEntities(activeDocumentId)
   const [open, setOpen] = useState(true)
   // Per-entity appearance cursor + cached mention pages (lazy-loaded).
   const cursors = useRef<Map<string, number>>(new Map())
   const mentions = useRef<Map<string, number[]>>(new Map())
-
-  useEffect(() => {
-    let cancelled = false
-    if (!activeDocumentId) {
-      setEntities([])
-      return
-    }
-    void window.fuzzy.entities
-      .list(activeDocumentId)
-      .then((list) => {
-        if (!cancelled) setEntities(list)
-      })
-      .catch(() => {
-        if (!cancelled) setEntities([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeDocumentId])
 
   if (!activeDocumentId || entities.length === 0) return null
 

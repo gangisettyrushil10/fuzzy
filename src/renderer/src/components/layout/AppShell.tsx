@@ -35,6 +35,7 @@ import { FocusSessionHud } from '../reader/FocusSessionHud'
 import { StatsPanel } from '../stats/StatsPanel'
 import { ShortcutsCheatsheet } from '../command/ShortcutsCheatsheet'
 import { DigestPanel } from '../summary/DigestPanel'
+import { AmbientGlossCard } from '../reader/AmbientGlossCard'
 
 export function AppShell(): React.JSX.Element {
   const activeDocumentId = useDocumentStore((s) => s.activeDocumentId)
@@ -170,6 +171,7 @@ export function AppShell(): React.JSX.Element {
       <OnboardingOverlay />
       {pacerVisible && <PacerBar />}
       <FocusSessionHud />
+      <AmbientGlossCard />
       <WordDefinitionPopover />
       {statsOpen && <StatsPanel onClose={() => setStatsOpen(false)} />}
       {shortcutsOpen && <ShortcutsCheatsheet onClose={() => setShortcutsOpen(false)} />}

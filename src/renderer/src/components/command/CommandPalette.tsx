@@ -7,6 +7,7 @@ import { usePdfStore } from '../../state/pdfStore'
 import { useTutorStore } from '../../state/tutorStore'
 import { useProjectStore } from '../../state/projectStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
+import { useAmbientStore } from '../../state/ambientStore'
 import { fuzzyFilter } from '../../lib/fuzzy'
 
 export interface CommandPaletteHandlers {
@@ -50,6 +51,8 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
   const setStatsOpen = useAppUiStore((s) => s.setStatsOpen)
   const setShortcutsOpen = useAppUiStore((s) => s.setShortcutsOpen)
   const setDigestOpen = useAppUiStore((s) => s.setDigestOpen)
+  const ambientEnabled = useAmbientStore((s) => s.enabled)
+  const setAmbientEnabled = useAmbientStore((s) => s.setEnabled)
 
   const runAi = useCallback(
     (action: AiActionType) => {
@@ -187,6 +190,16 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
           setDigestOpen(true)
           setOpen(false)
         }
+      },
+      {
+        id: 'ambient',
+        label: ambientEnabled
+          ? 'Ambient explanations: turn off'
+          : 'Ambient explanations: turn on',
+        run: () => {
+          setAmbientEnabled(!ambientEnabled)
+          setOpen(false)
+        }
       }
     ]
 
@@ -229,6 +242,8 @@ export function CommandPalette({ handlers }: { handlers: CommandPaletteHandlers 
     setStatsOpen,
     setShortcutsOpen,
     setDigestOpen,
+    ambientEnabled,
+    setAmbientEnabled,
     setOpen
   ])
 

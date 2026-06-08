@@ -278,6 +278,16 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_essays_updated ON essays(updated_at);
       `)
     }
+  },
+  {
+    // v10: sanitized rich HTML per reflowable section (epub/docx/md), so the
+    // reader can render real book formatting instead of a plain-text wall.
+    // Additive + nullable — old rows fall back to text_content. Mirrored in
+    // schema.sql for fresh installs (the v4/v5 discipline).
+    version: 10,
+    up: (database) => {
+      ensureColumn(database, 'pages', 'html_content', 'TEXT')
+    }
   }
 ]
 

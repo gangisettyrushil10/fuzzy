@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PageRecord } from '@shared/types/database'
 import { FILE_FORMATS, type FileType } from '@shared/formats'
 import { useDocumentStore } from '../../state/documentStore'
@@ -8,8 +8,11 @@ import { useReaderPrefsStore } from '../../state/readerPrefsStore'
 import { useComplexityStore } from '../../state/complexityStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
+import { useAmbientStore } from '../../state/ambientStore'
 import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
+import { ReaderTypographyPopover } from './ReaderTypographyPopover'
+import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
 import { analyzeComplexity } from '../../lib/complexity'
@@ -126,13 +129,51 @@ export function ReflowableReader({
 
   const current = sections && sections.length > 0 ? sections[index] : null
 
+  // Rich (HTML) sections render sanitized book formatting; we then wrap their
+  // words into a data-token-index span layer (WordLayer) so the pacer /
+  // complex-word / thesis aids work over the formatted DOM exactly like the
+  // plain TokenizedText path. `richSource` is the wrapped source string — the
+  // canonical text the aids tokenize so their indices match the spans 1:1.
+  const isRich = !!current?.htmlContent
+  const layerRef = useRef<WordLayer | null>(null)
+  const [richSource, setRichSource] = useState('')
+
+  // Inject the sanitized HTML ourselves (not via dangerouslySetInnerHTML) and
+  // build the word layer. Doing it imperatively keeps it idempotent under
+  // StrictMode's double-invoke (we always reset from the raw HTML first).
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    if (!current?.htmlContent) {
+      layerRef.current = null
+      setRichSource('')
+      return
+    }
+    el.innerHTML = current.htmlContent
+    const layer = new WordLayer(el)
+    layerRef.current = layer
+    setRichSource(layer.source)
+  }, [current])
+
   // Feed the current section's text to the pacer (only while it's engaged, so
   // we don't tokenize on every section turn otherwise). loadSource resets to
-  // the top + stops when the section key changes.
+  // the top + stops when the section key changes. Rich sections feed the WRAPPED
+  // source so the pacer's word indices resolve to real spans.
   useEffect(() => {
     if (!pacerVisible || !current) return
-    loadPacerSource(`${documentId}:${current.pageNumber}`, current.textContent ?? '')
-  }, [pacerVisible, current, documentId, loadPacerSource])
+    const src = current.htmlContent ? richSource : (current.textContent ?? '')
+    if (!src) return
+    loadPacerSource(`${documentId}:${current.pageNumber}`, src)
+  }, [pacerVisible, current, documentId, loadPacerSource, richSource])
+
+  // Ambient auto-explain the hardest sentence in the current section (no-op
+  // unless enabled; cached per section in the store).
+  const ambientEnabled = useAmbientStore((s) => s.enabled)
+  const runAmbient = useAmbientStore((s) => s.runForPage)
+  useEffect(() => {
+    if (!ambientEnabled || !current?.textContent) return
+    void runAmbient(documentId, current.pageNumber, current.textContent)
+  }, [ambientEnabled, current, documentId, runAmbient])
 
   // Resolve a thesis highlight request: hop to the right section, then flash
   // the matched words once it's rendered. Two-pass via the `index` dep — first
@@ -150,6 +191,13 @@ export function ReflowableReader({
     }
     const snippet = passageHighlight.snippet
     clearPassageHighlight()
+    // Rich path: the word layer (built by the layout effect for this section)
+    // owns the spans, so flash through it against the wrapped source.
+    const layer = layerRef.current
+    if (sections[targetIdx].htmlContent && layer) {
+      layer.flash(findWordSequence(layer.source, snippet))
+      return
+    }
     const indices = findWordSequence(sections[targetIdx].textContent ?? '', snippet)
     if (indices.length === 0) return
     setHighlightIndices(new Set(indices))
@@ -163,10 +211,13 @@ export function ReflowableReader({
   }, [passageHighlight, sections, index, documentId, clearPassageHighlight])
 
   const sectionText = current?.textContent ?? ''
+  // The string the reading aids tokenize: the wrapped source for rich sections
+  // (indices must match the spans), else the plain section text.
+  const aidSource = isRich ? richSource : sectionText
   const flaggedIndices = useMemo(() => {
-    if (sensitivity === 'off' || !sectionText) return undefined
-    return analyzeComplexity(tokenize(sectionText), sensitivity, isCommonWord).complexIndices
-  }, [sectionText, sensitivity])
+    if (sensitivity === 'off' || !aidSource) return undefined
+    return analyzeComplexity(tokenize(aidSource), sensitivity, isCommonWord).complexIndices
+  }, [aidSource, sensitivity])
 
   const handleWordClick = useCallback(
     (token: { text: string }, rect: DOMRect) => {
@@ -180,6 +231,21 @@ export function ReflowableReader({
     },
     [openPopover, documentId, current, index, sectionText]
   )
+
+  // Rich path: drive the word layer imperatively (the plain path does this
+  // declaratively through TokenizedText). Re-runs when richSource changes (a new
+  // section was wrapped) or the aid input changes.
+  useEffect(() => {
+    if (!isRich) return
+    layerRef.current?.setActive(activeWordIndex >= 0 ? activeWordIndex : null)
+  }, [isRich, activeWordIndex, richSource])
+
+  useEffect(() => {
+    if (!isRich) return
+    layerRef.current?.setFlagged(flaggedIndices ?? new Set<number>(), (word, rect) =>
+      handleWordClick({ text: word }, rect)
+    )
+  }, [isRich, flaggedIndices, richSource, handleWordClick])
 
   const handleMouseUp = useCallback(() => {
     const win = window.getSelection()
@@ -254,8 +320,9 @@ export function ReflowableReader({
           {label}
         </span>
         <div className="flex-1" />
+        <ReaderTypographyPopover />
         {sections && sections.length > 1 && (
-          <div className="flex items-center gap-1">
+          <div className="ml-3 flex items-center gap-1">
             <button
               type="button"
               onClick={() => go(index - 1)}
@@ -291,28 +358,48 @@ export function ReflowableReader({
         ) : error ? (
           <div className="max-w-md text-center text-xs text-fz-danger">{error}</div>
         ) : current ? (
-          <div
-            ref={contentRef}
-            data-section-number={current.pageNumber}
-            style={{
-              maxWidth: 'var(--fz-reader-width)',
-              background: 'var(--fz-reader-page-bg)'
-            }}
-            className={cn(
-              'fz-selectable prose-fz mx-auto w-full whitespace-pre-wrap rounded-md p-10 shadow-md',
-              pacerEngaged && focusMode && 'fz-pace-dim'
-            )}
-          >
-            <TokenizedText
-              text={current.textContent ?? ''}
-              spanMode={pacerEngaged ? 'all' : 'flagged'}
-              activeWordIndex={activeWordIndex}
-              flaggedIndices={flaggedIndices}
-              highlightIndices={highlightIndices}
-              wordClassName={(t) => (flaggedIndices?.has(t.index) ? 'fz-complex-word' : undefined)}
-              onWordClick={handleWordClick}
+          isRich ? (
+            // Rich book formatting. The layout effect injects current.htmlContent
+            // and wraps its words; React keeps the children empty (key forces a
+            // fresh element when switching away from the plain path).
+            <div
+              key="rich"
+              ref={contentRef}
+              data-section-number={current.pageNumber}
+              style={{
+                maxWidth: 'var(--fz-reader-width)',
+                background: 'var(--fz-reader-page-bg)'
+              }}
+              className={cn(
+                'fz-selectable prose-fz mx-auto w-full rounded-md p-10 shadow-md',
+                pacerEngaged && focusMode && 'fz-pace-dim'
+              )}
             />
-          </div>
+          ) : (
+            <div
+              key="plain"
+              ref={contentRef}
+              data-section-number={current.pageNumber}
+              style={{
+                maxWidth: 'var(--fz-reader-width)',
+                background: 'var(--fz-reader-page-bg)'
+              }}
+              className={cn(
+                'fz-selectable prose-fz mx-auto w-full whitespace-pre-wrap rounded-md p-10 shadow-md',
+                pacerEngaged && focusMode && 'fz-pace-dim'
+              )}
+            >
+              <TokenizedText
+                text={current.textContent ?? ''}
+                spanMode={pacerEngaged ? 'all' : 'flagged'}
+                activeWordIndex={activeWordIndex}
+                flaggedIndices={flaggedIndices}
+                highlightIndices={highlightIndices}
+                wordClassName={(t) => (flaggedIndices?.has(t.index) ? 'fz-complex-word' : undefined)}
+                onWordClick={handleWordClick}
+              />
+            </div>
+          )
         ) : (
           <div className="max-w-md text-center text-xs text-fz-fg-muted">
             {extractorReady

@@ -56,6 +56,9 @@ export interface PageRecord {
   documentId: string
   pageNumber: number
   textContent: string | null
+  // Sanitized rich HTML for reflowable formats; NULL for PDF / plain text (the
+  // reader falls back to textContent). textContent stays the canonical string.
+  htmlContent: string | null
   estimatedWordCount: number
   complexityScore: number
   createdAt: string
@@ -853,6 +856,8 @@ export interface ExtractedPagePayload {
   pageNumber: number
   textContent: string
   estimatedWordCount: number
+  // Sanitized rich HTML (reflowable extractors set this; PDF/plain text omit it).
+  htmlContent?: string | null
 }
 
 // Result of main-process extraction for ANY format. For paginated formats
@@ -1070,5 +1075,24 @@ export interface ArgumentMapResult {
   claims: ArgumentClaim[]
   rhetoric: string[]
   summary: string
+  fallbackReason: 'no_api_key' | null
+}
+
+// ---------------------------------------------------------------------------
+// Key Terms Glossary — extract a document's defined terms with a plain-English
+// definition and a verbatim source quote (located to a real page + cited, so it
+// jumps back). The textbook/study companion; on-demand, not persisted.
+// ---------------------------------------------------------------------------
+export interface GlossaryTerm {
+  term: string
+  definition: string // plain-English gloss (may be paraphrased)
+  sourceQuote: string // verbatim span from the document supporting it
+  pageNumber: number
+  citations: Record<CitationFormat, string>
+}
+
+export interface GlossaryResult {
+  documentId: string
+  terms: GlossaryTerm[]
   fallbackReason: 'no_api_key' | null
 }

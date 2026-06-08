@@ -4,8 +4,10 @@ import { useSelectionStore } from '../../state/selectionStore'
 import { useDocumentStore } from '../../state/documentStore'
 import { usePacerStore } from '../../state/pacerStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
+import { useAmbientStore } from '../../state/ambientStore'
 import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
+import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
 import { normalizeRectsToPage } from '../../lib/rects'
 
 // Renders the active PDF, paginated. One page at a time keeps render work
@@ -44,6 +46,15 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     if (!pacerVisible || !pageText) return
     loadPacerSource(`${documentId}:${currentPage}`, pageText)
   }, [pacerVisible, pageText, documentId, currentPage, loadPacerSource])
+
+  // Ambient auto-explain the hardest sentence on the current page (no-op unless
+  // enabled; cached per page in the store).
+  const ambientEnabled = useAmbientStore((s) => s.enabled)
+  const runAmbient = useAmbientStore((s) => s.runForPage)
+  useEffect(() => {
+    if (!ambientEnabled || !pageText) return
+    void runAmbient(documentId, currentPage, pageText)
+  }, [ambientEnabled, pageText, documentId, currentPage, runAmbient])
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -214,7 +225,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       <div
         ref={pagesContainerRef}
         onMouseUp={handleMouseUp}
-        className="fz-selectable flex flex-1 justify-center overflow-auto bg-fz-bg p-8"
+        style={{ background: 'var(--fz-reader-page-bg)' }}
+        className="fz-selectable flex flex-1 justify-center overflow-auto p-8"
       >
         <PdfPage
           doc={doc}
@@ -260,6 +272,9 @@ function PdfToolbar({
           {currentPage} / {pageCount}
         </span>
         <ToolbarButton onClick={onNext} disabled={currentPage >= pageCount} label="Next" />
+      </div>
+      <div className="ml-3">
+        <ReaderTypographyPopover />
       </div>
       <div className="ml-3 flex items-center gap-1">
         <ToolbarButton onClick={onZoomOut} label="–" disabled={scale <= 0.5} />

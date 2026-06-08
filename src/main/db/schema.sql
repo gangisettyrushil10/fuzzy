@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS pages (
   document_id TEXT NOT NULL,
   page_number INTEGER NOT NULL,
   text_content TEXT,
+  -- Sanitized rich HTML for reflowable formats (epub/docx/md). NULL for PDF and
+  -- plain text; the reader falls back to text_content. text_content stays the
+  -- canonical string for search/word-index alignment (DB migration v10).
+  html_content TEXT,
   estimated_word_count INTEGER DEFAULT 0,
   complexity_score REAL DEFAULT 0,
   created_at TEXT NOT NULL,

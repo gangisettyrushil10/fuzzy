@@ -51,6 +51,12 @@ const fuzzy: FuzzyApi = {
   ask: {
     query: (request) => ipcRenderer.invoke(IpcChannels.askQuery, request)
   },
+  argument: {
+    map: (documentId) => ipcRenderer.invoke(IpcChannels.argumentMap, documentId)
+  },
+  glossary: {
+    build: (documentId) => ipcRenderer.invoke(IpcChannels.glossaryBuild, documentId)
+  },
   essays: {
     list: () => ipcRenderer.invoke(IpcChannels.essaysList),
     get: (id) => ipcRenderer.invoke(IpcChannels.essaysGet, id),

@@ -472,6 +472,16 @@ body {
   }
 }
 
+/* The lagging comet trail — softer, blurrier, no breathing; sits behind the
+   main blob to give the sweep a liquid tail. */
+.fz-pace-trail {
+  border-radius: 9px;
+  background: var(--fz-accent-fill-weak);
+  filter: blur(3px);
+  box-shadow: 0 0 18px 4px var(--fz-accent-ring);
+  will-change: transform, width, height;
+}
+
 /* Auto-sensed complex words: a faint dotted underline that brightens on hover,
    click to define. Reflowable uses the inline span; PDF uses a thin strip
    overlay so it doesn't block text selection. */

@@ -8,12 +8,12 @@ import {
   type CitationFormat,
   type ComplexitySensitivity,
   type ProviderMode,
-  type ReaderContentWidth,
   type StudyExportFormat
 } from '@shared/types/database'
 import { Button, Input, Modal, SegmentedControl, Section, Slider, Tabs, type TabItem } from '../ui'
 import { toast } from '../../state/toastStore'
 import { AppearanceSettings } from './AppearanceSettings'
+import { ReaderTypographyControls } from '../reader/ReaderTypographyControls'
 
 type SettingsTab = 'appearance' | 'reading' | 'study' | 'ai'
 
@@ -152,40 +152,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.E
 
       {tab === 'reading' && (
         <div className="space-y-6">
-          {/* Reading appearance */}
-          <Section title="Reading appearance" description="How documents look in the reader.">
-          <div className="space-y-3">
-            <LabeledSlider
-              label={`Font size — ${prefs.fontSize}px`}
-              value={prefs.fontSize}
-              min={READER_PREF_LIMITS.fontSize.min}
-              max={READER_PREF_LIMITS.fontSize.max}
-              step={1}
-              onChange={(v) => void setPrefs({ fontSize: v })}
-            />
-            <LabeledSlider
-              label={`Line height — ${prefs.lineHeight.toFixed(2)}`}
-              value={prefs.lineHeight}
-              min={READER_PREF_LIMITS.lineHeight.min}
-              max={READER_PREF_LIMITS.lineHeight.max}
-              step={0.05}
-              onChange={(v) => void setPrefs({ lineHeight: Number(v.toFixed(2)) })}
-            />
-            <Row label="Column width">
-              <SegmentedControl<ReaderContentWidth>
-                size="sm"
-                aria-label="Column width"
-                value={prefs.contentWidth}
-                onChange={(v) => void setPrefs({ contentWidth: v })}
-                options={[
-                  { value: 'narrow', label: 'Narrow' },
-                  { value: 'normal', label: 'Normal' },
-                  { value: 'wide', label: 'Wide' }
-                ]}
-              />
-            </Row>
-          </div>
-        </Section>
+          {/* Reading appearance — font, size, spacing, alignment, page theme.
+              Shared with the in-reader "Aa" popover. */}
+          <Section
+            title="Reading appearance"
+            description="Font, size, spacing, and page colors — also available from the “Aa” button in the reader."
+          >
+            <ReaderTypographyControls />
+          </Section>
 
         {/* Reading aids */}
         <Section title="Reading aids" description="Pacer, complex-word highlighting, and motion.">

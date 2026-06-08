@@ -12,7 +12,8 @@
 import { readFile } from 'node:fs/promises'
 
 import type { ExtractedDocument } from '@shared/types/database'
-import { plainTextToDocument } from './sectionUtils'
+import { plainTextToDocument, richSectionsToDocument } from './sectionUtils'
+import { toRichSection, type RichSection } from './htmlUtils'
 
 // PalmDOC / MOBI compression markers (uint16 BE at start of record 0).
 const COMPRESSION_NONE = 1
@@ -206,11 +207,21 @@ export async function extractMobi(filePath: string): Promise<ExtractedDocument> 
   // Classic MOBIs are usually UTF-8 or cp1252; UTF-8 decoding handles the
   // common case and degrades gracefully for stray bytes.
   const html = rawBytes.toString('utf8')
-  const text = htmlToText(html)
 
+  // Split into chapters at headings + MOBI page-break markers, then sanitize +
+  // project each into a rich section so the book keeps its formatting. If that
+  // yields nothing (e.g. tag-poor MOBI), fall back to the plain-text path.
+  const blocks = html.split(/(?=<h[1-6][\s>])|<mbp:pagebreak[^>]*>/i)
+  const sections: RichSection[] = []
+  for (const block of blocks) {
+    const section = toRichSection(block)
+    if (section) sections.push(section)
+  }
+  if (sections.length > 0) return richSectionsToDocument(sections)
+
+  const text = htmlToText(html)
   if (text.trim() === '') {
     throw new Error('This MOBI produced no readable text after decoding.')
   }
-
   return plainTextToDocument(text)
 }

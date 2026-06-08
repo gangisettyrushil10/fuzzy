@@ -9,6 +9,16 @@ export default defineConfig({
       alias: {
         '@shared': resolve('src/shared')
       }
+    },
+    build: {
+      rollupOptions: {
+        // Second entry: the embedding worker thread (out/main/embedWorker.js),
+        // spawned at runtime by localEmbed.ts via new Worker(__dirname/…).
+        input: {
+          index: resolve('src/main/index.ts'),
+          embedWorker: resolve('src/main/services/embeddings/embedWorker.ts')
+        }
+      }
     }
   },
   preload: {

@@ -57,3 +57,23 @@ export const READING_THEME_LABELS: Record<ReadingThemeId, string> = {
   black: 'Black',
   custom: 'Custom'
 }
+
+// A PDF page is a baked canvas bitmap — its glyphs can't be re-fonted, so a
+// reading theme can only recolor it with a CSS filter. invert+hue-rotate(180)
+// gives a true-ish dark page that keeps color images from going radioactive;
+// sepia/paper just warm the whites. 'match-app' and 'custom' leave the page
+// untouched (the surrounding surface still follows the page-bg var).
+export function pdfCanvasFilter(id: ReadingThemeId): string {
+  switch (id) {
+    case 'night':
+      return 'invert(1) hue-rotate(180deg)'
+    case 'black':
+      return 'invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.05)'
+    case 'sepia':
+      return 'sepia(0.45) contrast(0.95) brightness(0.95)'
+    case 'paper':
+      return 'sepia(0.16) brightness(0.99) contrast(0.98)'
+    default:
+      return 'none'
+  }
+}

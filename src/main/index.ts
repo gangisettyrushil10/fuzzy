@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/registerHandlers'
 import { closeDb, initDb } from './services/dbService'
 import { backfillEmbeddings } from './services/embeddings/embeddingService'
+import { terminateEmbedWorker } from './services/embeddings/localEmbed'
 import { isAllowedExternalScheme } from './services/urlSafety'
 
 // Isolated userData for Playwright smoke tests (see e2e/smoke.spec.ts).
@@ -87,5 +88,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  terminateEmbedWorker()
   closeDb()
 })

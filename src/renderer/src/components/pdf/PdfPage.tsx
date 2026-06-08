@@ -14,6 +14,7 @@ import {
   type PdfGeometry
 } from '../../lib/pdfWordGeometry'
 import { ComplexWordOverlay } from './ComplexWordOverlay'
+import { pdfCanvasFilter } from '../../theme/readingThemes'
 import type { AnnotationRecord } from '@shared/types/database'
 
 interface Props {
@@ -64,6 +65,11 @@ export function PdfPage({
   const clearPassageHighlight = useAppUiStore((s) => s.clearPassageHighlight)
   const openFromAnnotation = useTutorStore((s) => s.openFromAnnotation)
   const complexitySensitivity = useReaderPrefsStore((s) => s.prefs.complexitySensitivity)
+  // Reading theme recolors the baked canvas (filter only — the transparent text
+  // layer above stays untouched so selection geometry + the accent selection
+  // highlight are preserved).
+  const readingTheme = useReaderPrefsStore((s) => s.prefs.readingTheme)
+  const canvasFilter = pdfCanvasFilter(readingTheme)
 
   const flashRects = useMemo(() => {
     if (!passageFlash || passageFlash.pageNumber !== pageNumber) return null
@@ -222,14 +228,19 @@ export function PdfPage({
     <div
       ref={containerRef}
       data-page-number={pageNumber}
-      className="relative mx-auto rounded-md bg-white shadow-md"
-      style={
-        size
+      className="relative mx-auto rounded-md shadow-md"
+      style={{
+        background: 'var(--fz-reader-page-bg)',
+        ...(size
           ? { width: `${size.width}px`, height: `${size.height}px` }
-          : { minHeight: 800, width: '100%', maxWidth: 900 }
-      }
+          : { minHeight: 800, width: '100%', maxWidth: 900 })
+      }}
     >
-      <canvas ref={canvasRef} className="block" />
+      <canvas
+        ref={canvasRef}
+        className="block"
+        style={canvasFilter === 'none' ? undefined : { filter: canvasFilter }}
+      />
       <div ref={textLayerRef} className="textLayer fz-text-layer absolute inset-0" />
       {size && (
         <>
@@ -273,13 +284,14 @@ function PacerWordOverlay({
   const status = usePacerStore((s) => s.status)
   const animations = useReaderPrefsStore((s) => s.prefs.animations)
   const blobRef = useRef<HTMLDivElement>(null)
+  const trailRef = useRef<HTMLDivElement>(null)
   const engaged = status === 'playing' || status === 'paused'
 
-  // Continuous flow: instead of snapping per word and CSS-sliding (which stutters
-  // — wait, glide, wait), we interpolate the blob's position EVERY frame from the
-  // current word toward the next, synced to the reading pace. The blob is always
-  // in motion, so the sweep reads like a current. We mutate the DOM directly in
-  // the rAF loop (no React re-render per frame).
+  // Continuous flow: interpolate the blob's position EVERY frame from the current
+  // word toward the next, synced to the reading pace, so it's always gliding. A
+  // lagging "comet" trail (exponential follow) adds liquid motion, and a brief
+  // opacity fade at line wraps makes it dissolve/re-form instead of teleporting.
+  // DOM is mutated directly in the rAF loop (no React re-render per frame).
   useEffect(() => {
     if (!engaged) return
     const reduce =
@@ -292,15 +304,23 @@ function PacerWordOverlay({
     const smooth = (t: number): number => t * t * (3 - 2 * t)
     const padX = 4
     const padY = 3
+    const FADE_MS = 200
 
     let raf = 0
     let lastPos = -1
     let startTs = 0
+    let prevY = Number.NaN
+    let fadeStart = -Infinity
+    // Comet trail state (page px).
+    let trailX = Number.NaN
+    let trailY = Number.NaN
+    let trailW = 8
 
     const frame = (now: number): void => {
       const st = usePacerStore.getState()
-      const el = blobRef.current
-      if (el && st.words.length > 0) {
+      const main = blobRef.current
+      const trail = trailRef.current
+      if (main && st.words.length > 0) {
         const pos = st.position < 0 ? 0 : st.position
         const cur = st.words[pos]
         const curRect = cur ? geometry.rectByToken.get(cur.index) : undefined
@@ -310,13 +330,9 @@ function PacerWordOverlay({
             startTs = now
           }
           const dwell = Math.max(st.currentDelayMs(), 1)
-          // Progress through the current word; frozen while paused or motion off.
           const t = flow && st.status === 'playing' ? Math.min(1, (now - startTs) / dwell) : 0
           const nextTok = st.words[pos + 1]
           const nextRect = nextTok ? geometry.rectByToken.get(nextTok.index) : undefined
-          // Only glide toward the next word if it's on the same line — otherwise
-          // we'd fly diagonally across a wrap. At a line end we ease to the word
-          // and let the next frame pick up the new line.
           const sameLine = nextRect && Math.abs(nextRect.y - curRect.y) < curRect.height * 0.8
           const target = flow && sameLine ? nextRect! : curRect
           const et = smooth(t)
@@ -324,9 +340,43 @@ function PacerWordOverlay({
           const y = lerp(curRect.y, target.y, et) * H - padY
           const w = Math.max(lerp(curRect.width, target.width, et) * W, 6) + padX * 2
           const h = Math.max(curRect.height * H, 6) + padY * 2
-          el.style.transform = `translate3d(${x}px, ${y}px, 0)`
-          el.style.width = `${w}px`
-          el.style.height = `${h}px`
+
+          // Line change → fade dip + reset the trail so it doesn't streak across
+          // the page diagonally.
+          const lineChanged = !Number.isNaN(prevY) && Math.abs(y - prevY) > h
+          if (flow && lineChanged) {
+            fadeStart = now
+            trailX = x
+            trailY = y
+          }
+          prevY = y
+          const op = flow && fadeStart > -Infinity ? Math.min(1, (now - fadeStart) / FADE_MS) : 1
+
+          main.style.transform = `translate3d(${x}px, ${y}px, 0)`
+          main.style.width = `${w}px`
+          main.style.height = `${h}px`
+          main.style.opacity = String(op)
+
+          if (trail) {
+            if (Number.isNaN(trailX)) {
+              trailX = x
+              trailY = y
+              trailW = w
+            } else if (flow) {
+              const k = 0.16
+              trailX += (x - trailX) * k
+              trailY += (y - trailY) * k
+              trailW += (w - trailW) * k
+            } else {
+              trailX = x
+              trailY = y
+              trailW = w
+            }
+            trail.style.transform = `translate3d(${trailX}px, ${trailY}px, 0)`
+            trail.style.width = `${trailW}px`
+            trail.style.height = `${h}px`
+            trail.style.opacity = flow ? String(op * 0.45) : '0'
+          }
         }
       }
       raf = requestAnimationFrame(frame)
@@ -339,6 +389,11 @@ function PacerWordOverlay({
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-[14]">
+      <div
+        ref={trailRef}
+        className="fz-pace-trail absolute left-0 top-0"
+        style={{ width: 8, height: 8, transform: 'translate3d(-9999px, -9999px, 0)', opacity: 0 }}
+      />
       <div
         ref={blobRef}
         className="fz-pace-glider absolute left-0 top-0"

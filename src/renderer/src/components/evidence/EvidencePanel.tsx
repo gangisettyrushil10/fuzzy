@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { CITATION_FORMAT_LABELS, type CitationFormat } from '@shared/types/database'
 import { useEvidenceStore } from '../../state/evidenceStore'
 import { setCitationFormat, useCitationFormat } from '../../state/thesisStore'
 import { useDocumentStore } from '../../state/documentStore'
+import { useDocumentEntities } from '../../hooks/useDocumentEntities'
 import { Button, SegmentedControl, Textarea } from '../ui'
 import { EvidenceResultCard } from './EvidenceResultCard'
 import { CastSection } from './CastSection'
@@ -9,6 +11,13 @@ import { CastSection } from './CastSection'
 const FORMAT_OPTIONS: ReadonlyArray<{ value: CitationFormat; label: string }> = (
   Object.keys(CITATION_FORMAT_LABELS) as CitationFormat[]
 ).map((value) => ({ value, label: CITATION_FORMAT_LABELS[value] }))
+
+// The partial token after an "@" at the caret, or null when not mentioning.
+const MENTION_RE = /@([\p{L}'’.-]*)$/u
+function detectMention(value: string, caret: number): string | null {
+  const m = value.slice(0, caret).match(MENTION_RE)
+  return m ? m[1] : null
+}
 
 // Evidence search: ask an inferential question about the active document ("find
 // evidence that Elizabeth and Darcy are in love") and get verified, cited,
@@ -24,27 +33,68 @@ export function EvidencePanel(): React.JSX.Element {
 
   const citationFormat = useCitationFormat()
   const activeDocumentId = useDocumentStore((s) => s.activeDocumentId)
+  const entities = useDocumentEntities(activeDocumentId)
+  const [mention, setMention] = useState<string | null>(null)
   const analyzing = status === 'analyzing'
+
+  const mentionMatches =
+    mention === null
+      ? []
+      : entities
+          .filter((e) =>
+            [e.name, ...e.aliases].some((n) => n.toLowerCase().includes(mention.toLowerCase()))
+          )
+          .slice(0, 6)
+
+  const insertMention = (name: string): void => {
+    setQuery(query.replace(MENTION_RE, `${name} `))
+    setMention(null)
+  }
 
   const submit = (e: React.FormEvent): void => {
     e.preventDefault()
+    setMention(null)
     void runSearch()
   }
 
   return (
     <div className="fz-selectable flex min-h-0 flex-1 flex-col">
       <form onSubmit={submit} className="space-y-2 border-b border-fz-border p-3">
-        <Textarea
-          value={query}
-          autoGrow
-          maxRows={4}
-          placeholder="Ask the document — e.g. “Find evidence that Elizabeth and Darcy are in love.”"
-          aria-label="Evidence query"
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(e)
-          }}
-        />
+        <div className="relative">
+          <Textarea
+            value={query}
+            autoGrow
+            maxRows={4}
+            placeholder="Ask the document — e.g. “Find evidence that Elizabeth and Darcy are in love.” Type @ to reference a character."
+            aria-label="Evidence query"
+            onChange={(e) => {
+              const value = e.target.value
+              setQuery(value)
+              const caret = e.target.selectionStart ?? value.length
+              setMention(entities.length > 0 ? detectMention(value, caret) : null)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setMention(null)
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(e)
+            }}
+          />
+          {mention !== null && mentionMatches.length > 0 && (
+            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-44 overflow-y-auto rounded-fz border border-fz-border bg-fz-surface shadow-lg">
+              {mentionMatches.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => insertMention(e.name)}
+                    className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-fz-ui text-fz-fg transition hover:bg-fz-bg"
+                  >
+                    <span className="truncate">{e.name}</span>
+                    <span className="shrink-0 text-fz-micro text-fz-fg-subtle">{e.mentionCount}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="flex items-center justify-between gap-2">
           <SegmentedControl
             options={FORMAT_OPTIONS}

@@ -46,6 +46,7 @@ import type { CitationFormat } from './database'
 import type { ChapterSummariesResult, DigestResult } from './summary'
 import type { EntityRecord, EvidenceSearchRequest, EvidenceSearchResult } from './database'
 import type { AskRequest, AskResult, ToneSearchRequest, ToneSearchResult } from './database'
+import type { ArgumentMapResult, GlossaryResult } from './database'
 import type {
   EssayDraftRequest,
   EssayOutline,
@@ -99,6 +100,12 @@ export interface FuzzyApi {
   }
   ask: {
     query: (request: AskRequest) => Promise<AskResult>
+  }
+  argument: {
+    map: (documentId: string) => Promise<ArgumentMapResult>
+  }
+  glossary: {
+    build: (documentId: string) => Promise<GlossaryResult>
   }
   essays: {
     list: () => Promise<EssayRecord[]>

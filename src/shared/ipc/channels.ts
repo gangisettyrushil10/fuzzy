@@ -27,6 +27,7 @@ export const IpcChannels = {
   toneSearch: 'tone:search',
   askQuery: 'ask:query',
   argumentMap: 'argument:map',
+  glossaryBuild: 'glossary:build',
 
   essaysList: 'essays:list',
   essaysGet: 'essays:get',

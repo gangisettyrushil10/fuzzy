@@ -4,6 +4,7 @@
 // "page". Keep these helpers pure so per-format extractors stay tiny.
 
 import type { ExtractedDocument, ExtractedPagePayload } from '@shared/types/database'
+import type { RichSection } from './htmlUtils'
 
 const MAX_SECTION_CHARS = 12_000
 
@@ -62,4 +63,25 @@ export function sectionsToDocument(rawSections: string[]): ExtractedDocument {
 // Convenience for single-blob formats (txt): chunk then assemble.
 export function plainTextToDocument(text: string): ExtractedDocument {
   return sectionsToDocument(chunkPlainText(text))
+}
+
+// Builds an ExtractedDocument from ordered rich sections (sanitized HTML + its
+// plain-text projection). text_content stays canonical for search/word-order;
+// html_content carries the formatting. Empty sections (no readable text) are
+// dropped. Used by the epub/docx/md/mobi rich extractors.
+export function richSectionsToDocument(sections: RichSection[]): ExtractedDocument {
+  const pages: ExtractedPagePayload[] = []
+  let pageNumber = 1
+  for (const section of sections) {
+    const textContent = section.text.trim()
+    if (!textContent) continue
+    pages.push({
+      pageNumber,
+      textContent,
+      htmlContent: section.html,
+      estimatedWordCount: wordCount(textContent)
+    })
+    pageNumber++
+  }
+  return { pageCount: pages.length, pages }
 }

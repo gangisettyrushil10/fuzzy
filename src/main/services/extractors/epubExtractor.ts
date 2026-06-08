@@ -11,7 +11,12 @@ import { readFile } from 'fs/promises'
 import JSZip from 'jszip'
 
 import type { DocMetadata, ExtractedDocument } from '@shared/types/database'
-import { sectionsToDocument } from './sectionUtils'
+import { richSectionsToDocument } from './sectionUtils'
+import { guessImageMime, toRichSection, type RichSection } from './htmlUtils'
+
+// Skip inlining images larger than this (decoded bytes). Keeps the DB bounded —
+// a single full-bleed cover scan can be multiple MB; books rarely need them.
+const MAX_INLINE_IMAGE_BYTES = 512 * 1024
 
 export async function extractEpub(filePath: string): Promise<ExtractedDocument> {
   let zip: JSZip
@@ -42,21 +47,63 @@ export async function extractEpub(filePath: string): Promise<ExtractedDocument> 
   const manifest = parseManifest(opfXml)
   const spine = parseSpine(opfXml)
 
-  const sections: string[] = []
+  const sections: RichSection[] = []
   for (const idref of spine) {
     const href = manifest.get(idref)
     if (!href) continue
     const docPath = resolvePath(opfDir, href)
     const xhtml = await readZipText(zip, docPath)
     if (xhtml === null) continue
-    sections.push(htmlToText(xhtml))
+    // Inline images (resolved against this chapter's folder) as data URIs, then
+    // sanitize + project. toRichSection drops empty/structural-only chapters.
+    const withImages = await inlineEpubImages(xhtml, zip, dirname(docPath))
+    const section = toRichSection(withImages)
+    if (section) sections.push(section)
   }
 
   if (sections.length === 0) {
     throw new Error(`No readable content found in EPUB "${filePath}" (empty or unsupported spine).`)
   }
 
-  return sectionsToDocument(sections)
+  return richSectionsToDocument(sections)
+}
+
+// Rewrite every <img src> / SVG <image href> that points at a ZIP entry into a
+// self-contained data: URI, so the rendered chapter needs no external assets.
+// Oversized or unreadable images are dropped (src emptied) rather than inlined.
+async function inlineEpubImages(html: string, zip: JSZip, baseDir: string): Promise<string> {
+  const refRe = /(<(?:img|image)\b[^>]*?\s(?:src|xlink:href|href)\s*=\s*)(["'])(.*?)\2/gi
+  const matches = Array.from(html.matchAll(refRe))
+  if (matches.length === 0) return html
+
+  // Resolve each unique ref to a data URI once (chapters reuse images).
+  const cache = new Map<string, string | null>()
+  for (const m of matches) {
+    const rawRef = m[3]
+    if (!rawRef || rawRef.startsWith('data:') || /^https?:/i.test(rawRef)) continue
+    if (cache.has(rawRef)) continue
+    cache.set(rawRef, await readImageAsDataUri(zip, resolvePath(baseDir, rawRef)))
+  }
+
+  return html.replace(refRe, (whole, prefix: string, quote: string, ref: string) => {
+    if (!ref || ref.startsWith('data:') || /^https?:/i.test(ref)) return whole
+    const dataUri = cache.get(ref)
+    return dataUri ? `${prefix}${quote}${dataUri}${quote}` : `${prefix}${quote}${quote}`
+  })
+}
+
+async function readImageAsDataUri(zip: JSZip, path: string): Promise<string | null> {
+  const entry = zip.file(path) ?? findEntryCaseInsensitive(zip, path)
+  if (!entry) return null
+  const mime = guessImageMime(path)
+  if (!mime) return null
+  try {
+    const buf = await entry.async('nodebuffer')
+    if (buf.length > MAX_INLINE_IMAGE_BYTES) return null
+    return `data:${mime};base64,${buf.toString('base64')}`
+  } catch {
+    return null
+  }
 }
 
 function errMessage(err: unknown): string {

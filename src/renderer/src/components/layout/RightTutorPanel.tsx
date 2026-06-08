@@ -9,14 +9,18 @@ import { ThesisPanel } from '../thesis/ThesisPanel'
 import { EvidencePanel } from '../evidence/EvidencePanel'
 import { TonePanel } from '../tone/TonePanel'
 import { AskPanel } from '../ask/AskPanel'
+import { ArgumentPanel } from '../argument/ArgumentPanel'
+import { GlossaryPanel } from '../glossary/GlossaryPanel'
 
-type PanelTab = 'tutor' | 'thesis' | 'evidence' | 'tone' | 'ask'
+type PanelTab = 'tutor' | 'thesis' | 'evidence' | 'tone' | 'ask' | 'claims' | 'terms'
 const PANEL_TABS = [
   { id: 'tutor' as const, label: 'Tutor' },
   { id: 'thesis' as const, label: 'Thesis' },
   { id: 'evidence' as const, label: 'Evidence' },
   { id: 'tone' as const, label: 'Tone' },
-  { id: 'ask' as const, label: 'Ask' }
+  { id: 'ask' as const, label: 'Ask' },
+  { id: 'claims' as const, label: 'Claims' },
+  { id: 'terms' as const, label: 'Terms' }
 ]
 export function RightTutorPanel({
   onOpenSettings
@@ -106,6 +110,10 @@ export function RightTutorPanel({
       {tab === 'tone' && <TonePanel />}
 
       {tab === 'ask' && <AskPanel />}
+
+      {tab === 'claims' && <ArgumentPanel />}
+
+      {tab === 'terms' && <GlossaryPanel />}
 
       {tab === 'tutor' && providerBanner && (
         <div className="border-b border-fz-warning/30 bg-fz-warning/10 px-3 py-1.5 text-[10px] text-fz-warning">

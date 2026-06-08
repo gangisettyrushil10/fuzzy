@@ -21,6 +21,9 @@ import { PathEscapeError } from '../services/pathSafety'
 import type { ExtractedPagePayload } from '@shared/types/database'
 
 const MAX_PAGE_TEXT_CHARS = 200_000
+// Rich HTML (with inlined image data URIs) is bulkier than plain text; cap it
+// higher but still bounded so a pathological section can't bloat the DB.
+const MAX_PAGE_HTML_CHARS = 4_000_000
 
 export function registerDocumentIpc(): void {
   ipcMain.handle(IpcChannels.documentsList, () => listDocuments())
@@ -84,6 +87,11 @@ export function registerDocumentIpc(): void {
       }
       const text = typeof page.textContent === 'string' ? page.textContent : ''
       const safeText = text.length > MAX_PAGE_TEXT_CHARS ? text.slice(0, MAX_PAGE_TEXT_CHARS) : text
+      const rawHtml = typeof page.htmlContent === 'string' ? page.htmlContent : null
+      const safeHtml =
+        rawHtml && rawHtml.length > MAX_PAGE_HTML_CHARS
+          ? rawHtml.slice(0, MAX_PAGE_HTML_CHARS)
+          : rawHtml
       const wordCount = Number.isFinite(page.estimatedWordCount)
         ? Number(page.estimatedWordCount)
         : safeText.trim() === ''
@@ -94,6 +102,7 @@ export function registerDocumentIpc(): void {
         documentId,
         pageNumber,
         textContent: safeText,
+        htmlContent: safeHtml,
         estimatedWordCount: wordCount
       })
       // Only widen page_count — never shrink it. A user paging out of order

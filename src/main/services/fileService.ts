@@ -201,6 +201,7 @@ async function indexDocumentText(
       documentId: document.id,
       pageNumber: p.pageNumber,
       textContent: p.textContent,
+      htmlContent: p.htmlContent ?? null,
       estimatedWordCount: p.estimatedWordCount
     }))
   )
