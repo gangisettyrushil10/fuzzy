@@ -46,7 +46,7 @@ export const THEMES: Record<ConcreteThemeId, Theme> = {
   midnight: {
     id: 'midnight',
     name: 'Midnight',
-    description: 'The Fuzzy default — near-black with a violet accent.',
+    description: 'The Fuzzy default — near-black with a warm orange accent.',
     group: 'dark',
     mode: 'dark',
     palette: {
@@ -57,8 +57,8 @@ export const THEMES: Record<ConcreteThemeId, Theme> = {
       fg: '#e6e6ea',
       'fg-muted': '#8a8a93',
       'fg-subtle': '#5a5a63',
-      accent: '#b794f4',
-      'accent-2': '#7c5cff',
+      accent: '#e8874a',
+      'accent-2': '#c05a14',
       danger: '#f87171',
       warning: '#fbbf24',
       success: '#4ade80',

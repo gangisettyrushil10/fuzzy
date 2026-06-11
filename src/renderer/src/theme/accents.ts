@@ -13,6 +13,7 @@ export interface AccentPreset {
 }
 
 export const ACCENT_PRESETS: AccentPreset[] = [
+  { id: 'orange', name: 'Orange', accent: '#e8874a', accent2: '#c05a14' },
   { id: 'purple', name: 'Purple', accent: '#b794f4', accent2: '#7c5cff' },
   { id: 'blue', name: 'Blue', accent: '#60a5fa', accent2: '#3b82f6' },
   { id: 'teal', name: 'Teal', accent: '#2dd4bf', accent2: '#14b8a6' },
@@ -28,4 +29,4 @@ export const ACCENT_PRESET_BY_ID = Object.fromEntries(
 ) as Record<AccentPreset['id'], AccentPreset>
 
 // Fallback hex shown in the custom-color picker before the user has picked one.
-export const DEFAULT_CUSTOM_ACCENT = '#7c5cff'
+export const DEFAULT_CUSTOM_ACCENT = '#e8874a'

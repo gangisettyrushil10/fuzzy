@@ -603,6 +603,7 @@ export type ThemeId = (typeof THEME_IDS)[number]
 // renderer/src/theme/accents.ts.
 export const ACCENT_IDS = [
   'theme',
+  'orange',
   'purple',
   'blue',
   'teal',
