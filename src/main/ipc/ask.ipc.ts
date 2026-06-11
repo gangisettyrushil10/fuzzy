@@ -15,7 +15,8 @@ function validate(input: unknown): AskRequest {
     question: r.question.slice(0, MAX_QUESTION_CHARS),
     spoilerSafe: r.spoilerSafe === true,
     currentPage: typeof r.currentPage === 'number' ? r.currentPage : null,
-    limit: typeof r.limit === 'number' ? r.limit : undefined
+    limit: typeof r.limit === 'number' ? r.limit : undefined,
+    webSearch: r.webSearch === true
   }
 }
 

@@ -28,6 +28,9 @@ export interface DocumentRecord {
   // Detected (or user-overridden) genre — selects the genre adapter. null until
   // classified at import (DB migration v7).
   genre: DocumentGenre | null
+  // High-water mark: the furthest page the user has ever reached. Used to
+  // restore position on open and as the spoiler-safe boundary (DB migration v11).
+  lastReadPage: number | null
 }
 
 // Document genres recognized by the genre adapter. Drives segmentation, entity
@@ -991,7 +994,21 @@ export interface AskRequest {
   spoilerSafe?: boolean
   currentPage?: number | null
   limit?: number
+  // Opt-in: let the model search the live web to supplement the document.
+  // Mutually exclusive with spoilerSafe (the web doesn't respect your reading
+  // position). Requires a real provider/key; ignored in mock mode.
+  webSearch?: boolean
 }
+
+// A live-web citation returned when webSearch was used.
+export interface WebSource {
+  title: string
+  url: string
+}
+
+// How the answer was produced — surfaced in the UI so summaries/web answers are
+// distinguishable from plain grounded Q&A.
+export type AskMode = 'qa' | 'summary'
 
 export interface AskResult {
   question: string
@@ -999,6 +1016,16 @@ export interface AskResult {
   sources: RankedPassage[]
   spoilerSafe: boolean
   fallbackReason: 'no_api_key' | null
+  // Present (possibly empty) when the answer drew on a live web search.
+  usedWeb?: boolean
+  webSources?: WebSource[]
+  // Set when web search was requested but couldn't run (model unavailable, etc.)
+  // — the answer falls back to the document and we tell the user why.
+  webError?: string | null
+  // 'summary' when the question was a "summarize this chapter" intent.
+  mode?: AskMode
+  // For a chapter summary, the page/chapter that was summarized.
+  summaryPage?: number | null
 }
 
 // ---------------------------------------------------------------------------

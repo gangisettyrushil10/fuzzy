@@ -6,6 +6,7 @@ import {
   getDocument,
   insertDocument,
   listDocuments,
+  setLastReadPage,
   setPageCount,
   touchLastOpened
 } from '../db/repositories/documentRepository'
@@ -112,6 +113,17 @@ export function registerDocumentIpc(): void {
       const nextMax = Math.max(currentMax, pageNumber)
       if (nextMax > currentMax) setPageCount(documentId, nextMax)
       return { ok: true as const, pageCount: nextMax }
+    }
+  )
+
+  ipcMain.handle(
+    IpcChannels.documentsSetLastReadPage,
+    (_e, documentId: string, page: number) => {
+      if (typeof documentId !== 'string' || !documentId) return { ok: false }
+      const p = Number(page)
+      if (!Number.isFinite(p) || p < 1) return { ok: false }
+      setLastReadPage(documentId, Math.floor(p))
+      return { ok: true as const }
     }
   )
 

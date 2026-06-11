@@ -23,9 +23,13 @@ const PANEL_TABS = [
   { id: 'terms' as const, label: 'Terms' }
 ]
 export function RightTutorPanel({
-  onOpenSettings
+  onOpenSettings,
+  onCollapse,
+  style
 }: {
   onOpenSettings: () => void
+  onCollapse?: () => void
+  style?: React.CSSProperties
 }): React.JSX.Element {
   const {
     status,
@@ -95,11 +99,21 @@ export function RightTutorPanel({
   }, [result, request, pack, activeDocumentId, generatePack])
 
   return (
-    <aside className="flex w-96 shrink-0 flex-col bg-fz-surface-2 text-sm">
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-fz-border px-3">
-        <Tabs tabs={PANEL_TABS} value={tab} onChange={setTab} className="min-w-0 overflow-x-auto" />
+    <aside className="flex flex-col bg-fz-surface-2 text-sm" style={style}>
+      <header className="flex h-10 shrink-0 items-center gap-1 border-b border-fz-border px-2">
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-fz-fg-subtle hover:bg-fz-bg hover:text-fz-fg focus-visible:ring-2 focus-visible:ring-fz-accent"
+            title="Collapse panel"
+          >
+            ›
+          </button>
+        )}
+        <Tabs tabs={PANEL_TABS} value={tab} onChange={setTab} className="min-w-0 flex-1 overflow-x-auto" />
         {tab === 'tutor' && (
-          <span className="shrink-0 pl-2 text-fz-micro text-fz-fg-subtle">{headerStatus}</span>
+          <span className="shrink-0 pl-1 text-fz-micro text-fz-fg-subtle">{headerStatus}</span>
         )}
       </header>
 

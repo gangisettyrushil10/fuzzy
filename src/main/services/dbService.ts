@@ -288,6 +288,14 @@ const migrations: Migration[] = [
     up: (database) => {
       ensureColumn(database, 'pages', 'html_content', 'TEXT')
     }
+  },
+  {
+    // v11: per-document reading position high-water mark. Drives resume-on-open
+    // and the spoiler-safe retrieval boundary. Nullable — NULL = never read.
+    version: 11,
+    up: (database) => {
+      ensureColumn(database, 'documents', 'last_read_page', 'INTEGER')
+    }
   }
 ]
 

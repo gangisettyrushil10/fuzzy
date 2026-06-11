@@ -12,6 +12,8 @@ import { useAmbientStore } from '../../state/ambientStore'
 import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
 import { ReaderTypographyPopover } from './ReaderTypographyPopover'
+import { FeelingAurora } from './FeelingAurora'
+import { SceneSprite } from './SceneSprite'
 import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
@@ -150,6 +152,10 @@ export function ReflowableReader({
       return
     }
     el.innerHTML = current.htmlContent
+    // Strip any surviving inline styles so EPUB colour/font overrides can't
+    // fight the reading theme (sanitize-html already does this server-side;
+    // this is a client-side safety net for malformed or EPUB3 XHTML).
+    el.querySelectorAll('[style]').forEach((node) => node.removeAttribute('style'))
     const layer = new WordLayer(el)
     layerRef.current = layer
     setRichSource(layer.source)
@@ -174,6 +180,18 @@ export function ReflowableReader({
     if (!ambientEnabled || !current?.textContent) return
     void runAmbient(documentId, current.pageNumber, current.textContent)
   }, [ambientEnabled, current, documentId, runAmbient])
+
+  // Feeling Aurora + Scene Sprite: classify current section once per page.
+  const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
+  const spriteEnabled = useAmbientStore((s) => s.spriteEnabled)
+  const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
+  const setSpriteEnabled = useAmbientStore((s) => s.setSpriteEnabled)
+  const classification = useAmbientStore((s) => s.classification)
+  const classifyForPage = useAmbientStore((s) => s.classifyForPage)
+  useEffect(() => {
+    if (!current?.textContent) return
+    void classifyForPage(documentId, current.pageNumber, current.textContent)
+  }, [feelingEnabled, spriteEnabled, current, documentId, classifyForPage])
 
   // Resolve a thesis highlight request: hop to the right section, then flash
   // the matched words once it's rendered. Two-pass via the `index` dep — first
@@ -320,6 +338,34 @@ export function ReflowableReader({
           {label}
         </span>
         <div className="flex-1" />
+        {/* Feeling Aurora toggle */}
+        <button
+          type="button"
+          title={feelingEnabled ? 'Feeling Aurora on' : 'Feeling Aurora off'}
+          onClick={() => setFeelingEnabled(!feelingEnabled)}
+          className={cn(
+            'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
+            feelingEnabled
+              ? 'border-fz-accent text-fz-accent'
+              : 'text-fz-fg-muted hover:bg-fz-bg'
+          )}
+        >
+          ✦ Feeling
+        </button>
+        {/* Scene Sprite toggle */}
+        <button
+          type="button"
+          title={spriteEnabled ? 'Scene Sprite on' : 'Scene Sprite off'}
+          onClick={() => setSpriteEnabled(!spriteEnabled)}
+          className={cn(
+            'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
+            spriteEnabled
+              ? 'border-fz-accent text-fz-accent'
+              : 'text-fz-fg-muted hover:bg-fz-bg'
+          )}
+        >
+          ★ Sprite
+        </button>
         <ReaderTypographyPopover />
         {sections && sections.length > 1 && (
           <div className="ml-3 flex items-center gap-1">
@@ -346,10 +392,16 @@ export function ReflowableReader({
         )}
       </div>
 
-      <div
-        className="flex flex-1 justify-center overflow-auto bg-fz-bg p-8"
-        onMouseUp={handleMouseUp}
-      >
+      {/* Non-scrolling wrapper: aurora lives here (position absolute) so it doesn't scroll.
+          bg-fz-bg moves here; scroll container is transparent so aurora shows through. */}
+      <div className="relative flex-1 overflow-hidden bg-fz-bg">
+        {feelingEnabled && <FeelingAurora classification={classification} />}
+        {spriteEnabled && <SceneSprite classification={classification} />}
+        <div
+          className="flex h-full items-start justify-center overflow-auto p-8"
+          style={{ position: 'relative', zIndex: 1, background: 'transparent' }}
+          onMouseUp={handleMouseUp}
+        >
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-fz-fg-muted">
             <span className="fz-spinner inline-block h-4 w-4 rounded-full border-2 border-fz-accent border-t-transparent" />
@@ -368,7 +420,11 @@ export function ReflowableReader({
               data-section-number={current.pageNumber}
               style={{
                 maxWidth: 'var(--fz-reader-width)',
-                background: 'var(--fz-reader-page-bg)'
+                background: feelingEnabled
+                  ? 'color-mix(in srgb, var(--fz-reader-page-bg) 82%, transparent)'
+                  : 'var(--fz-reader-page-bg)',
+                position: 'relative',
+                zIndex: 1
               }}
               className={cn(
                 'fz-selectable prose-fz mx-auto w-full rounded-md p-10 shadow-md',
@@ -382,7 +438,11 @@ export function ReflowableReader({
               data-section-number={current.pageNumber}
               style={{
                 maxWidth: 'var(--fz-reader-width)',
-                background: 'var(--fz-reader-page-bg)'
+                background: feelingEnabled
+                  ? 'color-mix(in srgb, var(--fz-reader-page-bg) 82%, transparent)'
+                  : 'var(--fz-reader-page-bg)',
+                position: 'relative',
+                zIndex: 1
               }}
               className={cn(
                 'fz-selectable prose-fz mx-auto w-full whitespace-pre-wrap rounded-md p-10 shadow-md',
@@ -407,7 +467,8 @@ export function ReflowableReader({
               : `${label} text extraction is being built. The file is saved to your library and will open here once it ships.`}
           </div>
         )}
-      </div>
+        </div>{/* end inner scroll container */}
+      </div>{/* end non-scrolling wrapper */}
 
       <SelectionMenu />
     </div>

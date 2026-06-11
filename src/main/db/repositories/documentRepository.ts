@@ -18,9 +18,10 @@ interface DocumentRow {
   publisher: string | null
   source_url: string | null
   genre: string | null
+  last_read_page: number | null
 }
 
-const DOC_COLUMNS = `id, title, file_path, file_hash, file_type, page_count, file_size, imported_at, last_opened_at, author, year, publisher, source_url, genre`
+const DOC_COLUMNS = `id, title, file_path, file_hash, file_type, page_count, file_size, imported_at, last_opened_at, author, year, publisher, source_url, genre, last_read_page`
 
 function coerceGenre(value: string | null): DocumentGenre | null {
   return value && (DOCUMENT_GENRES as readonly string[]).includes(value)
@@ -50,7 +51,8 @@ function toRecord(row: DocumentRow): DocumentRecord {
     year: row.year,
     publisher: row.publisher,
     sourceUrl: row.source_url,
-    genre: coerceGenre(row.genre)
+    genre: coerceGenre(row.genre),
+    lastReadPage: row.last_read_page ?? null
   }
 }
 
@@ -96,7 +98,8 @@ export function insertDocument(input: CreateDocumentInput): DocumentRecord {
     year: null,
     publisher: null,
     sourceUrl: null,
-    genre: null
+    genre: null,
+    lastReadPage: null
   }
 }
 
@@ -163,6 +166,17 @@ export function getDocMetadata(id: string): DocMetadata | null {
 
 // Update only the citation fields present in `patch`. A missing key is left
 // untouched; an explicit null clears the field.
+// Advance the high-water mark. Only writes when `page` exceeds the current
+// value — the caller may fire this on every page turn so we guard here too.
+export function setLastReadPage(id: string, page: number): void {
+  getDb()
+    .prepare(
+      `UPDATE documents SET last_read_page = ?
+       WHERE id = ? AND (last_read_page IS NULL OR last_read_page < ?)`
+    )
+    .run(page, id, page)
+}
+
 export function updateDocumentMetadata(
   id: string,
   patch: Partial<DocMetadata>

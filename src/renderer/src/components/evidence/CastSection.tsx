@@ -14,13 +14,31 @@ export function CastSection(): React.JSX.Element | null {
   const setQuery = useEvidenceStore((s) => s.setQuery)
   const setPage = usePdfStore((s) => s.setPage)
 
-  const entities = useDocumentEntities(activeDocumentId)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const entities = useDocumentEntities(activeDocumentId, refreshKey)
   const [open, setOpen] = useState(true)
+  const [refining, setRefining] = useState(false)
   // Per-entity appearance cursor + cached mention pages (lazy-loaded).
   const cursors = useRef<Map<string, number>>(new Map())
   const mentions = useRef<Map<string, number[]>>(new Map())
 
   if (!activeDocumentId || entities.length === 0) return null
+
+  // AI-refine: drop non-people (spells/places/objects) the offline pass let in.
+  const refineCast = async (): Promise<void> => {
+    if (refining) return
+    setRefining(true)
+    try {
+      await window.fuzzy.entities.rebuild(activeDocumentId)
+      cursors.current.clear()
+      mentions.current.clear()
+      setRefreshKey((k) => k + 1)
+    } catch {
+      /* keep the existing roster on failure */
+    } finally {
+      setRefining(false)
+    }
+  }
 
   const appendToQuery = (name: string): void => {
     const trimmed = query.trim()
@@ -45,13 +63,24 @@ export function CastSection(): React.JSX.Element | null {
 
   return (
     <div className="rounded-fz border border-fz-border bg-fz-bg/40 p-2">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-fz-label font-semibold uppercase tracking-wider text-fz-accent transition hover:text-fz-fg"
-      >
-        {open ? '▾' : '▸'} Cast · {entities.length}
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-fz-label font-semibold uppercase tracking-wider text-fz-accent transition hover:text-fz-fg"
+        >
+          {open ? '▾' : '▸'} Cast · {entities.length}
+        </button>
+        <button
+          type="button"
+          onClick={() => void refineCast()}
+          disabled={refining}
+          title="Use AI to drop non-characters (spells, places, objects) from the cast"
+          className="text-fz-micro text-fz-fg-subtle transition hover:text-fz-accent disabled:opacity-50"
+        >
+          {refining ? 'Refining…' : '✦ Refine'}
+        </button>
+      </div>
       {open && (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {entities.map((e) => (

@@ -1,24 +1,75 @@
+import { useState, useEffect } from 'react'
 import { useDocuments } from '../../hooks/useDocuments'
 import { useAnnotationStore } from '../../state/annotationStore'
 import { usePdfStore } from '../../state/pdfStore'
 import { useStudyPackStore } from '../../state/studyPackStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useTutorStore } from '../../state/tutorStore'
-import type { AnnotationRecord } from '@shared/types/database'
+import type { AnnotationRecord, PageRecord } from '@shared/types/database'
 
 interface Props {
   onOpenStudyPack: () => void
+  onCollapse: () => void
+  style?: React.CSSProperties
 }
 
-export function LeftSidebar({ onOpenStudyPack }: Props): React.JSX.Element {
+export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): React.JSX.Element {
   const { documents, activeDocumentId, setActiveDocument, importDocument, importing } =
     useDocuments()
   const annotations = useAnnotationStore((s) => s.annotations)
   const setPage = usePdfStore((s) => s.setPage)
   const flashPassage = useAppUiStore((s) => s.flashPassage)
+  const requestPassageHighlight = useAppUiStore((s) => s.requestPassageHighlight)
   const openFromAnnotation = useTutorStore((s) => s.openFromAnnotation)
   const pack = useStudyPackStore((s) => s.pack)
   const packLoading = useStudyPackStore((s) => s.loading)
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [chapterMap, setChapterMap] = useState<Record<string, PageRecord[]>>({})
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (activeDocumentId) {
+      setExpandedIds((prev) => {
+        if (prev.has(activeDocumentId)) return prev
+        return new Set([...prev, activeDocumentId])
+      })
+    }
+  }, [activeDocumentId])
+
+  const toggleExpand = (docId: string): void => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(docId)) { next.delete(docId); return next }
+      next.add(docId)
+      return next
+    })
+    if (!chapterMap[docId] && !loadingIds.has(docId)) {
+      setLoadingIds((prev) => new Set([...prev, docId]))
+      window.fuzzy.pages
+        .listForDocument(docId)
+        .then((pages) => { setChapterMap((prev) => ({ ...prev, [docId]: pages })) })
+        .catch(() => { setChapterMap((prev) => ({ ...prev, [docId]: [] })) })
+        .finally(() => {
+          setLoadingIds((prev) => { const s = new Set(prev); s.delete(docId); return s })
+        })
+    }
+  }
+
+  const navigateToChapter = (docId: string, fileType: string, pageNumber: number): void => {
+    if (docId !== activeDocumentId) setActiveDocument(docId)
+    if (fileType === 'pdf') {
+      setPage(pageNumber)
+    } else {
+      requestPassageHighlight({ documentId: docId, pageNumber, snippet: '' })
+    }
+  }
+
+  const chapterLabel = (page: PageRecord, index: number): string => {
+    const first = page.textContent?.split('\n').find((l) => l.trim())?.trim()
+    if (first && first.length <= 80) return first
+    return `Section ${index + 1}`
+  }
 
   const navigateToNote = (a: AnnotationRecord): void => {
     const page = a.pageNumber ?? a.position?.pageNumber
@@ -30,45 +81,113 @@ export function LeftSidebar({ onOpenStudyPack }: Props): React.JSX.Element {
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-fz-surface-2 text-sm">
-      <SidebarSection
-        title="Library"
-        action={
-          <button
-            type="button"
-            onClick={() => importDocument()}
-            disabled={importing}
-            className="text-[10px] text-fz-fg-muted hover:text-fz-fg disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-fz-accent"
-            title="Import a PDF (⌘O)"
-          >
-            {importing ? '…' : '+ import'}
-          </button>
-        }
-      >
+    <aside className="flex flex-col overflow-y-auto bg-fz-surface-2 text-sm" style={style}>
+      {/* Library header — always visible, scrolls with content */}
+      <section className="border-b border-fz-border px-3 py-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-fz-fg-subtle">
+            Library
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => importDocument()}
+              disabled={importing}
+              className="text-[10px] text-fz-fg-muted hover:text-fz-fg disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-fz-accent"
+              title="Import a file (⌘O)"
+            >
+              {importing ? '…' : '+ import'}
+            </button>
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="flex h-5 w-5 items-center justify-center rounded text-fz-fg-subtle hover:bg-fz-bg hover:text-fz-fg focus-visible:ring-2 focus-visible:ring-fz-accent"
+              title="Collapse sidebar"
+            >
+              ‹
+            </button>
+          </div>
+        </div>
+
         {documents.length === 0 ? (
-          <EmptyHint>No documents yet</EmptyHint>
+          <div className="text-xs text-fz-fg-muted">No documents yet</div>
         ) : (
           <ul className="space-y-0.5">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <button
-                  type="button"
-                  onClick={() => setActiveDocument(doc.id)}
-                  className={[
-                    'w-full truncate rounded px-2 py-1 text-left text-xs focus-visible:ring-2 focus-visible:ring-fz-accent',
-                    doc.id === activeDocumentId
-                      ? 'bg-fz-accent-2/20 text-fz-fg'
-                      : 'text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg'
-                  ].join(' ')}
-                  title={doc.title}
-                >
-                  {doc.title}
-                </button>
-              </li>
-            ))}
+            {documents.map((doc) => {
+              const isActive = doc.id === activeDocumentId
+              const isExpanded = expandedIds.has(doc.id)
+              const chapters = chapterMap[doc.id] ?? []
+              const isLoading = loadingIds.has(doc.id)
+              return (
+                <li key={doc.id}>
+                  <div
+                    className={[
+                      'flex items-center gap-0.5 rounded',
+                      isActive ? 'bg-fz-accent-2/20' : ''
+                    ].join(' ').trim()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(doc.id)}
+                      className="flex h-6 w-5 shrink-0 items-center justify-center text-fz-fg-subtle hover:text-fz-fg focus-visible:ring-2 focus-visible:ring-fz-accent"
+                      title={isExpanded ? 'Collapse' : 'Show chapters'}
+                    >
+                      <span
+                        className={[
+                          'inline-block text-fz-micro transition-transform duration-150',
+                          isExpanded ? 'rotate-90' : ''
+                        ].join(' ')}
+                      >
+                        ›
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDocument(doc.id)}
+                      className={[
+                        'min-w-0 flex-1 truncate py-1 pr-2 text-left text-xs focus-visible:ring-2 focus-visible:ring-fz-accent',
+                        isActive ? 'text-fz-fg' : 'text-fz-fg-muted hover:text-fz-fg'
+                      ].join(' ')}
+                      title={doc.title}
+                    >
+                      {doc.title}
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <ul className="mb-1 ml-5 mt-0.5 space-y-0.5 border-l border-fz-border pl-2">
+                      {isLoading ? (
+                        <li className="py-1 text-fz-micro text-fz-fg-subtle">Loading…</li>
+                      ) : chapters.length === 0 ? (
+                        <li className="py-1 text-fz-micro text-fz-fg-subtle">No sections</li>
+                      ) : (
+                        chapters.map((ch, i) => (
+                          <li key={ch.id}>
+                            <button
+                              type="button"
+                              onClick={() => navigateToChapter(doc.id, doc.fileType, ch.pageNumber)}
+                              className="flex w-full items-baseline gap-1.5 rounded px-1.5 py-0.5 text-left hover:bg-fz-bg focus-visible:ring-2 focus-visible:ring-fz-accent"
+                              title={chapterLabel(ch, i)}
+                            >
+                              <span className="shrink-0 text-[10px] tabular-nums text-fz-fg-subtle">
+                                {ch.pageNumber}
+                              </span>
+                              <span className="truncate text-fz-micro text-fz-fg-muted hover:text-fz-fg">
+                                {chapterLabel(ch, i)}
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
-      </SidebarSection>
+      </section>
+
       <SidebarSection title="Notes">
         {annotations.length === 0 ? (
           <EmptyHint>Saved notes appear here</EmptyHint>
@@ -89,13 +208,14 @@ export function LeftSidebar({ onOpenStudyPack }: Props): React.JSX.Element {
                       {a.pageNumber ? ` · p.${a.pageNumber}` : ''}
                     </span>
                   </div>
-                  <div className="line-clamp-2 text-[11px] text-fz-fg-muted">{a.selectedText}</div>
+                  <div className="line-clamp-2 text-fz-micro text-fz-fg-muted">{a.selectedText}</div>
                 </button>
               </li>
             ))}
           </ul>
         )}
       </SidebarSection>
+
       <SidebarSection title="Study Pack">
         {!activeDocumentId ? (
           <EmptyHint>Open a document to build one</EmptyHint>
@@ -103,7 +223,7 @@ export function LeftSidebar({ onOpenStudyPack }: Props): React.JSX.Element {
           <button
             type="button"
             onClick={onOpenStudyPack}
-            className="w-full rounded border border-fz-border bg-fz-bg/40 px-2 py-1.5 text-left text-[11px] hover:bg-fz-bg focus-visible:ring-2 focus-visible:ring-fz-accent"
+            className="w-full rounded border border-fz-border bg-fz-bg/40 px-2 py-1.5 text-left text-fz-micro hover:bg-fz-bg focus-visible:ring-2 focus-visible:ring-fz-accent"
             title={pack ? 'Open the saved study pack (⌘⇧S)' : 'Generate a study pack (⌘⇧S)'}
           >
             <div className="flex items-center justify-between">

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { getDocument } from 'pdfjs-dist'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ensurePdfjsWorker } from '../lib/pdfjs'
+import { useDocumentStore } from './documentStore'
 
 interface PdfState {
   documentId: string | null
@@ -23,6 +24,10 @@ interface PdfState {
   // This prevents a slow load of doc A from clobbering the UI after the
   // user already switched to doc B.
   loadToken: number
+  // High-water mark: the furthest page reached in this session (or restored
+  // from DB). Never decreases. This is what spoiler-safe mode uses so that
+  // jumping back to re-read an earlier chapter doesn't shrink the boundary.
+  highWaterMark: number
 
   loadForDocument: (documentId: string) => Promise<void>
   unload: () => void
@@ -31,6 +36,18 @@ interface PdfState {
   setPageText: (pageNumber: number, text: string) => void
   markPagePersisted: (pageNumber: number) => void
   isPagePersisted: (pageNumber: number) => boolean
+}
+
+// Debounce timer for persisting the high-water mark to the DB. Module-level so
+// it survives re-renders without needing a ref.
+let _hwmPersistTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleHwmPersist(documentId: string, page: number): void {
+  if (_hwmPersistTimer) clearTimeout(_hwmPersistTimer)
+  _hwmPersistTimer = setTimeout(() => {
+    _hwmPersistTimer = null
+    window.fuzzy.documents.setLastReadPage(documentId, page).catch(() => undefined)
+  }, 1500)
 }
 
 export const usePdfStore = create<PdfState>((set, get) => ({
@@ -44,10 +61,16 @@ export const usePdfStore = create<PdfState>((set, get) => ({
   pageTexts: new Map(),
   persistedPages: new Set(),
   loadToken: 0,
+  highWaterMark: 1,
 
   loadForDocument: async (documentId) => {
     if (get().documentId === documentId && get().doc) return
     ensurePdfjsWorker()
+
+    // Look up the persisted high-water mark before tearing down the old doc so
+    // we can restore position without an extra IPC round-trip.
+    const docRecord = useDocumentStore.getState().documents.find((d) => d.id === documentId)
+    const resumePage = docRecord?.lastReadPage ?? 1
 
     // Tear down the previous doc cleanly, then issue a fresh load token.
     const prev = get().doc
@@ -59,7 +82,8 @@ export const usePdfStore = create<PdfState>((set, get) => ({
       documentId,
       doc: null,
       pageCount: 0,
-      currentPage: 1,
+      currentPage: resumePage,
+      highWaterMark: resumePage,
       loading: true,
       error: null,
       pageTexts: new Map(),
@@ -87,7 +111,8 @@ export const usePdfStore = create<PdfState>((set, get) => ({
         doc.destroy().catch(() => undefined)
         return
       }
-      set({ doc, pageCount: doc.numPages, currentPage: 1, loading: false })
+      const clampedResume = Math.min(Math.max(resumePage, 1), doc.numPages)
+      set({ doc, pageCount: doc.numPages, currentPage: clampedResume, loading: false })
     } catch (err) {
       if (!stillCurrent()) return
       console.error('[fuzzy pdf] load failed', err)
@@ -106,6 +131,7 @@ export const usePdfStore = create<PdfState>((set, get) => ({
       doc: null,
       pageCount: 0,
       currentPage: 1,
+      highWaterMark: 1,
       loading: false,
       error: null,
       pageTexts: new Map(),
@@ -116,10 +142,15 @@ export const usePdfStore = create<PdfState>((set, get) => ({
   },
 
   setPage: (page) => {
-    const { pageCount } = get()
+    const { pageCount, documentId, highWaterMark } = get()
     if (pageCount === 0) return
     const clamped = Math.min(Math.max(page, 1), pageCount)
-    set({ currentPage: clamped })
+    if (clamped > highWaterMark) {
+      set({ currentPage: clamped, highWaterMark: clamped })
+      if (documentId) scheduleHwmPersist(documentId, clamped)
+    } else {
+      set({ currentPage: clamped })
+    }
   },
 
   setScale: (scale) => {

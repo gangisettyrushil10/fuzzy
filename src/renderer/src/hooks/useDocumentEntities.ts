@@ -3,7 +3,8 @@ import type { EntityRecord } from '@shared/types/database'
 
 // Load the character/entity roster for a document (the entity index built at
 // import). Shared by the evidence Cast section and the @-mention picker.
-export function useDocumentEntities(documentId: string | null): EntityRecord[] {
+// `refreshKey` is an optional bump-to-reload signal (used after an AI refine).
+export function useDocumentEntities(documentId: string | null, refreshKey = 0): EntityRecord[] {
   const [entities, setEntities] = useState<EntityRecord[]>([])
   useEffect(() => {
     let cancelled = false
@@ -22,6 +23,6 @@ export function useDocumentEntities(documentId: string | null): EntityRecord[] {
     return () => {
       cancelled = true
     }
-  }, [documentId])
+  }, [documentId, refreshKey])
   return entities
 }

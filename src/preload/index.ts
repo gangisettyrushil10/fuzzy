@@ -21,7 +21,9 @@ const fuzzy: FuzzyApi = {
     importSample: () => ipcRenderer.invoke(IpcChannels.documentsImportSample),
     readFile: (id) => ipcRenderer.invoke(IpcChannels.documentsReadFile, id),
     recordPageExtraction: (documentId, page) =>
-      ipcRenderer.invoke(IpcChannels.documentsRecordPageExtraction, documentId, page)
+      ipcRenderer.invoke(IpcChannels.documentsRecordPageExtraction, documentId, page),
+    setLastReadPage: (documentId, page) =>
+      ipcRenderer.invoke(IpcChannels.documentsSetLastReadPage, documentId, page)
   },
   pages: {
     listForDocument: (documentId) =>
@@ -68,7 +70,8 @@ const fuzzy: FuzzyApi = {
   },
   entities: {
     list: (documentId) => ipcRenderer.invoke(IpcChannels.entitiesList, documentId),
-    mentions: (entityId) => ipcRenderer.invoke(IpcChannels.entitiesMentions, entityId)
+    mentions: (entityId) => ipcRenderer.invoke(IpcChannels.entitiesMentions, entityId),
+    rebuild: (documentId) => ipcRenderer.invoke(IpcChannels.entitiesRebuild, documentId)
   },
   focus: {
     start: (input) => ipcRenderer.invoke(IpcChannels.focusStart, input),
@@ -163,6 +166,10 @@ const fuzzy: FuzzyApi = {
       ipcRenderer.invoke(IpcChannels.settingsSetAppearancePrefs, patch),
     getStudyPackPrefs: () => ipcRenderer.invoke(IpcChannels.settingsGetStudyPackPrefs),
     setStudyPackPrefs: (patch) => ipcRenderer.invoke(IpcChannels.settingsSetStudyPackPrefs, patch)
+  },
+  ambient: {
+    classify: (documentId, pageNumber, text) =>
+      ipcRenderer.invoke(IpcChannels.ambientClassify, documentId, pageNumber, text)
   },
   ...(IS_DEV
     ? {

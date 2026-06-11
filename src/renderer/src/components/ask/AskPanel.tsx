@@ -8,11 +8,13 @@ import { Button, Card, Textarea } from '../ui'
 export function AskPanel(): React.JSX.Element {
   const question = useAskStore((s) => s.question)
   const spoilerSafe = useAskStore((s) => s.spoilerSafe)
+  const webSearch = useAskStore((s) => s.webSearch)
   const status = useAskStore((s) => s.status)
   const result = useAskStore((s) => s.result)
   const error = useAskStore((s) => s.error)
   const setQuestion = useAskStore((s) => s.setQuestion)
   const setSpoilerSafe = useAskStore((s) => s.setSpoilerSafe)
+  const setWebSearch = useAskStore((s) => s.setWebSearch)
   const ask = useAskStore((s) => s.ask)
   const showInPage = useAskStore((s) => s.showInPage)
 
@@ -39,15 +41,26 @@ export function AskPanel(): React.JSX.Element {
           }}
         />
         <div className="flex items-center justify-between gap-2">
-          <label className="flex items-center gap-1.5 text-fz-micro text-fz-fg-muted">
-            <input
-              type="checkbox"
-              checked={spoilerSafe}
-              onChange={(e) => setSpoilerSafe(e.target.checked)}
-              className="accent-fz-accent"
-            />
-            Spoiler-safe (only what I&apos;ve read)
-          </label>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <label className="flex items-center gap-1.5 text-fz-micro text-fz-fg-muted">
+              <input
+                type="checkbox"
+                checked={spoilerSafe}
+                onChange={(e) => setSpoilerSafe(e.target.checked)}
+                className="accent-fz-accent"
+              />
+              Spoiler-safe (only what I&apos;ve read)
+            </label>
+            <label className="flex items-center gap-1.5 text-fz-micro text-fz-fg-muted">
+              <input
+                type="checkbox"
+                checked={webSearch}
+                onChange={(e) => setWebSearch(e.target.checked)}
+                className="accent-fz-accent"
+              />
+              Search the web
+            </label>
+          </div>
           <Button
             type="submit"
             size="sm"
@@ -71,7 +84,8 @@ export function AskPanel(): React.JSX.Element {
         {activeDocumentId && status === 'idle' && (
           <p className="px-2 pt-6 text-center text-fz-ui leading-relaxed text-fz-fg-muted">
             Ask anything about this document. Turn on <span className="text-fz-fg">spoiler-safe</span>{' '}
-            to keep answers to the pages you&apos;ve already read.
+            to keep answers to the pages you&apos;ve already read, or{' '}
+            <span className="text-fz-fg">search the web</span> to pull in outside, up-to-date info.
           </p>
         )}
 
@@ -79,7 +93,7 @@ export function AskPanel(): React.JSX.Element {
           <div className="space-y-2" aria-busy="true">
             <p className="flex items-center gap-2 text-fz-ui text-fz-fg-muted">
               <span className="fz-spinner inline-block h-3 w-3 rounded-full border-2 border-fz-accent border-t-transparent" />
-              Reading the document…
+              {webSearch ? 'Reading the document & searching the web…' : 'Reading the document…'}
             </p>
             <div className="fz-skeleton h-3 w-full rounded" />
             <div className="fz-skeleton h-3 w-5/6 rounded" />
@@ -94,13 +108,48 @@ export function AskPanel(): React.JSX.Element {
 
         {status === 'done' && result && (
           <div className="space-y-3">
+            {result.mode === 'summary' && (
+              <p className="flex items-center gap-1.5 text-fz-micro text-fz-fg-subtle">
+                <span aria-hidden>📖</span> Summary of{' '}
+                {result.summaryPage != null ? `chapter ${result.summaryPage}` : 'the current chapter'}.
+              </p>
+            )}
             <div className="whitespace-pre-wrap rounded-fz border border-fz-border bg-fz-bg/40 p-3 text-fz-ui leading-relaxed text-fz-fg">
               {result.answer}
             </div>
+            {result.usedWeb && (
+              <p className="flex items-center gap-1.5 text-fz-micro text-fz-accent">
+                <span aria-hidden>🌐</span> Answered with a live web search.
+              </p>
+            )}
+            {result.webError && (
+              <p className="rounded-fz border border-fz-warning/40 bg-fz-warning/10 p-2 text-fz-micro text-fz-warning">
+                Web search couldn&apos;t run ({result.webError}) — answered from the document instead.
+              </p>
+            )}
             {result.spoilerSafe && (
               <p className="text-fz-micro text-fz-fg-subtle">
                 Answered using only pages you&apos;ve read.
               </p>
+            )}
+            {result.webSources && result.webSources.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-fz-label font-semibold uppercase tracking-wider text-fz-fg-subtle">
+                  From the web
+                </h3>
+                {result.webSources.map((w) => (
+                  <a
+                    key={w.url}
+                    href={w.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block truncate rounded-fz border border-fz-border bg-fz-bg/40 px-2 py-1.5 text-fz-micro text-fz-accent transition hover:border-fz-accent/50 hover:text-fz-fg"
+                    title={w.url}
+                  >
+                    {w.title}
+                  </a>
+                ))}
+              </div>
             )}
             {result.fallbackReason === 'no_api_key' && (
               <p className="text-fz-micro text-fz-warning">

@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { IpcChannels } from '@shared/ipc/channels'
 import { runEvidenceSearch } from '../services/evidence/evidenceSearchService'
 import { getMentionPages, listEntities } from '../db/repositories/entityRepository'
+import { rebuildEntityIndex } from '../services/entities/entityIndexService'
 import type { EvidenceSearchRequest } from '@shared/types/database'
 
 const MAX_QUERY_CHARS = 500
@@ -36,5 +37,10 @@ export function registerEvidenceIpc(): void {
   ipcMain.handle(IpcChannels.entitiesMentions, (_e, entityId: unknown) => {
     if (typeof entityId !== 'string' || !entityId) throw new Error('entityId is required.')
     return getMentionPages(entityId)
+  })
+
+  ipcMain.handle(IpcChannels.entitiesRebuild, (_e, documentId: unknown) => {
+    if (typeof documentId !== 'string' || !documentId) throw new Error('documentId is required.')
+    return rebuildEntityIndex(documentId)
   })
 }

@@ -55,6 +55,36 @@ import type {
   ThesisScope
 } from './database'
 
+export type AmbientMood =
+  | 'love'
+  | 'sadness'
+  | 'joy'
+  | 'mystery'
+  | 'tension'
+  | 'calm'
+  | 'awe'
+  | 'neutral'
+
+export type AmbientGenre =
+  | 'fantasy'
+  | 'mystery'
+  | 'thriller'
+  | 'romance'
+  | 'sci-fi'
+  | 'adventure'
+  | 'literary'
+  | 'academic'
+  | 'unknown'
+
+export type AmbientContentType = 'fiction' | 'non-fiction'
+
+export interface AmbientClassification {
+  mood: AmbientMood
+  genre: AmbientGenre
+  type: AmbientContentType
+  intensity: number
+}
+
 export interface FuzzyApi {
   /** True when the app was launched with FUZZY_E2E=1 (automated smoke tests). */
   e2e: boolean
@@ -73,6 +103,7 @@ export interface FuzzyApi {
       documentId: string,
       page: ExtractedPagePayload
     ) => Promise<{ ok: true; pageCount: number }>
+    setLastReadPage: (documentId: string, page: number) => Promise<{ ok: boolean }>
   }
   pages: {
     listForDocument: (documentId: string) => Promise<PageRecord[]>
@@ -122,6 +153,8 @@ export interface FuzzyApi {
   entities: {
     list: (documentId: string) => Promise<EntityRecord[]>
     mentions: (entityId: string) => Promise<number[]>
+    // Re-extract + AI-refine an already-imported document's cast. Returns count.
+    rebuild: (documentId: string) => Promise<number>
   }
   focus: {
     start: (input: StartFocusSessionInput) => Promise<FocusSessionRecord>
@@ -215,6 +248,9 @@ export interface FuzzyApi {
     setAppearancePrefs: (patch: Partial<AppearancePrefs>) => Promise<AppearancePrefs>
     getStudyPackPrefs: () => Promise<StudyPackPrefs>
     setStudyPackPrefs: (patch: Partial<StudyPackPrefs>) => Promise<StudyPackPrefs>
+  }
+  ambient: {
+    classify: (documentId: string, pageNumber: number, text: string) => Promise<AmbientClassification | null>
   }
   // Dev-only helpers are only exposed in development builds. Production
   // preload omits the field entirely.

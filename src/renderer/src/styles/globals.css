@@ -263,6 +263,26 @@ body {
   -webkit-hyphens: auto;
 }
 
+/* Explicit color inheritance for all structural containers that appear in EPUB
+   HTML. Without this, surviving inline styles or OS/browser UA rules can
+   override the inherited reading-theme color on deeply-nested elements.
+   Specificity (0,1,1) beats the universal selector and element-only rules. */
+.prose-fz p,
+.prose-fz div,
+.prose-fz section,
+.prose-fz article,
+.prose-fz li,
+.prose-fz blockquote,
+.prose-fz td,
+.prose-fz th,
+.prose-fz figcaption,
+.prose-fz dt,
+.prose-fz dd,
+.prose-fz q,
+.prose-fz cite {
+  color: inherit;
+}
+
 /* Block rhythm — paragraphs and other blocks share one tunable vertical gap. */
 .prose-fz p,
 .prose-fz ul,
@@ -523,8 +543,105 @@ body {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Feeling Aurora — three asynchronous blobs that drift behind the reader.
+   Each blob gets background-color and opacity set inline from ambientStore.
+   The three different durations (18s/22s/26s) prevent lock-step repetition,
+   creating an organic, non-repeating northern-lights appearance.
+   ───────────────────────────────────────────────────────────────────────── */
+.fz-aurora-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0; /* behind scroll container (z-index: 1); visible through transparent scroll bg + semi-transparent page card */
+  transition: opacity 2s ease;
+}
+
+.fz-aurora-blob {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+
+.fz-aurora-drift-a {
+  animation: fz-aurora-drift-a 18s ease-in-out infinite;
+}
+.fz-aurora-drift-b {
+  animation: fz-aurora-drift-b 22s ease-in-out infinite;
+  animation-delay: -7s;
+}
+.fz-aurora-drift-c {
+  animation: fz-aurora-drift-c 26s ease-in-out infinite;
+  animation-delay: -14s;
+}
+
+@keyframes fz-aurora-drift-a {
+  0%   { transform: translate(0%,  0%)   scale(1);   }
+  25%  { transform: translate(18%, -12%) scale(1.08); }
+  50%  { transform: translate(8%,  15%)  scale(0.95); }
+  75%  { transform: translate(-14%, 6%)  scale(1.05); }
+  100% { transform: translate(0%,  0%)   scale(1);   }
+}
+
+@keyframes fz-aurora-drift-b {
+  0%   { transform: translate(0%,   0%)  scale(1);   }
+  30%  { transform: translate(-20%, 14%) scale(1.1);  }
+  60%  { transform: translate(12%, -18%) scale(0.92); }
+  80%  { transform: translate(6%,   8%)  scale(1.04); }
+  100% { transform: translate(0%,   0%)  scale(1);   }
+}
+
+@keyframes fz-aurora-drift-c {
+  0%   { transform: translate(0%,  0%)  scale(1);   }
+  20%  { transform: translate(14%, 18%) scale(0.94); }
+  55%  { transform: translate(-8%, -14%) scale(1.06);}
+  75%  { transform: translate(20%, 4%)  scale(1.02); }
+  100% { transform: translate(0%,  0%)  scale(1);   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Scene Sprite — pixel-art character in the reader margin.
+   ───────────────────────────────────────────────────────────────────────── */
+.fz-sprite {
+  pointer-events: none;
+  user-select: none;
+  image-rendering: pixelated;
+}
+
+.fz-sprite-bob {
+  animation: fz-sprite-bob 2s ease-in-out infinite;
+}
+@keyframes fz-sprite-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
+
+.fz-sprite-react {
+  animation: fz-sprite-react 0.45s ease-out;
+}
+@keyframes fz-sprite-react {
+  0%   { transform: translateY(0px) scale(1); }
+  30%  { transform: translateY(-12px) scale(1.08); }
+  65%  { transform: translateY(-6px) scale(0.96); }
+  100% { transform: translateY(0px) scale(1); }
+}
+
+.fz-sprite-enter {
+  animation: fz-sprite-enter 0.35s ease-out;
+}
+@keyframes fz-sprite-enter {
+  from { opacity: 0; transform: scale(0.7) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0px); }
+}
+
 /* Trim non-essential motion for users who ask for it. The spinner is left
-   alone — a non-spinning spinner reads as broken. */
+   alone — a non-spinning spinner reads as broken. Aurora blobs keep moving
+   (atmospheric drift is not accessibility-harmful), but sprite animations
+   stop since character motion can be distracting. */
 @media (prefers-reduced-motion: reduce) {
   .fz-skeleton,
   .fz-passage-flash,
@@ -541,5 +658,10 @@ body {
   .fz-pace-glider {
     animation: none !important;
     transition: none !important;
+  }
+  .fz-sprite-bob,
+  .fz-sprite-react,
+  .fz-sprite-enter {
+    animation: none !important;
   }
 }

@@ -8,6 +8,8 @@ import { useAmbientStore } from '../../state/ambientStore'
 import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
+import { FeelingAurora } from '../reader/FeelingAurora'
+import { SceneSprite } from '../reader/SceneSprite'
 import { normalizeRectsToPage } from '../../lib/rects'
 
 // Renders the active PDF, paginated. One page at a time keeps render work
@@ -55,6 +57,18 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     if (!ambientEnabled || !pageText) return
     void runAmbient(documentId, currentPage, pageText)
   }, [ambientEnabled, pageText, documentId, currentPage, runAmbient])
+
+  // Feeling Aurora + Scene Sprite classification (shared with reflowable reader).
+  const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
+  const spriteEnabled = useAmbientStore((s) => s.spriteEnabled)
+  const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
+  const setSpriteEnabled = useAmbientStore((s) => s.setSpriteEnabled)
+  const classification = useAmbientStore((s) => s.classification)
+  const classifyForPage = useAmbientStore((s) => s.classifyForPage)
+  useEffect(() => {
+    if (!pageText) return
+    void classifyForPage(documentId, currentPage, pageText)
+  }, [feelingEnabled, spriteEnabled, pageText, documentId, currentPage, classifyForPage])
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -217,24 +231,35 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
         currentPage={currentPage}
         pageCount={pageCount}
         scale={scale}
+        feelingEnabled={feelingEnabled}
+        spriteEnabled={spriteEnabled}
+        onFeelingToggle={() => setFeelingEnabled(!feelingEnabled)}
+        onSpriteToggle={() => setSpriteEnabled(!spriteEnabled)}
         onPrev={() => setPage(currentPage - 1)}
         onNext={() => setPage(currentPage + 1)}
         onZoomIn={() => setScale(scale + 0.1)}
         onZoomOut={() => setScale(scale - 0.1)}
       />
-      <div
-        ref={pagesContainerRef}
-        onMouseUp={handleMouseUp}
-        style={{ background: 'var(--fz-reader-page-bg)' }}
-        className="fz-selectable flex flex-1 justify-center overflow-auto p-8"
-      >
-        <PdfPage
-          doc={doc}
-          documentId={documentId}
-          pageNumber={currentPage}
-          scale={scale}
-          onTextExtracted={handleTextExtracted}
-        />
+      {/* Non-scrolling wrapper holds aurora at z-index 0; scroll div is transparent above it */}
+      <div className="relative flex-1 overflow-hidden bg-fz-bg">
+        {feelingEnabled && <FeelingAurora classification={classification} />}
+        {spriteEnabled && <SceneSprite classification={classification} />}
+        <div
+          ref={pagesContainerRef}
+          onMouseUp={handleMouseUp}
+          className="fz-selectable flex h-full justify-center overflow-auto p-8"
+          style={{ position: 'relative', zIndex: 1, background: 'transparent' }}
+        >
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <PdfPage
+              doc={doc}
+              documentId={documentId}
+              pageNumber={currentPage}
+              scale={scale}
+              onTextExtracted={handleTextExtracted}
+            />
+          </div>
+        </div>
       </div>
       <SelectionMenu />
     </div>
@@ -246,6 +271,10 @@ function PdfToolbar({
   currentPage,
   pageCount,
   scale,
+  feelingEnabled,
+  spriteEnabled,
+  onFeelingToggle,
+  onSpriteToggle,
   onPrev,
   onNext,
   onZoomIn,
@@ -255,6 +284,10 @@ function PdfToolbar({
   currentPage: number
   pageCount: number
   scale: number
+  feelingEnabled: boolean
+  spriteEnabled: boolean
+  onFeelingToggle: () => void
+  onSpriteToggle: () => void
   onPrev: () => void
   onNext: () => void
   onZoomIn: () => void
@@ -266,9 +299,37 @@ function PdfToolbar({
         {title ?? 'Untitled'}
       </span>
       <div className="flex-1" />
+      {/* Feeling Aurora toggle */}
+      <button
+        type="button"
+        title={feelingEnabled ? 'Feeling Aurora on' : 'Feeling Aurora off'}
+        onClick={onFeelingToggle}
+        className={[
+          'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
+          feelingEnabled
+            ? 'border-fz-accent text-fz-accent'
+            : 'text-fz-fg-muted hover:bg-fz-bg'
+        ].join(' ')}
+      >
+        ✦ Feeling
+      </button>
+      {/* Scene Sprite toggle */}
+      <button
+        type="button"
+        title={spriteEnabled ? 'Scene Sprite on' : 'Scene Sprite off'}
+        onClick={onSpriteToggle}
+        className={[
+          'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
+          spriteEnabled
+            ? 'border-fz-accent text-fz-accent'
+            : 'text-fz-fg-muted hover:bg-fz-bg'
+        ].join(' ')}
+      >
+        ★ Sprite
+      </button>
       <div className="flex items-center gap-1">
         <ToolbarButton onClick={onPrev} disabled={currentPage <= 1} label="Prev" />
-        <span className="w-20 text-center text-[11px] text-fz-fg-muted">
+        <span className="w-20 text-center text-fz-micro text-fz-fg-muted">
           {currentPage} / {pageCount}
         </span>
         <ToolbarButton onClick={onNext} disabled={currentPage >= pageCount} label="Next" />
@@ -278,7 +339,7 @@ function PdfToolbar({
       </div>
       <div className="ml-3 flex items-center gap-1">
         <ToolbarButton onClick={onZoomOut} label="–" disabled={scale <= 0.5} />
-        <span className="w-12 text-center text-[11px] text-fz-fg-muted">
+        <span className="w-12 text-center text-fz-micro text-fz-fg-muted">
           {Math.round(scale * 100)}%
         </span>
         <ToolbarButton onClick={onZoomIn} label="+" disabled={scale >= 3} />
@@ -301,7 +362,7 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded border border-fz-border px-2 py-0.5 text-[11px] text-fz-fg-muted hover:bg-fz-bg disabled:cursor-not-allowed disabled:opacity-40"
+      className="rounded border border-fz-border px-2 py-0.5 text-fz-micro text-fz-fg-muted hover:bg-fz-bg disabled:cursor-not-allowed disabled:opacity-40"
     >
       {label}
     </button>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TopBar } from './TopBar'
 import { LeftSidebar } from './LeftSidebar'
 import { RightTutorPanel } from './RightTutorPanel'
@@ -73,6 +73,73 @@ export function AppShell(): React.JSX.Element {
   const essayOpen = useAppUiStore((s) => s.essayOpen)
   const setEssayOpen = useAppUiStore((s) => s.setEssayOpen)
 
+  // ── Resizable panels ──────────────────────────────────────────────────────
+  const SIZES_KEY = 'fz-panel-sizes'
+  const MIN_LEFT = 140, MAX_LEFT = 480, DEFAULT_LEFT = 240
+  const MIN_RIGHT = 200, MAX_RIGHT = 640, DEFAULT_RIGHT = 384
+
+  const loadSize = (key: 'left' | 'right', def: number, min: number, max: number): number => {
+    try {
+      const raw = localStorage.getItem(SIZES_KEY)
+      if (raw) {
+        const v = (JSON.parse(raw) as Record<string, number>)[key]
+        if (typeof v === 'number') return Math.max(min, Math.min(max, v))
+      }
+    } catch { /* ignore */ }
+    return def
+  }
+
+  const loadBool = (key: string, def: boolean): boolean => {
+    try {
+      const raw = localStorage.getItem(SIZES_KEY)
+      if (raw) {
+        const v = (JSON.parse(raw) as Record<string, unknown>)[key]
+        if (typeof v === 'boolean') return v
+      }
+    } catch { /* ignore */ }
+    return def
+  }
+
+  const [leftW, setLeftW] = useState(() => loadSize('left', DEFAULT_LEFT, MIN_LEFT, MAX_LEFT))
+  const [rightW, setRightW] = useState(() => loadSize('right', DEFAULT_RIGHT, MIN_RIGHT, MAX_RIGHT))
+  const [leftOpen, setLeftOpen] = useState(() => loadBool('leftOpen', true))
+  const [rightOpen, setRightOpen] = useState(() => loadBool('rightOpen', true))
+  const leftWRef = useRef(leftW)
+  const rightWRef = useRef(rightW)
+  leftWRef.current = leftW
+  rightWRef.current = rightW
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        SIZES_KEY,
+        JSON.stringify({ left: leftW, right: rightW, leftOpen, rightOpen })
+      )
+    } catch { /* ignore */ }
+  }, [leftW, rightW, leftOpen, rightOpen])
+
+  const startDrag = useCallback((side: 'left' | 'right', startX: number) => {
+    const origin = side === 'left' ? leftWRef.current : rightWRef.current
+    const onMove = (e: MouseEvent): void => {
+      const delta = e.clientX - startX
+      if (side === 'left') {
+        setLeftW(Math.max(MIN_LEFT, Math.min(MAX_LEFT, origin + delta)))
+      } else {
+        setRightW(Math.max(MIN_RIGHT, Math.min(MAX_RIGHT, origin - delta)))
+      }
+    }
+    const onUp = (): void => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
+
   // Drives the pacer's word-by-word sweep (single rAF loop for the whole app).
   usePacer()
 
@@ -142,8 +209,32 @@ export function AppShell(): React.JSX.Element {
       <div className="flex min-h-0 flex-1">
         {/* Focus mode hides the side panels so the reader takes the full width
             — pairs with the pacer for distraction-free reading. */}
-        {!focusMode && <LeftSidebar onOpenStudyPack={openStudyPack} />}
-        <main className="flex min-w-0 flex-1 flex-col border-x border-fz-border bg-fz-surface">
+        {!focusMode && (
+          leftOpen ? (
+            <>
+              <LeftSidebar
+                onOpenStudyPack={openStudyPack}
+                onCollapse={() => setLeftOpen(false)}
+                style={{ width: leftW, flexShrink: 0, alignSelf: 'stretch' }}
+              />
+              <div
+                className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
+                onMouseDown={(e) => { e.preventDefault(); startDrag('left', e.clientX) }}
+              />
+            </>
+          ) : (
+            /* Collapsed strip — click to reopen */
+            <button
+              type="button"
+              className="flex w-7 shrink-0 flex-col items-center justify-start border-r border-fz-border bg-fz-surface-2 pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
+              onClick={() => setLeftOpen(true)}
+              title="Open library"
+            >
+              <span className="text-fz-micro">›</span>
+            </button>
+          )
+        )}
+        <main className="flex min-w-0 flex-1 flex-col bg-fz-surface">
           {activeDocumentId ? (
             <ErrorBoundary label="The reader hit a problem" resetKey={activeDocumentId}>
               <DocumentReader key={activeDocumentId} documentId={activeDocumentId} />
@@ -152,7 +243,31 @@ export function AppShell(): React.JSX.Element {
             <HomeHub />
           )}
         </main>
-        {!focusMode && <RightTutorPanel onOpenSettings={openSettings} />}
+        {!focusMode && (
+          rightOpen ? (
+            <>
+              <div
+                className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
+                onMouseDown={(e) => { e.preventDefault(); startDrag('right', e.clientX) }}
+              />
+              <RightTutorPanel
+                onOpenSettings={openSettings}
+                onCollapse={() => setRightOpen(false)}
+                style={{ width: rightW, flexShrink: 0, alignSelf: 'stretch' }}
+              />
+            </>
+          ) : (
+            /* Collapsed strip — click to reopen */
+            <button
+              type="button"
+              className="flex w-7 shrink-0 flex-col items-center justify-start border-l border-fz-border bg-fz-surface-2 pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
+              onClick={() => setRightOpen(true)}
+              title="Open AI panel"
+            >
+              <span className="text-fz-micro">‹</span>
+            </button>
+          )
+        )}
       </div>
       <BottomReadingBar />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}

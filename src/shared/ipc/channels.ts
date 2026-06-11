@@ -12,6 +12,7 @@ export const IpcChannels = {
   documentsImportSample: 'documents:importSample',
   documentsReadFile: 'documents:readFile',
   documentsRecordPageExtraction: 'documents:recordPageExtraction',
+  documentsSetLastReadPage: 'documents:setLastReadPage',
 
   pagesListForDocument: 'pages:listForDocument',
 
@@ -24,6 +25,7 @@ export const IpcChannels = {
   evidenceSearch: 'evidence:search',
   entitiesList: 'entities:list',
   entitiesMentions: 'entities:mentions',
+  entitiesRebuild: 'entities:rebuild',
   toneSearch: 'tone:search',
   askQuery: 'ask:query',
   argumentMap: 'argument:map',
@@ -100,7 +102,9 @@ export const IpcChannels = {
   settingsGetStudyPackPrefs: 'settings:getStudyPackPrefs',
   settingsSetStudyPackPrefs: 'settings:setStudyPackPrefs',
 
-  devSeedDocument: 'dev:seedDocument'
+  devSeedDocument: 'dev:seedDocument',
+
+  ambientClassify: 'ambient:classify'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

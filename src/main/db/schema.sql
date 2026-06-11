@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS documents (
   source_url TEXT,
   -- Detected (or user-overridden) document genre. Selects the genre adapter
   -- (segmentation/entity-kind/locator/prompts). NULL = not yet classified.
-  genre TEXT
+  genre TEXT,
+  -- High-water mark: the furthest page the user has ever reached. Restored on
+  -- open as the resume position and used as the spoiler-safe boundary (DB v11).
+  last_read_page INTEGER
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(file_hash)
