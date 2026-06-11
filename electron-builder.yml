@@ -28,12 +28,11 @@ mac:
   extendInfo:
     - NSDocumentsFolderUsageDescription: Fuzzy imports PDFs you choose into your local library.
     - NSDownloadsFolderUsageDescription: Fuzzy can import PDFs from your Downloads folder when you select them.
-  # Used for direct DMG distribution (Developer ID cert, notarized)
-  notarize:
-    teamId: ${env.APPLE_TEAM_ID}
+  # Notarize for distribution: set APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+  # APPLE_TEAM_ID env vars and flip this to true before running build:mac.
+  notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
-  sign: true
 mas:
   # Mac App Store build — uses "Apple Distribution" cert from Keychain.
   # Run: pnpm build:mas
