@@ -296,6 +296,54 @@ const migrations: Migration[] = [
     up: (database) => {
       ensureColumn(database, 'documents', 'last_read_page', 'INTEGER')
     }
+  },
+  {
+    // v12: cross-source highlight memory (imports, offline FTS, daily review).
+    // Fresh installs get the same DDL from schema.sql.
+    version: 12,
+    up: (database) => {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS highlights (
+          id TEXT PRIMARY KEY,
+          source_kind TEXT NOT NULL,
+          content_kind TEXT NOT NULL DEFAULT 'other',
+          source_label TEXT NOT NULL,
+          source_title TEXT NOT NULL,
+          source_author TEXT,
+          source_url TEXT,
+          source_location TEXT,
+          external_id TEXT,
+          text TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          tags_json TEXT NOT NULL DEFAULT '[]',
+          is_favorite INTEGER NOT NULL DEFAULT 0,
+          metadata_json TEXT NOT NULL DEFAULT '{}',
+          dedupe_hash TEXT NOT NULL,
+          ease REAL NOT NULL DEFAULT 2.5,
+          interval_days REAL NOT NULL DEFAULT 0,
+          repetitions INTEGER NOT NULL DEFAULT 0,
+          due_at TEXT NOT NULL,
+          last_reviewed_at TEXT,
+          highlighted_at TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_highlights_dedupe_hash ON highlights(dedupe_hash);
+        CREATE INDEX IF NOT EXISTS idx_highlights_due ON highlights(due_at);
+        CREATE INDEX IF NOT EXISTS idx_highlights_favorite ON highlights(is_favorite);
+        CREATE INDEX IF NOT EXISTS idx_highlights_source_kind ON highlights(source_kind);
+        CREATE VIRTUAL TABLE IF NOT EXISTS highlights_fts USING fts5(
+          highlight_id UNINDEXED,
+          source_title,
+          source_author,
+          text,
+          note,
+          tags,
+          source_label,
+          tokenize = 'porter unicode61'
+        );
+      `)
+    }
   }
 ]
 

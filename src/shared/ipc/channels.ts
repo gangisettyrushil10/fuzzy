@@ -87,6 +87,18 @@ export const IpcChannels = {
   flashcardReviewsDue: 'flashcardReviews:due',
   flashcardReviewsDueCount: 'flashcardReviews:dueCount',
 
+  highlightsList: 'highlights:list',
+  highlightsImport: 'highlights:import',
+  highlightsCreate: 'highlights:create',
+  highlightsUpdate: 'highlights:update',
+  highlightsDelete: 'highlights:delete',
+  highlightsGrade: 'highlights:grade',
+  highlightsDue: 'highlights:due',
+  highlightsDueCount: 'highlights:dueCount',
+  highlightsStats: 'highlights:stats',
+  highlightsExportText: 'highlights:exportText',
+  highlightsExportFile: 'highlights:exportFile',
+
   settingsGet: 'settings:get',
   settingsSetProviderMode: 'settings:setProviderMode',
   settingsSetOpenaiKey: 'settings:setOpenaiKey',

@@ -149,6 +149,21 @@ const fuzzy: FuzzyApi = {
     due: (limit) => ipcRenderer.invoke(IpcChannels.flashcardReviewsDue, limit),
     dueCount: () => ipcRenderer.invoke(IpcChannels.flashcardReviewsDueCount)
   },
+  highlights: {
+    list: (filters) => ipcRenderer.invoke(IpcChannels.highlightsList, filters),
+    import: () => ipcRenderer.invoke(IpcChannels.highlightsImport),
+    create: (input) => ipcRenderer.invoke(IpcChannels.highlightsCreate, input),
+    update: (id, patch) => ipcRenderer.invoke(IpcChannels.highlightsUpdate, id, patch),
+    delete: (id) => ipcRenderer.invoke(IpcChannels.highlightsDelete, id),
+    grade: (id, grade) => ipcRenderer.invoke(IpcChannels.highlightsGrade, id, grade),
+    due: (limit) => ipcRenderer.invoke(IpcChannels.highlightsDue, limit),
+    dueCount: () => ipcRenderer.invoke(IpcChannels.highlightsDueCount),
+    stats: () => ipcRenderer.invoke(IpcChannels.highlightsStats),
+    exportText: (target, filters) =>
+      ipcRenderer.invoke(IpcChannels.highlightsExportText, target, filters),
+    exportFile: (target, filters) =>
+      ipcRenderer.invoke(IpcChannels.highlightsExportFile, target, filters)
+  },
   settings: {
     get: () => ipcRenderer.invoke(IpcChannels.settingsGet),
     setProviderMode: (mode) => ipcRenderer.invoke(IpcChannels.settingsSetProviderMode, mode),

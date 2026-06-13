@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+@import '@fontsource/cormorant-garamond/400.css';
+@import '@fontsource/cormorant-garamond/400-italic.css';
+@import '@fontsource/cormorant-garamond/500.css';
+@import '@fontsource/cormorant-garamond/500-italic.css';
+@import '@fontsource/cormorant-garamond/600-italic.css';
 
 @theme {
   --color-fz-bg: #0b0b0d;
@@ -30,6 +35,7 @@
   --font-sans:
     'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     Helvetica, Arial, sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-mono:
     ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
@@ -83,6 +89,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
+  position: relative;
+}
+
+/* Ambient warm glow — matches the website's body::before radial gradients.
+   Gives the dark chrome a living, editorial warmth without overpowering content. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(232, 135, 74, 0.1), transparent 24%),
+    radial-gradient(circle at 80% 8%, rgba(255, 244, 220, 0.045), transparent 24%);
+  filter: blur(10px);
 }
 
 /* Allow text selection in PDF reader and tutor panel content */
@@ -543,105 +564,564 @@ body {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Feeling Aurora — three asynchronous blobs that drift behind the reader.
-   Each blob gets background-color and opacity set inline from ambientStore.
-   The three different durations (18s/22s/26s) prevent lock-step repetition,
-   creating an organic, non-repeating northern-lights appearance.
-   ───────────────────────────────────────────────────────────────────────── */
-.fz-aurora-layer {
+.fz-shell-chrome {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--fz-surface-2) 88%, transparent),
+    color-mix(in srgb, var(--fz-surface) 84%, transparent)
+  );
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+.fz-ambient-shell {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   overflow: hidden;
-  z-index: 0; /* behind scroll container (z-index: 1); visible through transparent scroll bg + semi-transparent page card */
-  transition: opacity 2s ease;
-}
-
-.fz-aurora-blob {
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  filter: blur(90px);
-  will-change: transform;
-}
-
-.fz-aurora-drift-a {
-  animation: fz-aurora-drift-a 18s ease-in-out infinite;
-}
-.fz-aurora-drift-b {
-  animation: fz-aurora-drift-b 22s ease-in-out infinite;
-  animation-delay: -7s;
-}
-.fz-aurora-drift-c {
-  animation: fz-aurora-drift-c 26s ease-in-out infinite;
-  animation-delay: -14s;
-}
-
-@keyframes fz-aurora-drift-a {
-  0%   { transform: translate(0%,  0%)   scale(1);   }
-  25%  { transform: translate(18%, -12%) scale(1.08); }
-  50%  { transform: translate(8%,  15%)  scale(0.95); }
-  75%  { transform: translate(-14%, 6%)  scale(1.05); }
-  100% { transform: translate(0%,  0%)   scale(1);   }
-}
-
-@keyframes fz-aurora-drift-b {
-  0%   { transform: translate(0%,   0%)  scale(1);   }
-  30%  { transform: translate(-20%, 14%) scale(1.1);  }
-  60%  { transform: translate(12%, -18%) scale(0.92); }
-  80%  { transform: translate(6%,   8%)  scale(1.04); }
-  100% { transform: translate(0%,   0%)  scale(1);   }
-}
-
-@keyframes fz-aurora-drift-c {
-  0%   { transform: translate(0%,  0%)  scale(1);   }
-  20%  { transform: translate(14%, 18%) scale(0.94); }
-  55%  { transform: translate(-8%, -14%) scale(1.06);}
-  75%  { transform: translate(20%, 4%)  scale(1.02); }
-  100% { transform: translate(0%,  0%)  scale(1);   }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Scene Sprite — pixel-art character in the reader margin.
-   ───────────────────────────────────────────────────────────────────────── */
-.fz-sprite {
   pointer-events: none;
-  user-select: none;
-  image-rendering: pixelated;
+  z-index: 0;
+  transform: translate3d(
+    calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.4rem),
+    calc(var(--fz-ambient-velocity, 0) * -1.6rem),
+    0
+  );
+  transition: transform 260ms ease-out;
 }
 
-.fz-sprite-bob {
-  animation: fz-sprite-bob 2s ease-in-out infinite;
-}
-@keyframes fz-sprite-bob {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-4px); }
-}
-
-.fz-sprite-react {
-  animation: fz-sprite-react 0.45s ease-out;
-}
-@keyframes fz-sprite-react {
-  0%   { transform: translateY(0px) scale(1); }
-  30%  { transform: translateY(-12px) scale(1.08); }
-  65%  { transform: translateY(-6px) scale(0.96); }
-  100% { transform: translateY(0px) scale(1); }
+.fz-ambient-family-oceanic {
+  transform: translate3d(
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 2.2rem),
+      calc(var(--fz-ambient-velocity, 0) * -2rem),
+      0
+    )
+    scale(1.01);
 }
 
-.fz-sprite-enter {
-  animation: fz-sprite-enter 0.35s ease-out;
+.fz-ambient-family-storm {
+  transform: translate3d(
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.8rem),
+      calc(var(--fz-ambient-velocity, 0) * -2.4rem),
+      0
+    )
+    scale(1.015);
 }
-@keyframes fz-sprite-enter {
-  from { opacity: 0; transform: scale(0.7) translateY(6px); }
-  to   { opacity: 1; transform: scale(1)   translateY(0px); }
+
+.fz-ambient-family-magic {
+  transform: translate3d(
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.6rem),
+      calc(var(--fz-ambient-velocity, 0) * -1.8rem),
+      0
+    )
+    scale(1.02);
+}
+
+.fz-ambient-family-ember,
+.fz-ambient-family-blood {
+  transform: translate3d(
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.4rem),
+      calc(var(--fz-ambient-velocity, 0) * -2.2rem),
+      0
+    )
+    scale(1.018);
+}
+
+.fz-ambient-depth {
+  position: absolute;
+  inset: 0;
+  transition: transform 260ms ease-out;
+}
+
+.fz-ambient-depth-back {
+  opacity: 0.95;
+}
+
+.fz-ambient-depth-mid {
+  opacity: 1;
+}
+
+.fz-ambient-depth-fore {
+  opacity: 1.08;
+}
+
+.fz-ambient-depth-crest {
+  opacity: 1.16;
+}
+
+.fz-ambient-family-oceanic .fz-ambient-depth-back {
+  opacity: 1.08;
+}
+
+.fz-ambient-family-oceanic .fz-ambient-depth-mid {
+  opacity: 1.14;
+}
+
+.fz-ambient-family-storm .fz-ambient-depth-crest,
+.fz-ambient-family-magic .fz-ambient-depth-crest {
+  opacity: 1.26;
+}
+
+.fz-ambient-family-blood .fz-ambient-depth-mid,
+.fz-ambient-family-ember .fz-ambient-depth-mid {
+  opacity: 1.18;
+}
+
+.fz-ambient-wash,
+.fz-ambient-wave,
+.fz-ambient-orb,
+.fz-ambient-vignette,
+.fz-ambient-chapter-entry,
+.fz-ambient-burst {
+  position: absolute;
+  inset: 0;
+  transition:
+    background 2.5s ease,
+    opacity 1.8s ease,
+    filter 2.5s ease;
+}
+
+.fz-ambient-wash {
+  background:
+    radial-gradient(
+      circle at 20% 18%,
+      color-mix(in srgb, var(--fz-ambient-c1) 48%, transparent) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 80% 22%,
+      color-mix(in srgb, var(--fz-ambient-c2) 46%, transparent) 0%,
+      transparent 40%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--fz-ambient-c3) 26%, transparent),
+      color-mix(in srgb, var(--fz-ambient-c4) 14%, transparent) 35%,
+      transparent 58%
+    );
+  opacity: calc(var(--fz-ambient-opacity) * 1.5);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.4));
+  animation: fz-ambient-breathe var(--fz-ambient-drift-slow) ease-in-out infinite;
+  transform: translate3d(
+    calc((var(--fz-ambient-phase, 0.5) - 0.5) * 5%),
+    calc((var(--fz-ambient-progress, 0.5) - 0.5) * 5%),
+    0
+  );
+}
+
+.fz-ambient-wave {
+  width: 150%;
+  height: 46%;
+  left: -25%;
+  border-radius: 45% 55% 50% 50%;
+  opacity: calc(var(--fz-ambient-opacity) * 2.3);
+  filter: blur(var(--fz-ambient-blur));
+  mix-blend-mode: screen;
+  transition:
+    transform 220ms ease-out,
+    opacity 220ms ease-out,
+    filter 240ms ease-out;
+}
+
+.fz-ambient-wave-top {
+  top: -14%;
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 0%,
+    color-mix(in srgb, var(--fz-ambient-c1) 62%, transparent) 26%,
+    color-mix(in srgb, var(--fz-ambient-c2) 70%, transparent) 46%,
+    color-mix(in srgb, var(--fz-ambient-c4) 56%, transparent) 68%,
+    color-mix(in srgb, var(--fz-ambient-c3) 58%, transparent) 100%
+  );
+  animation: fz-ambient-sweep var(--fz-ambient-drift) ease-in-out infinite;
+  opacity: calc((var(--fz-ambient-opacity) * 2.25) + (var(--fz-ambient-surge, 0) * 0.12));
+}
+
+.fz-ambient-family-oceanic .fz-ambient-wave-top,
+.fz-ambient-family-oceanic .fz-ambient-wave-bottom {
+  height: 54%;
+  border-radius: 40% 60% 48% 52%;
+}
+
+.fz-ambient-family-oceanic .fz-ambient-wave-top {
+  animation-duration: calc(var(--fz-ambient-drift) * 1.2);
+}
+
+.fz-ambient-family-oceanic .fz-ambient-wave-bottom {
+  animation-duration: calc(var(--fz-ambient-drift-fast) * 1.1);
+}
+
+.fz-ambient-family-storm .fz-ambient-wave-top,
+.fz-ambient-family-storm .fz-ambient-wave-bottom {
+  filter: blur(calc(var(--fz-ambient-blur) * 0.86));
+}
+
+.fz-ambient-family-magic .fz-ambient-wave-top,
+.fz-ambient-family-magic .fz-ambient-wave-bottom {
+  mix-blend-mode: plus-lighter;
+}
+
+.fz-ambient-family-ember .fz-ambient-wave-top,
+.fz-ambient-family-blood .fz-ambient-wave-top {
+  opacity: calc((var(--fz-ambient-opacity) * 2.35) + (var(--fz-ambient-surge, 0) * 0.15));
+}
+
+.fz-ambient-wave-bottom {
+  bottom: -18%;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--fz-ambient-c3) 8%, transparent) 0%,
+    color-mix(in srgb, var(--fz-ambient-c2) 62%, transparent) 34%,
+    color-mix(in srgb, var(--fz-ambient-c4) 42%, transparent) 58%,
+    color-mix(in srgb, var(--fz-ambient-c1) 48%, transparent) 72%,
+    color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 100%
+  );
+  animation: fz-ambient-sweep-reverse var(--fz-ambient-drift-fast) ease-in-out infinite;
+  opacity: calc((var(--fz-ambient-opacity) * 2.1) + (var(--fz-ambient-surge, 0) * 0.1));
+}
+
+.fz-ambient-orb {
+  width: 44rem;
+  height: 44rem;
+  border-radius: 999px;
+  opacity: calc(var(--fz-ambient-opacity) * 1.95);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.72));
+  transition:
+    transform 260ms ease-out,
+    opacity 260ms ease-out,
+    filter 260ms ease-out;
+}
+
+.fz-ambient-orb-left {
+  left: -10rem;
+  top: 22%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--fz-ambient-c2) 78%, transparent) 0%,
+    transparent 70%
+  );
+  animation: fz-ambient-orbit-left var(--fz-ambient-drift-slow) ease-in-out infinite;
+  transform: translate3d(
+    calc((var(--fz-ambient-progress, 0.5) - 0.5) * -4%),
+    calc(var(--fz-ambient-velocity, 0) * -8%),
+    0
+  );
+}
+
+.fz-ambient-family-stone .fz-ambient-orb-left,
+.fz-ambient-family-stone .fz-ambient-orb-right {
+  opacity: calc(var(--fz-ambient-opacity) * 1.35);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.92));
+}
+
+.fz-ambient-family-magic .fz-ambient-orb-right {
+  mix-blend-mode: plus-lighter;
+}
+
+.fz-ambient-family-woodland .fz-ambient-orb-left,
+.fz-ambient-family-woodland .fz-ambient-orb-right {
+  opacity: calc(var(--fz-ambient-opacity) * 1.7);
+}
+
+.fz-ambient-orb-right {
+  right: -12rem;
+  top: 4%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--fz-ambient-c4) 78%, transparent) 0%,
+    transparent 72%
+  );
+  animation: fz-ambient-orbit-right var(--fz-ambient-drift) ease-in-out infinite;
+  transform: translate3d(
+    calc((var(--fz-ambient-progress, 0.5) - 0.5) * 4%),
+    calc(var(--fz-ambient-velocity, 0) * 9%),
+    0
+  );
+}
+
+.fz-ambient-vignette {
+  background:
+    radial-gradient(circle at center, transparent 38%, rgba(6, 9, 16, 0.16) 100%),
+    linear-gradient(
+      180deg,
+      rgba(3, 6, 12, 0.12),
+      transparent 18%,
+      transparent 82%,
+      rgba(3, 6, 12, 0.14)
+    );
+}
+
+.fz-ambient-chapter-entry {
+  background:
+    radial-gradient(
+      circle at calc(50% + (var(--fz-ambient-phase, 0.5) - 0.5) * 30%) 42%,
+      color-mix(in srgb, var(--fz-ambient-c1) 28%, transparent) 0%,
+      transparent 28%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--fz-ambient-c2) 24%, transparent),
+      transparent 44%
+    );
+  filter: blur(18px);
+  opacity: 0;
+  animation: fz-ambient-chapter-entry 1600ms ease-out;
+}
+
+.fz-ambient-family-magic .fz-ambient-chapter-entry {
+  animation-duration: 1850ms;
+}
+
+.fz-ambient-family-storm .fz-ambient-chapter-entry,
+.fz-ambient-family-oceanic .fz-ambient-chapter-entry {
+  animation-duration: 1500ms;
+}
+
+.fz-ambient-burst {
+  inset: -8%;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: fz-ambient-burst 1400ms ease-out;
+}
+
+.fz-ambient-burst-magic {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--fz-ambient-c4) 60%, transparent) 0%,
+      transparent 18%
+    ),
+    conic-gradient(
+      from calc(var(--fz-ambient-phase, 0.5) * 1turn),
+      transparent 0deg,
+      color-mix(in srgb, var(--fz-ambient-c2) 52%, transparent) 50deg,
+      transparent 110deg,
+      color-mix(in srgb, var(--fz-ambient-c3) 44%, transparent) 180deg,
+      transparent 260deg,
+      color-mix(in srgb, var(--fz-ambient-c1) 40%, transparent) 320deg,
+      transparent 360deg
+    );
+  filter: blur(14px);
+}
+
+.fz-ambient-burst-storm {
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 44%,
+      color-mix(in srgb, white 78%, var(--fz-ambient-c2) 22%) 49%,
+      transparent 54%,
+      transparent 100%
+    ),
+    linear-gradient(
+      76deg,
+      transparent 0%,
+      transparent 60%,
+      color-mix(in srgb, var(--fz-ambient-c3) 46%, transparent) 64%,
+      transparent 69%,
+      transparent 100%
+    );
+  filter: blur(4px);
+  animation-duration: 950ms;
+}
+
+.fz-ambient-burst-blood {
+  background:
+    radial-gradient(
+      circle at 52% 44%,
+      color-mix(in srgb, var(--fz-ambient-c1) 58%, transparent) 0%,
+      transparent 16%
+    ),
+    radial-gradient(
+      circle at 40% 60%,
+      color-mix(in srgb, var(--fz-ambient-c4) 44%, transparent) 0%,
+      transparent 12%
+    ),
+    radial-gradient(
+      circle at 64% 58%,
+      color-mix(in srgb, var(--fz-ambient-c3) 38%, transparent) 0%,
+      transparent 13%
+    );
+  filter: blur(18px);
+}
+
+.fz-ambient-burst-treasure {
+  background:
+    radial-gradient(
+      circle at 50% 52%,
+      color-mix(in srgb, var(--fz-ambient-c1) 70%, transparent) 0%,
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 46% 48%,
+      color-mix(in srgb, white 78%, var(--fz-ambient-c2) 22%) 0%,
+      transparent 8%
+    ),
+    conic-gradient(
+      from calc(var(--fz-ambient-phase, 0.5) * 1turn),
+      transparent 0deg,
+      color-mix(in srgb, var(--fz-ambient-c2) 36%, transparent) 55deg,
+      transparent 95deg,
+      color-mix(in srgb, var(--fz-ambient-c3) 40%, transparent) 180deg,
+      transparent 250deg,
+      color-mix(in srgb, var(--fz-ambient-c1) 32%, transparent) 320deg,
+      transparent 360deg
+    );
+  filter: blur(12px);
+}
+
+.fz-ambient-burst-fire {
+  background:
+    radial-gradient(
+      circle at 48% 68%,
+      color-mix(in srgb, var(--fz-ambient-c1) 72%, transparent) 0%,
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 56% 58%,
+      color-mix(in srgb, var(--fz-ambient-c2) 58%, transparent) 0%,
+      transparent 14%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 52%,
+      color-mix(in srgb, var(--fz-ambient-c3) 26%, transparent) 76%,
+      transparent 100%
+    );
+  filter: blur(16px);
+}
+
+.fz-ambient-family-oceanic .fz-ambient-burst-storm {
+  opacity: 0;
+  animation-name: fz-ambient-burst, fz-ambient-sea-heave;
+  animation-duration: 950ms, 1800ms;
+}
+
+.fz-ambient-family-magic .fz-ambient-burst-magic {
+  animation-name: fz-ambient-burst, fz-ambient-magic-spin;
+  animation-duration: 1400ms, 3200ms;
+}
+
+.fz-ambient-family-ember .fz-ambient-burst-fire {
+  animation-name: fz-ambient-burst, fz-ambient-ember-shower;
+  animation-duration: 1200ms, 2400ms;
+}
+
+@keyframes fz-ambient-breathe {
+  0%,
+  100% {
+    transform: scale(var(--fz-ambient-motion-scale, 1));
+    opacity: calc(var(--fz-ambient-opacity) * 1.45);
+  }
+  50% {
+    transform: scale(calc(var(--fz-ambient-motion-scale, 1) * 1.05));
+    opacity: calc(var(--fz-ambient-opacity) * 1.7);
+  }
+}
+
+@keyframes fz-ambient-sweep {
+  0%,
+  100% {
+    transform: translate3d(-2%, 0, 0) rotate(-7deg) scaleY(var(--fz-ambient-motion-scale, 1));
+  }
+  50% {
+    transform: translate3d(5%, 2%, 0) rotate(6deg)
+      scaleY(calc(var(--fz-ambient-motion-scale, 1) * 1.1));
+  }
+}
+
+@keyframes fz-ambient-sweep-reverse {
+  0%,
+  100% {
+    transform: translate3d(1%, 0, 0) rotate(8deg) scaleY(var(--fz-ambient-motion-scale, 1));
+  }
+  50% {
+    transform: translate3d(-6%, -2%, 0) rotate(-5deg)
+      scaleY(calc(var(--fz-ambient-motion-scale, 1) * 1.08));
+  }
+}
+
+@keyframes fz-ambient-orbit-left {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(var(--fz-ambient-motion-scale, 1));
+  }
+  50% {
+    transform: translate3d(8%, -5%, 0) scale(calc(var(--fz-ambient-motion-scale, 1) * 1.06));
+  }
+}
+
+@keyframes fz-ambient-orbit-right {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(var(--fz-ambient-motion-scale, 1));
+  }
+  50% {
+    transform: translate3d(-7%, 7%, 0) scale(calc(var(--fz-ambient-motion-scale, 1) * 0.94));
+  }
+}
+
+@keyframes fz-ambient-chapter-entry {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(24px);
+  }
+  18% {
+    opacity: 0.46;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08) translateY(-12px);
+  }
+}
+
+@keyframes fz-ambient-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.74) rotate(-10deg);
+  }
+  16% {
+    opacity: 0.42;
+  }
+  48% {
+    opacity: 0.26;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2) rotate(10deg);
+  }
+}
+
+@keyframes fz-ambient-sea-heave {
+  0%,
+  100% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -2%, 0) scale(1.05);
+  }
+}
+
+@keyframes fz-ambient-magic-spin {
+  0% {
+    transform: rotate(0deg) scale(0.92);
+  }
+  100% {
+    transform: rotate(24deg) scale(1.08);
+  }
+}
+
+@keyframes fz-ambient-ember-shower {
+  0% {
+    transform: translate3d(0, 8%, 0) scale(0.94);
+  }
+  100% {
+    transform: translate3d(0, -10%, 0) scale(1.08);
+  }
 }
 
 /* Trim non-essential motion for users who ask for it. The spinner is left
-   alone — a non-spinning spinner reads as broken. Aurora blobs keep moving
-   (atmospheric drift is not accessibility-harmful), but sprite animations
-   stop since character motion can be distracting. */
+   alone — a non-spinning spinner reads as broken. */
 @media (prefers-reduced-motion: reduce) {
   .fz-skeleton,
   .fz-passage-flash,
@@ -659,9 +1139,11 @@ body {
     animation: none !important;
     transition: none !important;
   }
-  .fz-sprite-bob,
-  .fz-sprite-react,
-  .fz-sprite-enter {
+  .fz-ambient-wash,
+  .fz-ambient-wave,
+  .fz-ambient-orb,
+  .fz-ambient-chapter-entry,
+  .fz-ambient-burst {
     animation: none !important;
   }
 }

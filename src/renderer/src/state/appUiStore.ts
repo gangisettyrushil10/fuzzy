@@ -21,6 +21,7 @@ interface AppUiState {
   commandPaletteOpen: boolean
   settingsOpen: boolean
   studyPackOpen: boolean
+  highlightsOpen: boolean
   planModalOpen: boolean
   statsOpen: boolean
   shortcutsOpen: boolean
@@ -34,6 +35,7 @@ interface AppUiState {
   setCommandPaletteOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
   setStudyPackOpen: (open: boolean) => void
+  setHighlightsOpen: (open: boolean) => void
   setPlanModalOpen: (open: boolean) => void
   setStatsOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
@@ -56,6 +58,7 @@ export const useAppUiStore = create<AppUiState>((set) => ({
   commandPaletteOpen: false,
   settingsOpen: false,
   studyPackOpen: false,
+  highlightsOpen: false,
   planModalOpen: false,
   statsOpen: false,
   shortcutsOpen: false,
@@ -68,6 +71,7 @@ export const useAppUiStore = create<AppUiState>((set) => ({
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setStudyPackOpen: (open) => set({ studyPackOpen: open }),
+  setHighlightsOpen: (open) => set({ highlightsOpen: open }),
   setPlanModalOpen: (open) => set({ planModalOpen: open }),
   setStatsOpen: (open) => set({ statsOpen: open }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
@@ -82,10 +86,11 @@ export const useAppUiStore = create<AppUiState>((set) => ({
 
   dismissTransientUi: () => {
     set({
-      commandPaletteOpen: false,
-      planModalOpen: false,
-      studyPackOpen: false
-    })
+        commandPaletteOpen: false,
+        planModalOpen: false,
+        studyPackOpen: false,
+        highlightsOpen: false
+      })
     for (const fn of dismissHandlers) fn()
   },
 

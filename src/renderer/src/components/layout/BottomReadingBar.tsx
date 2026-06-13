@@ -52,7 +52,7 @@ export function BottomReadingBar(): React.JSX.Element {
 
   return (
     <>
-      <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-fz-border bg-fz-surface-2 px-3 text-[11px] text-fz-fg-muted">
+      <footer className="fz-shell-chrome flex h-7 shrink-0 items-center gap-4 border-t border-fz-border px-3 text-[11px] text-fz-fg-muted">
         <span>{pageLabel}</span>
         {extractedLabel && (
           <>

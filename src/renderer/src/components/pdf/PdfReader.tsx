@@ -8,8 +8,7 @@ import { useAmbientStore } from '../../state/ambientStore'
 import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
-import { FeelingAurora } from '../reader/FeelingAurora'
-import { SceneSprite } from '../reader/SceneSprite'
+import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { normalizeRectsToPage } from '../../lib/rects'
 
 // Renders the active PDF, paginated. One page at a time keeps render work
@@ -58,17 +57,11 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     void runAmbient(documentId, currentPage, pageText)
   }, [ambientEnabled, pageText, documentId, currentPage, runAmbient])
 
-  // Feeling Aurora + Scene Sprite classification (shared with reflowable reader).
+  // Feeling classification (shared with the reflowable reader and shell background).
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
-  const spriteEnabled = useAmbientStore((s) => s.spriteEnabled)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
-  const setSpriteEnabled = useAmbientStore((s) => s.setSpriteEnabled)
-  const classification = useAmbientStore((s) => s.classification)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
-  useEffect(() => {
-    if (!pageText) return
-    void classifyForPage(documentId, currentPage, pageText)
-  }, [feelingEnabled, spriteEnabled, pageText, documentId, currentPage, classifyForPage])
+  const setAmbientLive = useAmbientStore((s) => s.setLive)
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -108,6 +101,36 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       window.removeEventListener('resize', onResize)
     }
   }, [clearSelection])
+
+  useEffect(() => {
+    if (!feelingEnabled || !pageText) return
+    const host = pagesContainerRef.current
+    let prevProgress = 0.5
+
+    const classifyFromScroll = (): void => {
+      const progress =
+        !host || host.scrollHeight <= host.clientHeight
+          ? 0.5
+          : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
+      setAmbientLive(documentId, currentPage, progress, progress - prevProgress)
+      prevProgress = progress
+      const excerpt = excerptForProgress(pageText, progress)
+      if (!excerpt) return
+      void classifyForPage(documentId, currentPage, excerpt)
+    }
+
+    classifyFromScroll()
+    if (!host) return
+
+    const onScroll = (): void => classifyFromScroll()
+    host.addEventListener('scroll', onScroll, { passive: true })
+    return () => host.removeEventListener('scroll', onScroll)
+  }, [feelingEnabled, pageText, documentId, currentPage, classifyForPage, setAmbientLive])
+
+  useEffect(() => {
+    if (!feelingEnabled) return
+    setAmbientLive(documentId, currentPage, 0.5, 0)
+  }, [feelingEnabled, documentId, currentPage, setAmbientLive])
 
   // Persist extracted text per page, as soon as it lands. Partial reading
   // sessions still keep their pages because each one ships immediately
@@ -232,18 +255,13 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
         pageCount={pageCount}
         scale={scale}
         feelingEnabled={feelingEnabled}
-        spriteEnabled={spriteEnabled}
         onFeelingToggle={() => setFeelingEnabled(!feelingEnabled)}
-        onSpriteToggle={() => setSpriteEnabled(!spriteEnabled)}
         onPrev={() => setPage(currentPage - 1)}
         onNext={() => setPage(currentPage + 1)}
         onZoomIn={() => setScale(scale + 0.1)}
         onZoomOut={() => setScale(scale - 0.1)}
       />
-      {/* Non-scrolling wrapper holds aurora at z-index 0; scroll div is transparent above it */}
-      <div className="relative flex-1 overflow-hidden bg-fz-bg">
-        {feelingEnabled && <FeelingAurora classification={classification} />}
-        {spriteEnabled && <SceneSprite classification={classification} />}
+      <div className="relative flex-1 overflow-hidden bg-transparent">
         <div
           ref={pagesContainerRef}
           onMouseUp={handleMouseUp}
@@ -272,9 +290,7 @@ function PdfToolbar({
   pageCount,
   scale,
   feelingEnabled,
-  spriteEnabled,
   onFeelingToggle,
-  onSpriteToggle,
   onPrev,
   onNext,
   onZoomIn,
@@ -285,16 +301,14 @@ function PdfToolbar({
   pageCount: number
   scale: number
   feelingEnabled: boolean
-  spriteEnabled: boolean
   onFeelingToggle: () => void
-  onSpriteToggle: () => void
   onPrev: () => void
   onNext: () => void
   onZoomIn: () => void
   onZoomOut: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex h-10 shrink-0 items-center gap-3 border-b border-fz-border bg-fz-surface-2 px-3 text-xs">
+    <div className="fz-shell-chrome flex h-10 shrink-0 items-center gap-3 border-b border-fz-border px-3 text-xs">
       <span className="truncate text-fz-fg-muted" title={title}>
         {title ?? 'Untitled'}
       </span>
@@ -306,26 +320,10 @@ function PdfToolbar({
         onClick={onFeelingToggle}
         className={[
           'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-          feelingEnabled
-            ? 'border-fz-accent text-fz-accent'
-            : 'text-fz-fg-muted hover:bg-fz-bg'
+          feelingEnabled ? 'border-fz-accent text-fz-accent' : 'text-fz-fg-muted hover:bg-fz-bg'
         ].join(' ')}
       >
         ✦ Feeling
-      </button>
-      {/* Scene Sprite toggle */}
-      <button
-        type="button"
-        title={spriteEnabled ? 'Scene Sprite on' : 'Scene Sprite off'}
-        onClick={onSpriteToggle}
-        className={[
-          'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-          spriteEnabled
-            ? 'border-fz-accent text-fz-accent'
-            : 'text-fz-fg-muted hover:bg-fz-bg'
-        ].join(' ')}
-      >
-        ★ Sprite
       </button>
       <div className="flex items-center gap-1">
         <ToolbarButton onClick={onPrev} disabled={currentPage <= 1} label="Prev" />

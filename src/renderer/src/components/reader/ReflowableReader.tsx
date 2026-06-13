@@ -12,14 +12,13 @@ import { useAmbientStore } from '../../state/ambientStore'
 import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
 import { ReaderTypographyPopover } from './ReaderTypographyPopover'
-import { FeelingAurora } from './FeelingAurora'
-import { SceneSprite } from './SceneSprite'
 import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
 import { analyzeComplexity } from '../../lib/complexity'
 import { isCommonWord } from '../../lib/frequencyList'
 import { cn } from '../../lib/cn'
+import { excerptForProgress } from '../../lib/ambientExcerpt'
 
 // One reader for every reflowable format (epub, txt, md, docx, mobi). It does
 // NOT parse the source file — the main-process extractor already turned it into
@@ -53,9 +52,7 @@ export function ReflowableReader({
 
   const pacerEngaged = pacerStatus === 'playing' || pacerStatus === 'paused'
   const activeWordIndex =
-    pacerPosition >= 0 && pacerPosition < pacerWords.length
-      ? pacerWords[pacerPosition].index
-      : -1
+    pacerPosition >= 0 && pacerPosition < pacerWords.length ? pacerWords[pacerPosition].index : -1
 
   // Complex-word detection over this section's text (memoized; pure).
   const sensitivity = useReaderPrefsStore((s) => s.prefs.complexitySensitivity)
@@ -181,17 +178,43 @@ export function ReflowableReader({
     void runAmbient(documentId, current.pageNumber, current.textContent)
   }, [ambientEnabled, current, documentId, runAmbient])
 
-  // Feeling Aurora + Scene Sprite: classify current section once per page.
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Feeling classification follows the visible chunk of the section so the
+  // shell ambience can drift with the scene instead of locking to one label.
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
-  const spriteEnabled = useAmbientStore((s) => s.spriteEnabled)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
-  const setSpriteEnabled = useAmbientStore((s) => s.setSpriteEnabled)
-  const classification = useAmbientStore((s) => s.classification)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
+  const setAmbientLive = useAmbientStore((s) => s.setLive)
   useEffect(() => {
-    if (!current?.textContent) return
-    void classifyForPage(documentId, current.pageNumber, current.textContent)
-  }, [feelingEnabled, spriteEnabled, current, documentId, classifyForPage])
+    if (!feelingEnabled || !current?.textContent) return
+    const host = scrollRef.current
+    let prevProgress = 0.5
+
+    const classifyFromScroll = (): void => {
+      const progress =
+        !host || host.scrollHeight <= host.clientHeight
+          ? 0.5
+          : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
+      setAmbientLive(documentId, current.pageNumber, progress, progress - prevProgress)
+      prevProgress = progress
+      const excerpt = excerptForProgress(current.textContent ?? '', progress)
+      if (!excerpt) return
+      void classifyForPage(documentId, current.pageNumber, excerpt)
+    }
+
+    classifyFromScroll()
+    if (!host) return
+
+    const onScroll = (): void => classifyFromScroll()
+    host.addEventListener('scroll', onScroll, { passive: true })
+    return () => host.removeEventListener('scroll', onScroll)
+  }, [feelingEnabled, current, documentId, classifyForPage, setAmbientLive])
+
+  useEffect(() => {
+    if (!feelingEnabled || !current) return
+    setAmbientLive(documentId, current.pageNumber, 0.5, 0)
+  }, [feelingEnabled, current, documentId, setAmbientLive])
 
   // Resolve a thesis highlight request: hop to the right section, then flash
   // the matched words once it's rendered. Two-pass via the `index` dep — first
@@ -330,7 +353,7 @@ export function ReflowableReader({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-fz-border bg-fz-surface-2 px-3 text-xs">
+      <div className="fz-shell-chrome flex h-10 shrink-0 items-center gap-3 border-b border-fz-border px-3 text-xs">
         <span className="truncate text-fz-fg-muted" title={doc?.title}>
           {doc?.title ?? 'Untitled'}
         </span>
@@ -345,26 +368,10 @@ export function ReflowableReader({
           onClick={() => setFeelingEnabled(!feelingEnabled)}
           className={cn(
             'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-            feelingEnabled
-              ? 'border-fz-accent text-fz-accent'
-              : 'text-fz-fg-muted hover:bg-fz-bg'
+            feelingEnabled ? 'border-fz-accent text-fz-accent' : 'text-fz-fg-muted hover:bg-fz-bg'
           )}
         >
           ✦ Feeling
-        </button>
-        {/* Scene Sprite toggle */}
-        <button
-          type="button"
-          title={spriteEnabled ? 'Scene Sprite on' : 'Scene Sprite off'}
-          onClick={() => setSpriteEnabled(!spriteEnabled)}
-          className={cn(
-            'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-            spriteEnabled
-              ? 'border-fz-accent text-fz-accent'
-              : 'text-fz-fg-muted hover:bg-fz-bg'
-          )}
-        >
-          ★ Sprite
         </button>
         <ReaderTypographyPopover />
         {sections && sections.length > 1 && (
@@ -392,83 +399,80 @@ export function ReflowableReader({
         )}
       </div>
 
-      {/* Non-scrolling wrapper: aurora lives here (position absolute) so it doesn't scroll.
-          bg-fz-bg moves here; scroll container is transparent so aurora shows through. */}
-      <div className="relative flex-1 overflow-hidden bg-fz-bg">
-        {feelingEnabled && <FeelingAurora classification={classification} />}
-        {spriteEnabled && <SceneSprite classification={classification} />}
+      <div className="relative flex-1 overflow-hidden bg-transparent">
         <div
+          ref={scrollRef}
           className="flex h-full items-start justify-center overflow-auto p-8"
           style={{ position: 'relative', zIndex: 1, background: 'transparent' }}
           onMouseUp={handleMouseUp}
         >
-        {loading ? (
-          <div className="flex items-center gap-2 text-xs text-fz-fg-muted">
-            <span className="fz-spinner inline-block h-4 w-4 rounded-full border-2 border-fz-accent border-t-transparent" />
-            Opening {label}…
-          </div>
-        ) : error ? (
-          <div className="max-w-md text-center text-xs text-fz-danger">{error}</div>
-        ) : current ? (
-          isRich ? (
-            // Rich book formatting. The layout effect injects current.htmlContent
-            // and wraps its words; React keeps the children empty (key forces a
-            // fresh element when switching away from the plain path).
-            <div
-              key="rich"
-              ref={contentRef}
-              data-section-number={current.pageNumber}
-              style={{
-                maxWidth: 'var(--fz-reader-width)',
-                background: feelingEnabled
-                  ? 'color-mix(in srgb, var(--fz-reader-page-bg) 82%, transparent)'
-                  : 'var(--fz-reader-page-bg)',
-                position: 'relative',
-                zIndex: 1
-              }}
-              className={cn(
-                'fz-selectable prose-fz mx-auto w-full rounded-md p-10 shadow-md',
-                pacerEngaged && focusMode && 'fz-pace-dim'
-              )}
-            />
-          ) : (
-            <div
-              key="plain"
-              ref={contentRef}
-              data-section-number={current.pageNumber}
-              style={{
-                maxWidth: 'var(--fz-reader-width)',
-                background: feelingEnabled
-                  ? 'color-mix(in srgb, var(--fz-reader-page-bg) 82%, transparent)'
-                  : 'var(--fz-reader-page-bg)',
-                position: 'relative',
-                zIndex: 1
-              }}
-              className={cn(
-                'fz-selectable prose-fz mx-auto w-full whitespace-pre-wrap rounded-md p-10 shadow-md',
-                pacerEngaged && focusMode && 'fz-pace-dim'
-              )}
-            >
-              <TokenizedText
-                text={current.textContent ?? ''}
-                spanMode={pacerEngaged ? 'all' : 'flagged'}
-                activeWordIndex={activeWordIndex}
-                flaggedIndices={flaggedIndices}
-                highlightIndices={highlightIndices}
-                wordClassName={(t) => (flaggedIndices?.has(t.index) ? 'fz-complex-word' : undefined)}
-                onWordClick={handleWordClick}
-              />
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-fz-fg-muted">
+              <span className="fz-spinner inline-block h-4 w-4 rounded-full border-2 border-fz-accent border-t-transparent" />
+              Opening {label}…
             </div>
-          )
-        ) : (
-          <div className="max-w-md text-center text-xs text-fz-fg-muted">
-            {extractorReady
-              ? `Extracting text from this ${label.toLowerCase()}…`
-              : `${label} text extraction is being built. The file is saved to your library and will open here once it ships.`}
-          </div>
-        )}
-        </div>{/* end inner scroll container */}
-      </div>{/* end non-scrolling wrapper */}
+          ) : error ? (
+            <div className="max-w-md text-center text-xs text-fz-danger">{error}</div>
+          ) : current ? (
+            isRich ? (
+              // Rich book formatting. The layout effect injects current.htmlContent
+              // and wraps its words; React keeps the children empty (key forces a
+              // fresh element when switching away from the plain path).
+              <div
+                key="rich"
+                ref={contentRef}
+                data-section-number={current.pageNumber}
+                style={{
+                  maxWidth: 'var(--fz-reader-width)',
+                  background: 'var(--fz-reader-page-bg)',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+                className={cn(
+                  'fz-selectable prose-fz mx-auto w-full rounded-md p-10 shadow-md',
+                  pacerEngaged && focusMode && 'fz-pace-dim'
+                )}
+              />
+            ) : (
+              <div
+                key="plain"
+                ref={contentRef}
+                data-section-number={current.pageNumber}
+                style={{
+                  maxWidth: 'var(--fz-reader-width)',
+                  background: 'var(--fz-reader-page-bg)',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+                className={cn(
+                  'fz-selectable prose-fz mx-auto w-full whitespace-pre-wrap rounded-md p-10 shadow-md',
+                  pacerEngaged && focusMode && 'fz-pace-dim'
+                )}
+              >
+                <TokenizedText
+                  text={current.textContent ?? ''}
+                  spanMode={pacerEngaged ? 'all' : 'flagged'}
+                  activeWordIndex={activeWordIndex}
+                  flaggedIndices={flaggedIndices}
+                  highlightIndices={highlightIndices}
+                  wordClassName={(t) =>
+                    flaggedIndices?.has(t.index) ? 'fz-complex-word' : undefined
+                  }
+                  onWordClick={handleWordClick}
+                />
+              </div>
+            )
+          ) : (
+            <div className="max-w-md text-center text-xs text-fz-fg-muted">
+              {extractorReady
+                ? `Extracting text from this ${label.toLowerCase()}…`
+                : `${label} text extraction is being built. The file is saved to your library and will open here once it ships.`}
+            </div>
+          )}
+        </div>
+        {/* end inner scroll container */}
+      </div>
+      {/* end non-scrolling wrapper */}
 
       <SelectionMenu />
     </div>

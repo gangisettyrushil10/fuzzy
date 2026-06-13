@@ -29,6 +29,11 @@ import type {
   ReaderPrefs,
   ReadingSessionRecord,
   DueCard,
+  HighlightExportTarget,
+  HighlightImportResult,
+  HighlightRecord,
+  HighlightSearchInput,
+  HighlightStats,
   FlashcardReviewState,
   QuizAttemptRecord,
   QuizAttemptStats,
@@ -63,6 +68,12 @@ export type AmbientMood =
   | 'tension'
   | 'calm'
   | 'awe'
+  | 'fear'
+  | 'anger'
+  | 'grief'
+  | 'hope'
+  | 'wonder'
+  | 'nostalgia'
   | 'neutral'
 
 export type AmbientGenre =
@@ -78,11 +89,17 @@ export type AmbientGenre =
 
 export type AmbientContentType = 'fiction' | 'non-fiction'
 
+export type AmbientMotion = 'still' | 'drift' | 'wave' | 'mist' | 'pulse' | 'shimmer' | 'embers'
+
 export interface AmbientClassification {
   mood: AmbientMood
+  secondaryMood: AmbientMood | null
   genre: AmbientGenre
   type: AmbientContentType
   intensity: number
+  sceneTags: string[]
+  paletteHints: string[]
+  motion: AmbientMotion
 }
 
 export interface FuzzyApi {
@@ -167,7 +184,10 @@ export interface FuzzyApi {
   projects: {
     list: () => Promise<ProjectRecord[]>
     create: (title: string, thesis?: string) => Promise<ProjectRecord>
-    update: (id: string, patch: { title?: string; thesis?: string }) => Promise<ProjectRecord | null>
+    update: (
+      id: string,
+      patch: { title?: string; thesis?: string }
+    ) => Promise<ProjectRecord | null>
     delete: (id: string) => Promise<{ ok: true }>
     getDetail: (id: string) => Promise<ProjectDetail | null>
     addEvidence: (projectId: string, passage: RankedPassage) => Promise<ProjectEvidenceRecord>
@@ -233,6 +253,41 @@ export interface FuzzyApi {
     due: (limit?: number) => Promise<DueCard[]>
     dueCount: () => Promise<number>
   }
+  highlights: {
+    list: (filters?: HighlightSearchInput) => Promise<HighlightRecord[]>
+    import: () => Promise<HighlightImportResult | null>
+    create: (input: {
+      sourceTitle: string
+      text: string
+      note?: string
+      tags?: string[]
+      sourceAuthor?: string | null
+      sourceUrl?: string | null
+      sourceLocation?: string | null
+    }) => Promise<HighlightRecord>
+    update: (
+      id: string,
+      patch: Partial<
+        Pick<
+          HighlightRecord,
+          'sourceTitle' | 'sourceAuthor' | 'sourceUrl' | 'sourceLocation' | 'text' | 'note'
+        >
+      > & {
+        tags?: string[]
+        isFavorite?: boolean
+      }
+    ) => Promise<HighlightRecord | null>
+    delete: (id: string) => Promise<{ ok: true }>
+    grade: (id: string, grade: ReviewGrade) => Promise<HighlightRecord | null>
+    due: (limit?: number) => Promise<HighlightRecord[]>
+    dueCount: () => Promise<number>
+    stats: () => Promise<HighlightStats>
+    exportText: (target: HighlightExportTarget, filters?: HighlightSearchInput) => Promise<string>
+    exportFile: (
+      target: HighlightExportTarget,
+      filters?: HighlightSearchInput
+    ) => Promise<{ ok: boolean; filePath?: string }>
+  }
   settings: {
     get: () => Promise<AppSettings>
     setProviderMode: (mode: ProviderMode) => Promise<AppSettings>
@@ -250,7 +305,11 @@ export interface FuzzyApi {
     setStudyPackPrefs: (patch: Partial<StudyPackPrefs>) => Promise<StudyPackPrefs>
   }
   ambient: {
-    classify: (documentId: string, pageNumber: number, text: string) => Promise<AmbientClassification | null>
+    classify: (
+      documentId: string,
+      pageNumber: number,
+      text: string
+    ) => Promise<AmbientClassification | null>
   }
   // Dev-only helpers are only exposed in development builds. Production
   // preload omits the field entirely.

@@ -387,6 +387,117 @@ export interface DueCard {
 }
 
 // ---------------------------------------------------------------------------
+// Highlight memory — imported highlights from external reading systems,
+// searchable offline and scheduled for daily resurfacing.
+// ---------------------------------------------------------------------------
+export const HIGHLIGHT_SOURCE_KINDS = [
+  'kindle',
+  'instapaper',
+  'apple_books',
+  'generic_csv',
+  'generic_json',
+  'manual'
+] as const
+export type HighlightSourceKind = (typeof HIGHLIGHT_SOURCE_KINDS)[number]
+
+export const HIGHLIGHT_CONTENT_KINDS = [
+  'book',
+  'article',
+  'newsletter',
+  'rss',
+  'pdf',
+  'epub',
+  'web',
+  'video',
+  'thread',
+  'other'
+] as const
+export type HighlightContentKind = (typeof HIGHLIGHT_CONTENT_KINDS)[number]
+
+export type HighlightExportTarget =
+  | 'notion'
+  | 'obsidian'
+  | 'evernote'
+  | 'roam'
+  | 'logseq'
+  | 'markdown'
+  | 'csv'
+  | 'json'
+
+export interface HighlightRecord {
+  id: string
+  sourceKind: HighlightSourceKind
+  contentKind: HighlightContentKind
+  sourceLabel: string
+  sourceTitle: string
+  sourceAuthor: string | null
+  sourceUrl: string | null
+  sourceLocation: string | null
+  externalId: string | null
+  text: string
+  note: string
+  tags: string[]
+  isFavorite: boolean
+  metadata: Record<string, string>
+  highlightedAt: string
+  createdAt: string
+  updatedAt: string
+  review: FlashcardReviewState
+}
+
+export interface CreateHighlightInput {
+  sourceKind: HighlightSourceKind
+  contentKind?: HighlightContentKind
+  sourceLabel?: string
+  sourceTitle: string
+  sourceAuthor?: string | null
+  sourceUrl?: string | null
+  sourceLocation?: string | null
+  externalId?: string | null
+  text: string
+  note?: string
+  tags?: string[]
+  isFavorite?: boolean
+  metadata?: Record<string, string>
+  highlightedAt?: string
+}
+
+export interface UpdateHighlightInput {
+  sourceTitle?: string
+  sourceAuthor?: string | null
+  sourceUrl?: string | null
+  sourceLocation?: string | null
+  text?: string
+  note?: string
+  tags?: string[]
+  isFavorite?: boolean
+}
+
+export interface HighlightSearchInput {
+  query?: string
+  tags?: string[]
+  favoritesOnly?: boolean
+  dueOnly?: boolean
+  sourceKinds?: HighlightSourceKind[]
+  limit?: number
+}
+
+export interface HighlightImportResult {
+  sourceKind: HighlightSourceKind
+  sourceLabel: string
+  importedCount: number
+  dedupedCount: number
+}
+
+export interface HighlightStats {
+  total: number
+  dueCount: number
+  favoriteCount: number
+  sourceCount: number
+  topTags: string[]
+}
+
+// ---------------------------------------------------------------------------
 // Study pack preferences — last-used generation options + export/SR settings,
 // persisted as one JSON blob under `studyPack.prefs` (mirrors reader.prefs).
 // ---------------------------------------------------------------------------

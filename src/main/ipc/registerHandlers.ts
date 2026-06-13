@@ -7,6 +7,7 @@ import { registerReadingSessionIpc } from './readingSession.ipc'
 import { registerStudyPackIpc } from './studyPack.ipc'
 import { registerStudyPackExportIpc } from './studyPackExport.ipc'
 import { registerStudyReviewIpc } from './studyReview.ipc'
+import { registerHighlightsIpc } from './highlights.ipc'
 import { registerThesisIpc } from './thesis.ipc'
 import { registerProjectsIpc } from './projects.ipc'
 import { registerSynthesisIpc } from './synthesis.ipc'
@@ -32,6 +33,7 @@ export function registerIpcHandlers(): void {
   registerStudyPackIpc()
   registerStudyPackExportIpc()
   registerStudyReviewIpc()
+  registerHighlightsIpc()
   registerThesisIpc()
   registerProjectsIpc()
   registerSynthesisIpc()

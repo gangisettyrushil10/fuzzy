@@ -3,6 +3,7 @@ import { useDocumentStore } from '../../state/documentStore'
 import { useProjectStore } from '../../state/projectStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
 import { useFlashcardReviewStore } from '../../state/flashcardReviewStore'
+import { useHighlightStore } from '../../state/highlightStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useOnboardingStore } from '../../state/onboardingStore'
 import { Button, Card, Panel } from '../ui'
@@ -27,6 +28,9 @@ export function HomeHub(): React.JSX.Element {
   const loadStats = useFocusSessionStore((s) => s.loadStats)
   const dueCount = useFlashcardReviewStore((s) => s.dueCount)
   const loadDueCount = useFlashcardReviewStore((s) => s.loadDueCount)
+  const highlightStats = useHighlightStore((s) => s.stats)
+  const loadHighlightStats = useHighlightStore((s) => s.loadStats)
+  const setHighlightsOpen = useAppUiStore((s) => s.setHighlightsOpen)
   const setStatsOpen = useAppUiStore((s) => s.setStatsOpen)
   const showOnboarding = useOnboardingStore((s) => s.show)
 
@@ -36,7 +40,8 @@ export function HomeHub(): React.JSX.Element {
   useEffect(() => {
     void loadStats()
     void loadDueCount()
-  }, [loadStats, loadDueCount])
+    void loadHighlightStats()
+  }, [loadStats, loadDueCount, loadHighlightStats])
 
   const onImport = async (): Promise<void> => {
     setBusy('import')
@@ -73,7 +78,7 @@ export function HomeHub(): React.JSX.Element {
               F
             </div>
             <div>
-              <h1 className="text-fz-title font-semibold text-fz-fg">Welcome back</h1>
+              <h1 className="font-[family-name:var(--font-display)] text-[28px] italic font-medium leading-none text-fz-fg">Welcome back</h1>
               <p className="text-fz-ui text-fz-fg-muted">Pick up where you left off, or start something new.</p>
             </div>
           </div>
@@ -86,6 +91,9 @@ export function HomeHub(): React.JSX.Element {
             </Button>
             <Button variant="secondary" onClick={() => void onNewProject()}>
               New project
+            </Button>
+            <Button variant="secondary" onClick={() => setHighlightsOpen(true)}>
+              Highlights
             </Button>
             <Button variant="ghost" onClick={() => setStatsOpen(true)}>
               Insights
@@ -119,6 +127,28 @@ export function HomeHub(): React.JSX.Element {
             </div>
             <span className="rounded-md border border-fz-accent-2/60 bg-fz-accent-2/15 px-3 py-1.5 text-fz-ui text-fz-fg">
               Review now
+            </span>
+          </Card>
+        )}
+
+        {/* Highlight resurfacing */}
+        {(highlightStats?.total ?? 0) > 0 && (
+          <Card
+            interactive
+            className="flex items-center justify-between gap-3 border-fz-border p-4"
+            onClick={() => setHighlightsOpen(true)}
+          >
+            <div>
+              <div className="text-fz-ui font-semibold text-fz-fg">
+                {highlightStats?.total ?? 0} imported highlight
+                {(highlightStats?.total ?? 0) === 1 ? '' : 's'}
+              </div>
+              <div className="text-fz-micro text-fz-fg-subtle">
+                {highlightStats?.dueCount ?? 0} due today across Kindle, Instapaper, Apple Books, and more.
+              </div>
+            </div>
+            <span className="rounded-md border border-fz-border bg-fz-bg px-3 py-1.5 text-fz-ui text-fz-fg">
+              Open library
             </span>
           </Card>
         )}

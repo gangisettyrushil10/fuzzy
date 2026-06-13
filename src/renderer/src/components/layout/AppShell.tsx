@@ -36,6 +36,9 @@ import { StatsPanel } from '../stats/StatsPanel'
 import { ShortcutsCheatsheet } from '../command/ShortcutsCheatsheet'
 import { DigestPanel } from '../summary/DigestPanel'
 import { AmbientGlossCard } from '../reader/AmbientGlossCard'
+import { HighlightLibraryModal } from '../highlights/HighlightLibraryModal'
+import { FeelingAurora } from '../reader/FeelingAurora'
+import { useAmbientStore } from '../../state/ambientStore'
 
 export function AppShell(): React.JSX.Element {
   const activeDocumentId = useDocumentStore((s) => s.activeDocumentId)
@@ -53,6 +56,8 @@ export function AppShell(): React.JSX.Element {
   const setSettingsOpen = useAppUiStore((s) => s.setSettingsOpen)
   const studyPackOpen = useAppUiStore((s) => s.studyPackOpen)
   const setStudyPackOpen = useAppUiStore((s) => s.setStudyPackOpen)
+  const highlightsOpen = useAppUiStore((s) => s.highlightsOpen)
+  const setHighlightsOpen = useAppUiStore((s) => s.setHighlightsOpen)
   const setPlanModalOpen = useAppUiStore((s) => s.setPlanModalOpen)
   const setPage = usePdfStore((s) => s.setPage)
   const clearSelection = useSelectionStore((s) => s.clear)
@@ -72,11 +77,18 @@ export function AppShell(): React.JSX.Element {
   const setDigestOpen = useAppUiStore((s) => s.setDigestOpen)
   const essayOpen = useAppUiStore((s) => s.essayOpen)
   const setEssayOpen = useAppUiStore((s) => s.setEssayOpen)
+  const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
+  const ambientClassification = useAmbientStore((s) => s.classification)
+  const ambientLive = useAmbientStore((s) => s.live)
 
   // ── Resizable panels ──────────────────────────────────────────────────────
   const SIZES_KEY = 'fz-panel-sizes'
-  const MIN_LEFT = 140, MAX_LEFT = 480, DEFAULT_LEFT = 240
-  const MIN_RIGHT = 200, MAX_RIGHT = 640, DEFAULT_RIGHT = 384
+  const MIN_LEFT = 140,
+    MAX_LEFT = 480,
+    DEFAULT_LEFT = 240
+  const MIN_RIGHT = 200,
+    MAX_RIGHT = 640,
+    DEFAULT_RIGHT = 384
 
   const loadSize = (key: 'left' | 'right', def: number, min: number, max: number): number => {
     try {
@@ -85,7 +97,9 @@ export function AppShell(): React.JSX.Element {
         const v = (JSON.parse(raw) as Record<string, number>)[key]
         if (typeof v === 'number') return Math.max(min, Math.min(max, v))
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return def
   }
 
@@ -96,7 +110,9 @@ export function AppShell(): React.JSX.Element {
         const v = (JSON.parse(raw) as Record<string, unknown>)[key]
         if (typeof v === 'boolean') return v
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return def
   }
 
@@ -115,7 +131,9 @@ export function AppShell(): React.JSX.Element {
         SIZES_KEY,
         JSON.stringify({ left: leftW, right: rightW, leftOpen, rightOpen })
       )
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [leftW, rightW, leftOpen, rightOpen])
 
   const startDrag = useCallback((side: 'left' | 'right', startX: number) => {
@@ -204,95 +222,108 @@ export function AppShell(): React.JSX.Element {
   })
 
   return (
-    <div className="flex h-full w-full flex-col bg-fz-bg text-fz-fg">
-      <TopBar onOpenSettings={openSettings} />
-      <div className="flex min-h-0 flex-1">
-        {/* Focus mode hides the side panels so the reader takes the full width
-            — pairs with the pacer for distraction-free reading. */}
-        {!focusMode && (
-          leftOpen ? (
-            <>
-              <LeftSidebar
-                onOpenStudyPack={openStudyPack}
-                onCollapse={() => setLeftOpen(false)}
-                style={{ width: leftW, flexShrink: 0, alignSelf: 'stretch' }}
-              />
-              <div
-                className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
-                onMouseDown={(e) => { e.preventDefault(); startDrag('left', e.clientX) }}
-              />
-            </>
-          ) : (
-            /* Collapsed strip — click to reopen */
-            <button
-              type="button"
-              className="flex w-7 shrink-0 flex-col items-center justify-start border-r border-fz-border bg-fz-surface-2 pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
-              onClick={() => setLeftOpen(true)}
-              title="Open library"
-            >
-              <span className="text-fz-micro">›</span>
-            </button>
-          )
-        )}
-        <main className="flex min-w-0 flex-1 flex-col bg-fz-surface">
-          {activeDocumentId ? (
-            <ErrorBoundary label="The reader hit a problem" resetKey={activeDocumentId}>
-              <DocumentReader key={activeDocumentId} documentId={activeDocumentId} />
-            </ErrorBoundary>
-          ) : (
-            <HomeHub />
-          )}
-        </main>
-        {!focusMode && (
-          rightOpen ? (
-            <>
-              <div
-                className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
-                onMouseDown={(e) => { e.preventDefault(); startDrag('right', e.clientX) }}
-              />
-              <RightTutorPanel
-                onOpenSettings={openSettings}
-                onCollapse={() => setRightOpen(false)}
-                style={{ width: rightW, flexShrink: 0, alignSelf: 'stretch' }}
-              />
-            </>
-          ) : (
-            /* Collapsed strip — click to reopen */
-            <button
-              type="button"
-              className="flex w-7 shrink-0 flex-col items-center justify-start border-l border-fz-border bg-fz-surface-2 pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
-              onClick={() => setRightOpen(true)}
-              title="Open AI panel"
-            >
-              <span className="text-fz-micro">‹</span>
-            </button>
-          )
-        )}
-      </div>
-      <BottomReadingBar />
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
-      {studyPackOpen && activeDocumentId && (
-        <StudyPackPanel documentId={activeDocumentId} onClose={() => setStudyPackOpen(false)} />
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-fz-bg text-fz-fg">
+      {feelingEnabled && (
+        <FeelingAurora
+          classification={ambientClassification}
+          live={{ ...ambientLive, pageNumber: ambientLive.pageNumber }}
+        />
       )}
-      <CommandPalette
-        handlers={{
-          onImport: () => importDocument().catch(console.error),
-          onOpenSettings: openSettings,
-          onOpenReadingPlan: openReadingPlan,
-          onOpenStudyPack: openStudyPack,
-          onGoToPage: (page) => setPage(page)
-        }}
-      />
-      <OnboardingOverlay />
-      {pacerVisible && <PacerBar />}
-      <FocusSessionHud />
-      <AmbientGlossCard />
-      <WordDefinitionPopover />
-      {statsOpen && <StatsPanel onClose={() => setStatsOpen(false)} />}
-      {shortcutsOpen && <ShortcutsCheatsheet onClose={() => setShortcutsOpen(false)} />}
-      {digestOpen && activeDocumentId && <DigestPanel onClose={() => setDigestOpen(false)} />}
-      {essayOpen && <EssayWorkspace onClose={() => setEssayOpen(false)} />}
-      <ToastViewport />
+      <div className="relative z-10 flex h-full w-full flex-col">
+        <TopBar onOpenSettings={openSettings} />
+        <div className="flex min-h-0 flex-1">
+          {/* Focus mode hides the side panels so the reader takes the full width
+            — pairs with the pacer for distraction-free reading. */}
+          {!focusMode &&
+            (leftOpen ? (
+              <>
+                <LeftSidebar
+                  onOpenStudyPack={openStudyPack}
+                  onCollapse={() => setLeftOpen(false)}
+                  style={{ width: leftW, flexShrink: 0, alignSelf: 'stretch' }}
+                />
+                <div
+                  className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    startDrag('left', e.clientX)
+                  }}
+                />
+              </>
+            ) : (
+              /* Collapsed strip — click to reopen */
+              <button
+                type="button"
+                className="fz-shell-chrome flex w-7 shrink-0 flex-col items-center justify-start border-r border-fz-border pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
+                onClick={() => setLeftOpen(true)}
+                title="Open library"
+              >
+                <span className="text-fz-micro">›</span>
+              </button>
+            ))}
+          <main className="flex min-w-0 flex-1 flex-col bg-transparent">
+            {activeDocumentId ? (
+              <ErrorBoundary label="The reader hit a problem" resetKey={activeDocumentId}>
+                <DocumentReader key={activeDocumentId} documentId={activeDocumentId} />
+              </ErrorBoundary>
+            ) : (
+              <HomeHub />
+            )}
+          </main>
+          {!focusMode &&
+            (rightOpen ? (
+              <>
+                <div
+                  className="w-px shrink-0 cursor-col-resize bg-fz-border transition-colors hover:bg-fz-accent/40"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    startDrag('right', e.clientX)
+                  }}
+                />
+                <RightTutorPanel
+                  onOpenSettings={openSettings}
+                  onCollapse={() => setRightOpen(false)}
+                  style={{ width: rightW, flexShrink: 0, alignSelf: 'stretch' }}
+                />
+              </>
+            ) : (
+              /* Collapsed strip — click to reopen */
+              <button
+                type="button"
+                className="fz-shell-chrome flex w-7 shrink-0 flex-col items-center justify-start border-l border-fz-border pt-3 text-fz-fg-subtle transition-colors hover:bg-fz-bg hover:text-fz-fg"
+                onClick={() => setRightOpen(true)}
+                title="Open AI panel"
+              >
+                <span className="text-fz-micro">‹</span>
+              </button>
+            ))}
+        </div>
+        <BottomReadingBar />
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+        {highlightsOpen && <HighlightLibraryModal onClose={() => setHighlightsOpen(false)} />}
+        {studyPackOpen && activeDocumentId && (
+          <StudyPackPanel documentId={activeDocumentId} onClose={() => setStudyPackOpen(false)} />
+        )}
+        <CommandPalette
+          handlers={{
+            onImport: () => importDocument().catch(console.error),
+            onOpenSettings: openSettings,
+            onOpenReadingPlan: openReadingPlan,
+            onOpenStudyPack: openStudyPack,
+            onGoToPage: (page) => setPage(page)
+          }}
+        />
+        <OnboardingOverlay />
+        {pacerVisible && <PacerBar />}
+        <FocusSessionHud />
+        <AmbientGlossCard />
+        <WordDefinitionPopover />
+        {statsOpen && <StatsPanel onClose={() => setStatsOpen(false)} />}
+        {shortcutsOpen && <ShortcutsCheatsheet onClose={() => setShortcutsOpen(false)} />}
+        {digestOpen && activeDocumentId && <DigestPanel onClose={() => setDigestOpen(false)} />}
+        {essayOpen && <EssayWorkspace onClose={() => setEssayOpen(false)} />}
+        <ToastViewport />
+      </div>
     </div>
   )
 }

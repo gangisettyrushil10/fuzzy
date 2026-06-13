@@ -5,6 +5,7 @@ import { usePdfStore } from '../../state/pdfStore'
 import { useStudyPackStore } from '../../state/studyPackStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useTutorStore } from '../../state/tutorStore'
+import { useHighlightStore } from '../../state/highlightStore'
 import type { AnnotationRecord, PageRecord } from '@shared/types/database'
 
 interface Props {
@@ -20,9 +21,12 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
   const setPage = usePdfStore((s) => s.setPage)
   const flashPassage = useAppUiStore((s) => s.flashPassage)
   const requestPassageHighlight = useAppUiStore((s) => s.requestPassageHighlight)
+  const setHighlightsOpen = useAppUiStore((s) => s.setHighlightsOpen)
   const openFromAnnotation = useTutorStore((s) => s.openFromAnnotation)
   const pack = useStudyPackStore((s) => s.pack)
   const packLoading = useStudyPackStore((s) => s.loading)
+  const highlightStats = useHighlightStore((s) => s.stats)
+  const loadHighlightStats = useHighlightStore((s) => s.loadStats)
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [chapterMap, setChapterMap] = useState<Record<string, PageRecord[]>>({})
@@ -37,10 +41,17 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
     }
   }, [activeDocumentId])
 
+  useEffect(() => {
+    void loadHighlightStats()
+  }, [loadHighlightStats])
+
   const toggleExpand = (docId: string): void => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(docId)) { next.delete(docId); return next }
+      if (next.has(docId)) {
+        next.delete(docId)
+        return next
+      }
       next.add(docId)
       return next
     })
@@ -48,10 +59,18 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
       setLoadingIds((prev) => new Set([...prev, docId]))
       window.fuzzy.pages
         .listForDocument(docId)
-        .then((pages) => { setChapterMap((prev) => ({ ...prev, [docId]: pages })) })
-        .catch(() => { setChapterMap((prev) => ({ ...prev, [docId]: [] })) })
+        .then((pages) => {
+          setChapterMap((prev) => ({ ...prev, [docId]: pages }))
+        })
+        .catch(() => {
+          setChapterMap((prev) => ({ ...prev, [docId]: [] }))
+        })
         .finally(() => {
-          setLoadingIds((prev) => { const s = new Set(prev); s.delete(docId); return s })
+          setLoadingIds((prev) => {
+            const s = new Set(prev)
+            s.delete(docId)
+            return s
+          })
         })
     }
   }
@@ -66,7 +85,10 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
   }
 
   const chapterLabel = (page: PageRecord, index: number): string => {
-    const first = page.textContent?.split('\n').find((l) => l.trim())?.trim()
+    const first = page.textContent
+      ?.split('\n')
+      .find((l) => l.trim())
+      ?.trim()
     if (first && first.length <= 80) return first
     return `Section ${index + 1}`
   }
@@ -81,7 +103,7 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
   }
 
   return (
-    <aside className="flex flex-col overflow-y-auto bg-fz-surface-2 text-sm" style={style}>
+    <aside className="fz-shell-chrome flex flex-col overflow-y-auto text-sm" style={style}>
       {/* Library header — always visible, scrolls with content */}
       <section className="border-b border-fz-border px-3 py-3">
         <div className="mb-2 flex items-center justify-between">
@@ -123,8 +145,12 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
                   <div
                     className={[
                       'flex items-center gap-0.5 rounded',
-                      isActive ? 'bg-fz-accent-2/20' : ''
-                    ].join(' ').trim()}
+                      isActive
+                        ? 'bg-[linear-gradient(90deg,rgba(232,135,74,0.14),rgba(124,92,255,0.13))]'
+                        : ''
+                    ]
+                      .join(' ')
+                      .trim()}
                   >
                     <button
                       type="button"
@@ -208,7 +234,9 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
                       {a.pageNumber ? ` · p.${a.pageNumber}` : ''}
                     </span>
                   </div>
-                  <div className="line-clamp-2 text-fz-micro text-fz-fg-muted">{a.selectedText}</div>
+                  <div className="line-clamp-2 text-fz-micro text-fz-fg-muted">
+                    {a.selectedText}
+                  </div>
                 </button>
               </li>
             ))}
@@ -239,6 +267,28 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
             )}
           </button>
         )}
+      </SidebarSection>
+
+      <SidebarSection title="Highlights">
+        <button
+          type="button"
+          onClick={() => setHighlightsOpen(true)}
+          className="w-full rounded border border-fz-border bg-fz-bg/40 px-2 py-1.5 text-left text-fz-micro hover:bg-fz-bg focus-visible:ring-2 focus-visible:ring-fz-accent"
+          title="Open the highlight library"
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-fz-fg">Open highlight library</span>
+            {(highlightStats?.dueCount ?? 0) > 0 && (
+              <span className="rounded-full border border-fz-accent/40 bg-fz-accent/10 px-2 py-0.5 text-[10px] text-fz-fg">
+                {highlightStats?.dueCount} due
+              </span>
+            )}
+          </div>
+          <div className="mt-1 text-[10px] text-fz-fg-muted">
+            {highlightStats?.total ?? 0} stored · import Kindle, Instapaper, Apple Books, and
+            CSV/JSON exports
+          </div>
+        </button>
       </SidebarSection>
     </aside>
   )

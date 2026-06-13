@@ -12,6 +12,7 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
   const settings = useSettingsStore((s) => s.settings)
   const tutorStatus = useTutorStore((s) => s.status)
   const setEssayOpen = useAppUiStore((s) => s.setEssayOpen)
+  const setHighlightsOpen = useAppUiStore((s) => s.setHighlightsOpen)
 
   const active = documents.find((d) => d.id === activeDocumentId) ?? null
 
@@ -33,12 +34,14 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
           : 'bg-fz-fg-subtle'
 
   return (
-    <header className="fz-drag flex h-11 shrink-0 items-center gap-3 border-b border-fz-border bg-fz-surface-2 pl-20 pr-3 text-xs">
+    <header className="fz-shell-chrome fz-drag flex h-11 shrink-0 items-center gap-3 border-b border-fz-border pl-20 pr-3 text-xs">
       <div className="fz-no-drag flex items-center gap-2">
         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-fz-accent-2/20 text-fz-accent">
           <span className="text-[11px] font-semibold">F</span>
         </div>
-        <span className="font-semibold tracking-wide">Fuzzy</span>
+        <span className="font-[family-name:var(--font-display)] text-[17px] italic font-medium tracking-normal text-fz-fg">
+          Fuzzy
+        </span>
         <span className="text-fz-fg-subtle">·</span>
         <span className="max-w-[280px] truncate text-fz-fg-muted" title={active?.title}>
           {active?.title ?? 'No document open'}
@@ -58,6 +61,14 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
           title="Import document (⌘O)"
         >
           {importing ? 'Importing…' : 'Import'}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setHighlightsOpen(true)}
+          title="Open the highlight library"
+        >
+          Highlights
         </Button>
         <Button
           size="sm"

@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react'
-import { actionLabel, tutorProviderLabel, useTutorStore, type TutorMessage } from '../../state/tutorStore'
+import {
+  actionLabel,
+  tutorProviderLabel,
+  useTutorStore,
+  type TutorMessage
+} from '../../state/tutorStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useStudyPackStore } from '../../state/studyPackStore'
 import { DEFAULT_STUDY_PACK_OPTIONS } from '@shared/types/database'
@@ -99,7 +104,7 @@ export function RightTutorPanel({
   }, [result, request, pack, activeDocumentId, generatePack])
 
   return (
-    <aside className="flex flex-col bg-fz-surface-2 text-sm" style={style}>
+    <aside className="fz-shell-chrome flex flex-col text-sm" style={style}>
       <header className="flex h-10 shrink-0 items-center gap-1 border-b border-fz-border px-2">
         {onCollapse && (
           <button
@@ -111,7 +116,12 @@ export function RightTutorPanel({
             ›
           </button>
         )}
-        <Tabs tabs={PANEL_TABS} value={tab} onChange={setTab} className="min-w-0 flex-1 overflow-x-auto" />
+        <Tabs
+          tabs={PANEL_TABS}
+          value={tab}
+          onChange={setTab}
+          className="min-w-0 flex-1 overflow-x-auto"
+        />
         {tab === 'tutor' && (
           <span className="shrink-0 pl-1 text-fz-micro text-fz-fg-subtle">{headerStatus}</span>
         )}
@@ -211,7 +221,7 @@ export function RightTutorPanel({
                   className={[
                     'whitespace-pre-wrap rounded-md border p-3 text-xs leading-relaxed',
                     m.role === 'assistant'
-                      ? 'border-fz-border bg-fz-bg/40 text-fz-fg'
+                      ? 'border-fz-accent/20 bg-[linear-gradient(135deg,rgba(232,135,74,0.08),rgba(124,92,255,0.08))] text-fz-fg'
                       : 'border-fz-accent-2/30 bg-fz-accent-2/10 text-fz-fg-muted'
                   ].join(' ')}
                 >

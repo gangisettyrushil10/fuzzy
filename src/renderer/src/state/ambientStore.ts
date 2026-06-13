@@ -10,7 +10,14 @@ import type { AmbientClassification } from '@shared/types/api'
 
 const KEY = 'fuzzy.ambientExplain'
 const FEELING_KEY = 'fuzzy.feelingAurora'
-const SPRITE_KEY = 'fuzzy.sceneSprite'
+
+function excerptCacheKey(documentId: string, pageNumber: number, text: string): string {
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  }
+  return `${documentId}:${pageNumber}:${hash.toString(36)}`
+}
 
 function loadBoolPref(key: string): boolean {
   try {
@@ -24,6 +31,14 @@ interface AmbientTarget {
   documentId: string
   pageNumber: number
   sentence: string
+}
+
+interface AmbientLiveState {
+  documentId: string
+  pageNumber: number
+  progress: number
+  velocity: number
+  phase: number
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
@@ -42,18 +57,16 @@ interface AmbientState {
   feelingEnabled: boolean
   setFeelingEnabled: (enabled: boolean) => void
 
-  // --- Scene Sprite ---
-  spriteEnabled: boolean
-  setSpriteEnabled: (enabled: boolean) => void
-
-  // --- Shared classification (drives both features) ---
+  // --- Shared classification ---
   classification: AmbientClassification | null
   classifyForPage: (documentId: string, pageNumber: number, text: string) => Promise<void>
+  live: AmbientLiveState
+  setLive: (documentId: string, pageNumber: number, progress: number, velocity?: number) => void
 }
 
 // Pages already auto-explained this session (cost guard).
 const done = new Set<string>()
-// Pages already classified this session (shared cost guard for both features).
+// Pages already classified this session.
 const classified = new Set<string>()
 
 export const useAmbientStore = create<AmbientState>((set, get) => ({
@@ -118,34 +131,41 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
     if (!enabled) set({ classification: null })
   },
 
-  // --- Scene Sprite ---
-  spriteEnabled: loadBoolPref(SPRITE_KEY),
-  setSpriteEnabled: (enabled) => {
-    try {
-      localStorage.setItem(SPRITE_KEY, enabled ? '1' : '0')
-    } catch {
-      /* ignore */
-    }
-    set({ spriteEnabled: enabled })
-    if (!enabled) set({ classification: null })
-  },
-
   // --- Shared classification ---
   classification: null,
+  live: {
+    documentId: '',
+    pageNumber: 0,
+    progress: 0.5,
+    velocity: 0,
+    phase: 0
+  },
+  setLive: (documentId, pageNumber, progress, velocity = 0) => {
+    const clamped = Math.max(0, Math.min(1, progress))
+    const phase = (((pageNumber * 0.173 + clamped * 0.81) % 1) + 1) % 1
+    set({
+      live: {
+        documentId,
+        pageNumber,
+        progress: clamped,
+        velocity: Math.max(-1, Math.min(1, velocity)),
+        phase
+      }
+    })
+  },
 
   classifyForPage: async (documentId, pageNumber, text) => {
-    const { feelingEnabled, spriteEnabled } = get()
-    if (!feelingEnabled && !spriteEnabled) return
+    const { feelingEnabled } = get()
+    if (!feelingEnabled) return
     if (!text.trim()) return
 
-    const cacheKey = `${documentId}:${pageNumber}`
+    const cacheKey = excerptCacheKey(documentId, pageNumber, text)
     if (classified.has(cacheKey)) return
     classified.add(cacheKey)
 
     try {
       const result = await window.fuzzy.ambient.classify(documentId, pageNumber, text)
-      // Drop if both features were toggled off while the call was in flight.
-      if (!get().feelingEnabled && !get().spriteEnabled) return
+      if (!get().feelingEnabled) return
       if (result) set({ classification: result })
     } catch {
       // Silent — no error UI for ambient features
