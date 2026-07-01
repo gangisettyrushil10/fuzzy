@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import appIcon from '../../assets/icon.png'
 import { useDocumentStore } from '../../state/documentStore'
 import { useProjectStore } from '../../state/projectStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
@@ -74,9 +75,7 @@ export function HomeHub(): React.JSX.Element {
         {/* Header + quick actions */}
         <header>
           <div className="mb-4 flex items-center gap-3">
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-fz-accent-2/15 text-xl font-bold text-fz-accent">
-              F
-            </div>
+            <img src={appIcon} alt="" className="h-10 w-10 rounded-xl" aria-hidden />
             <div>
               <h1 className="font-[family-name:var(--font-display)] text-[28px] italic font-medium leading-none text-fz-fg">Welcome back</h1>
               <p className="text-fz-ui text-fz-fg-muted">Pick up where you left off, or start something new.</p>

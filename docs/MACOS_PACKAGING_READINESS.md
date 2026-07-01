@@ -1,40 +1,48 @@
-# macOS Packaging Readiness — 2026-06-03
+# macOS Packaging Readiness
 
 ## Current configuration
 
 | Item | Value |
 |---|---|
-| App ID | `com.fuzzy.study` (updated from `com.electron.app`) |
+| App ID | `com.fuzzy.study` |
 | Product name | `fuzzy` |
-| Notarize | `false` in `electron-builder.yml` |
-| Signing | Not configured in CI |
-| Sample PDF | `resources/sample-document.pdf` → `extraResources` |
-| Camera/mic plist strings | Removed (not used) |
+| Unsigned local build | `pnpm build:mac` |
+| Signed + notarized release | `pnpm build:mac:release` |
+| Notarize | enabled in `electron-builder.yml` for release builds |
 
-## Icon readiness
+## One-time Apple setup (Humyn LLC)
 
-- `build/icon.icns` / `resources/icon.png` — verify assets before marketing builds.
+1. [Apple Developer](https://developer.apple.com/account) → **Certificates** → create **Developer ID Application** (not Mac App Store).
+2. Download/install the cert, then export it as a `.p12` from Keychain Access.
+3. For notarization, create either:
+   - **App Store Connect API key** (`.p8`) — recommended, or
+   - **App-specific password** at [appleid.apple.com](https://appleid.apple.com)
 
-## Local unsigned build
+## Release build
 
 ```bash
-pnpm build
-pnpm build:mac   # or build:unpack for dir output
+cp .env.signing.example .env.signing
+# edit .env.signing with your cert + notarization credentials
+
+pnpm build:mac:release
 ```
 
-Expect an **unsigned** DMG suitable for local testing only.
+Output: `dist/fuzzy-<version>.dmg` — upload this to the Fuzzy website.
 
-## Remaining steps for private beta DMG
+Verify on your Mac:
 
-1. Enroll in Apple Developer Program.
-2. Create Developer ID Application certificate.
-3. Set environment variables in CI or local shell:
-   - `CSC_LINK` / `CSC_KEY_PASSWORD`
-   - `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`
-4. Set `mac.notarize: true` in `electron-builder.yml`.
-5. Add `.github/workflows/release-mac.yml` on tag push.
-6. Staple notarization ticket and smoke-install on a clean Mac.
+```bash
+spctl -a -vv -t install dist/fuzzy-*.dmg
+```
+
+## Local unsigned build (dev only)
+
+```bash
+pnpm build:mac
+```
+
+Expect Gatekeeper warnings if you share this DMG. Do not ship it to users.
 
 ## Honest status
 
-Fuzzy is **not** signed or notarized today. Do not distribute the DMG outside your team until the steps above are complete.
+Release tooling is configured. You still need Humyn LLC's **Developer ID Application** certificate and notarization credentials in `.env.signing` before the first distributable build succeeds.

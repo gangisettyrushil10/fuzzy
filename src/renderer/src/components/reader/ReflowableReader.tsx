@@ -12,6 +12,7 @@ import { useAmbientStore } from '../../state/ambientStore'
 import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
 import { ReaderTypographyPopover } from './ReaderTypographyPopover'
+import { FeelingModeButton } from './FeelingModeButton'
 import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
@@ -180,9 +181,17 @@ export function ReflowableReader({
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // New section always opens at the top — otherwise it inherits the previous
+  // section's scroll offset.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [index])
+
   // Feeling classification follows the visible chunk of the section so the
   // shell ambience can drift with the scene instead of locking to one label.
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
+  const feelingStatus = useAmbientStore((s) => s.feelingStatus)
+  const ambientClassification = useAmbientStore((s) => s.classification)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
@@ -190,8 +199,9 @@ export function ReflowableReader({
     if (!feelingEnabled || !current?.textContent) return
     const host = scrollRef.current
     let prevProgress = 0.5
+    let classifyTimer: number | undefined
 
-    const classifyFromScroll = (): void => {
+    const classifyFromScroll = (immediate = false): void => {
       const progress =
         !host || host.scrollHeight <= host.clientHeight
           ? 0.5
@@ -200,15 +210,29 @@ export function ReflowableReader({
       prevProgress = progress
       const excerpt = excerptForProgress(current.textContent ?? '', progress)
       if (!excerpt) return
-      void classifyForPage(documentId, current.pageNumber, excerpt)
+      if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+      classifyTimer = window.setTimeout(
+        () => {
+          classifyTimer = undefined
+          void classifyForPage(documentId, current.pageNumber, excerpt)
+        },
+        immediate ? 0 : 220
+      )
     }
 
-    classifyFromScroll()
-    if (!host) return
+    classifyFromScroll(true)
+    if (!host) {
+      return () => {
+        if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+      }
+    }
 
     const onScroll = (): void => classifyFromScroll()
     host.addEventListener('scroll', onScroll, { passive: true })
-    return () => host.removeEventListener('scroll', onScroll)
+    return () => {
+      host.removeEventListener('scroll', onScroll)
+      if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+    }
   }, [feelingEnabled, current, documentId, classifyForPage, setAmbientLive])
 
   useEffect(() => {
@@ -361,18 +385,12 @@ export function ReflowableReader({
           {label}
         </span>
         <div className="flex-1" />
-        {/* Feeling Aurora toggle */}
-        <button
-          type="button"
-          title={feelingEnabled ? 'Feeling Aurora on' : 'Feeling Aurora off'}
-          onClick={() => setFeelingEnabled(!feelingEnabled)}
-          className={cn(
-            'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-            feelingEnabled ? 'border-fz-accent text-fz-accent' : 'text-fz-fg-muted hover:bg-fz-bg'
-          )}
-        >
-          ✦ Feeling
-        </button>
+        <FeelingModeButton
+          enabled={feelingEnabled}
+          status={feelingStatus}
+          classification={ambientClassification}
+          onToggle={() => setFeelingEnabled(!feelingEnabled)}
+        />
         <ReaderTypographyPopover />
         {sections && sections.length > 1 && (
           <div className="ml-3 flex items-center gap-1">

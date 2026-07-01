@@ -42,6 +42,7 @@ interface AmbientLiveState {
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
+type FeelingStatus = 'idle' | 'classifying' | 'ready' | 'error'
 
 interface AmbientState {
   // --- existing auto-explain ---
@@ -55,10 +56,12 @@ interface AmbientState {
 
   // --- Feeling Aurora ---
   feelingEnabled: boolean
+  feelingStatus: FeelingStatus
   setFeelingEnabled: (enabled: boolean) => void
 
   // --- Shared classification ---
   classification: AmbientClassification | null
+  classificationKey: string | null
   classifyForPage: (documentId: string, pageNumber: number, text: string) => Promise<void>
   live: AmbientLiveState
   setLive: (documentId: string, pageNumber: number, progress: number, velocity?: number) => void
@@ -66,8 +69,9 @@ interface AmbientState {
 
 // Pages already auto-explained this session (cost guard).
 const done = new Set<string>()
-// Pages already classified this session.
-const classified = new Set<string>()
+// Pages already classified this session, keyed by document/page/excerpt hash.
+const classificationCache = new Map<string, AmbientClassification>()
+const classificationRequests = new Map<string, Promise<AmbientClassification | null>>()
 
 export const useAmbientStore = create<AmbientState>((set, get) => ({
   // --- existing auto-explain ---
@@ -121,6 +125,7 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
 
   // --- Feeling Aurora ---
   feelingEnabled: loadBoolPref(FEELING_KEY),
+  feelingStatus: 'idle',
   setFeelingEnabled: (enabled) => {
     try {
       localStorage.setItem(FEELING_KEY, enabled ? '1' : '0')
@@ -128,11 +133,12 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
       /* ignore */
     }
     set({ feelingEnabled: enabled })
-    if (!enabled) set({ classification: null })
+    if (!enabled) set({ classification: null, classificationKey: null, feelingStatus: 'idle' })
   },
 
   // --- Shared classification ---
   classification: null,
+  classificationKey: null,
   live: {
     documentId: '',
     pageNumber: 0,
@@ -143,6 +149,8 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
   setLive: (documentId, pageNumber, progress, velocity = 0) => {
     const clamped = Math.max(0, Math.min(1, progress))
     const phase = (((pageNumber * 0.173 + clamped * 0.81) % 1) + 1) % 1
+    const previous = get().live
+    const changedPage = previous.documentId !== documentId || previous.pageNumber !== pageNumber
     set({
       live: {
         documentId,
@@ -150,7 +158,10 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
         progress: clamped,
         velocity: Math.max(-1, Math.min(1, velocity)),
         phase
-      }
+      },
+      ...(changedPage
+        ? { classification: null, classificationKey: null, feelingStatus: 'idle' as const }
+        : {})
     })
   },
 
@@ -160,15 +171,38 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
     if (!text.trim()) return
 
     const cacheKey = excerptCacheKey(documentId, pageNumber, text)
-    if (classified.has(cacheKey)) return
-    classified.add(cacheKey)
+    const cached = classificationCache.get(cacheKey)
+    if (cached) {
+      set({ classification: cached, classificationKey: cacheKey, feelingStatus: 'ready' })
+      return
+    }
+
+    set({ classificationKey: cacheKey, feelingStatus: 'classifying' })
 
     try {
-      const result = await window.fuzzy.ambient.classify(documentId, pageNumber, text)
+      const existingRequest = classificationRequests.get(cacheKey)
+      const request = existingRequest ?? window.fuzzy.ambient.classify(documentId, pageNumber, text)
+      if (!existingRequest) {
+        classificationRequests.set(cacheKey, request)
+      }
+      const result = await request
+      classificationRequests.delete(cacheKey)
       if (!get().feelingEnabled) return
-      if (result) set({ classification: result })
+      if (!result) {
+        if (get().classificationKey === cacheKey) {
+          set({ feelingStatus: 'error' })
+        }
+        return
+      }
+      classificationCache.set(cacheKey, result)
+      if (get().classificationKey === cacheKey) {
+        set({ classification: result, feelingStatus: 'ready' })
+      }
     } catch {
-      // Silent — no error UI for ambient features
+      classificationRequests.delete(cacheKey)
+      if (get().classificationKey === cacheKey) {
+        set({ feelingStatus: 'error' })
+      }
     }
   }
 }))

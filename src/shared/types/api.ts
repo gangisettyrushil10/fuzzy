@@ -105,6 +105,8 @@ export interface AmbientClassification {
 export interface FuzzyApi {
   /** True when the app was launched with FUZZY_E2E=1 (automated smoke tests). */
   e2e: boolean
+  /** OS the renderer is running on — used to gate mac-only share targets. */
+  platform: NodeJS.Platform
   health: {
     ping: () => Promise<HealthPingResult>
   }
@@ -310,6 +312,14 @@ export interface FuzzyApi {
       pageNumber: number,
       text: string
     ) => Promise<AmbientClassification | null>
+  }
+  share: {
+    savePng: (data: Uint8Array, defaultName: string) => Promise<{ ok: boolean; filePath?: string }>
+    copyImage: (data: Uint8Array) => Promise<{ ok: true }>
+    toMessages: (
+      data: Uint8Array
+    ) => Promise<{ ok: boolean; method?: 'clipboard-fallback'; error?: string }>
+    openTwitterIntent: (text: string) => Promise<{ ok: true }>
   }
   // Dev-only helpers are only exposed in development builds. Production
   // preload omits the field entirely.

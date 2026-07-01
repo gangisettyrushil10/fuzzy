@@ -9,6 +9,7 @@ const IS_DEV = import.meta.env.DEV
 
 const fuzzy: FuzzyApi = {
   e2e: process.env.FUZZY_E2E === '1',
+  platform: process.platform,
   health: {
     ping: () => ipcRenderer.invoke(IpcChannels.healthPing)
   },
@@ -185,6 +186,12 @@ const fuzzy: FuzzyApi = {
   ambient: {
     classify: (documentId, pageNumber, text) =>
       ipcRenderer.invoke(IpcChannels.ambientClassify, documentId, pageNumber, text)
+  },
+  share: {
+    savePng: (data, defaultName) => ipcRenderer.invoke(IpcChannels.shareSavePng, data, defaultName),
+    copyImage: (data) => ipcRenderer.invoke(IpcChannels.shareCopyImage, data),
+    toMessages: (data) => ipcRenderer.invoke(IpcChannels.shareToMessages, data),
+    openTwitterIntent: (text) => ipcRenderer.invoke(IpcChannels.shareOpenTwitterIntent, text)
   },
   ...(IS_DEV
     ? {

@@ -5,9 +5,11 @@ import { useDocumentStore } from '../../state/documentStore'
 import { usePacerStore } from '../../state/pacerStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
 import { useAmbientStore } from '../../state/ambientStore'
+import type { AmbientClassification } from '@shared/types/api'
 import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
+import { FeelingModeButton } from '../reader/FeelingModeButton'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { normalizeRectsToPage } from '../../lib/rects'
 
@@ -59,6 +61,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
 
   // Feeling classification (shared with the reflowable reader and shell background).
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
+  const feelingStatus = useAmbientStore((s) => s.feelingStatus)
+  const ambientClassification = useAmbientStore((s) => s.classification)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
@@ -73,6 +77,13 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   useEffect(() => {
     clearSelection()
   }, [currentPage, scale, clearSelection])
+
+  // New page always opens at the top — otherwise it inherits the previous
+  // page's scroll offset (e.g. landing at the bottom of page 13 after
+  // finishing page 12 at its bottom).
+  useEffect(() => {
+    pagesContainerRef.current?.scrollTo({ top: 0 })
+  }, [currentPage])
 
   // Count words read into the active focus session when leaving a page.
   const prevPageRef = useRef(currentPage)
@@ -106,8 +117,9 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     if (!feelingEnabled || !pageText) return
     const host = pagesContainerRef.current
     let prevProgress = 0.5
+    let classifyTimer: number | undefined
 
-    const classifyFromScroll = (): void => {
+    const classifyFromScroll = (immediate = false): void => {
       const progress =
         !host || host.scrollHeight <= host.clientHeight
           ? 0.5
@@ -116,15 +128,29 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       prevProgress = progress
       const excerpt = excerptForProgress(pageText, progress)
       if (!excerpt) return
-      void classifyForPage(documentId, currentPage, excerpt)
+      if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+      classifyTimer = window.setTimeout(
+        () => {
+          classifyTimer = undefined
+          void classifyForPage(documentId, currentPage, excerpt)
+        },
+        immediate ? 0 : 220
+      )
     }
 
-    classifyFromScroll()
-    if (!host) return
+    classifyFromScroll(true)
+    if (!host) {
+      return () => {
+        if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+      }
+    }
 
     const onScroll = (): void => classifyFromScroll()
     host.addEventListener('scroll', onScroll, { passive: true })
-    return () => host.removeEventListener('scroll', onScroll)
+    return () => {
+      host.removeEventListener('scroll', onScroll)
+      if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
+    }
   }, [feelingEnabled, pageText, documentId, currentPage, classifyForPage, setAmbientLive])
 
   useEffect(() => {
@@ -255,6 +281,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
         pageCount={pageCount}
         scale={scale}
         feelingEnabled={feelingEnabled}
+        feelingStatus={feelingStatus}
+        ambientClassification={ambientClassification}
         onFeelingToggle={() => setFeelingEnabled(!feelingEnabled)}
         onPrev={() => setPage(currentPage - 1)}
         onNext={() => setPage(currentPage + 1)}
@@ -290,6 +318,8 @@ function PdfToolbar({
   pageCount,
   scale,
   feelingEnabled,
+  feelingStatus,
+  ambientClassification,
   onFeelingToggle,
   onPrev,
   onNext,
@@ -301,6 +331,8 @@ function PdfToolbar({
   pageCount: number
   scale: number
   feelingEnabled: boolean
+  feelingStatus: 'idle' | 'classifying' | 'ready' | 'error'
+  ambientClassification: AmbientClassification | null
   onFeelingToggle: () => void
   onPrev: () => void
   onNext: () => void
@@ -313,18 +345,12 @@ function PdfToolbar({
         {title ?? 'Untitled'}
       </span>
       <div className="flex-1" />
-      {/* Feeling Aurora toggle */}
-      <button
-        type="button"
-        title={feelingEnabled ? 'Feeling Aurora on' : 'Feeling Aurora off'}
-        onClick={onFeelingToggle}
-        className={[
-          'rounded border border-fz-border px-2 py-0.5 text-fz-micro transition-colors',
-          feelingEnabled ? 'border-fz-accent text-fz-accent' : 'text-fz-fg-muted hover:bg-fz-bg'
-        ].join(' ')}
-      >
-        ✦ Feeling
-      </button>
+      <FeelingModeButton
+        enabled={feelingEnabled}
+        status={feelingStatus}
+        classification={ambientClassification}
+        onToggle={onFeelingToggle}
+      />
       <div className="flex items-center gap-1">
         <ToolbarButton onClick={onPrev} disabled={currentPage <= 1} label="Prev" />
         <span className="w-20 text-center text-fz-micro text-fz-fg-muted">

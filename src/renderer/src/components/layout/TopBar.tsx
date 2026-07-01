@@ -1,3 +1,4 @@
+import appIcon from '../../assets/icon.png'
 import { useDocumentStore } from '../../state/documentStore'
 import { useSettingsStore } from '../../state/settingsStore'
 import { useTutorStore } from '../../state/tutorStore'
@@ -36,9 +37,7 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }): Reac
   return (
     <header className="fz-shell-chrome fz-drag flex h-11 shrink-0 items-center gap-3 border-b border-fz-border pl-20 pr-3 text-xs">
       <div className="fz-no-drag flex items-center gap-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-fz-accent-2/20 text-fz-accent">
-          <span className="text-[11px] font-semibold">F</span>
-        </div>
+        <img src={appIcon} alt="" className="h-6 w-6 rounded-md" aria-hidden />
         <span className="font-[family-name:var(--font-display)] text-[17px] italic font-medium tracking-normal text-fz-fg">
           Fuzzy
         </span>

@@ -16,71 +16,71 @@ type AmbientFamily =
   | 'default'
 
 const COLOR_HINTS: Record<string, string> = {
-  amber: '#d9922f',
-  ash: '#626776',
-  blackberry: '#4b274f',
-  blue: '#3f72ff',
-  blush: '#ff8cb5',
-  charcoal: '#293242',
-  crimson: '#c42b47',
-  cyan: '#4fd7ff',
-  copper: '#b86a39',
+  amber: '#ffbd4a',
+  ash: '#98a1b2',
+  blackberry: '#8c4f9f',
+  blue: '#4f8fff',
+  blush: '#ff9ec1',
+  charcoal: '#596275',
+  crimson: '#ef3d60',
+  cyan: '#57e3ff',
+  copper: '#dc8652',
   'dusty-rose': '#c28f9e',
-  electric: '#7ebdff',
-  ember: '#ff6a2a',
-  glass: '#8cd7de',
-  gold: '#f4ba43',
-  green: '#2d9f5d',
-  honey: '#d0a24b',
-  ice: '#c7e6ff',
-  indigo: '#3941a8',
-  ink: '#171c32',
-  maroon: '#6f1623',
-  midnight: '#1c204d',
+  electric: '#8fd4ff',
+  ember: '#ff7b35',
+  glass: '#9deaf0',
+  gold: '#ffd05a',
+  green: '#3bcf78',
+  honey: '#f0b95a',
+  ice: '#d8f0ff',
+  indigo: '#5968ff',
+  ink: '#3a4167',
+  maroon: '#9d2237',
+  midnight: '#3942a1',
   mint: '#93e3af',
-  moss: '#527d40',
-  neon: '#59a8ff',
+  moss: '#75a85a',
+  neon: '#66c2ff',
   orange: '#ff8c36',
   peach: '#ffb78e',
   pearl: '#d7dce7',
-  purple: '#6f3ed6',
-  red: '#c93a2f',
-  rose: '#df5d86',
+  purple: '#8c5dff',
+  red: '#ed4f43',
+  rose: '#f06f9b',
   sage: '#8fb8a5',
-  scarlet: '#d63f3f',
+  scarlet: '#f35454',
   seafoam: '#98e3d0',
-  sepia: '#8f673f',
-  silver: '#b3c3d9',
-  sky: '#8cc7ff',
-  slate: '#4c6384',
-  smoke: '#68636f',
-  iron: '#7c808a',
-  azure: '#5f8dff',
-  stone: '#818997',
-  steel: '#7688a3',
+  sepia: '#b68452',
+  silver: '#cbd8ec',
+  sky: '#9dd2ff',
+  slate: '#7892ba',
+  smoke: '#8d8795',
+  iron: '#9da4b2',
+  azure: '#70a3ff',
+  stone: '#a2acbb',
+  steel: '#91a6c7',
   sunrise: '#ffcc74',
-  teal: '#1aa7a1',
-  violet: '#7b4dff'
+  teal: '#20c8c0',
+  violet: '#946dff'
 }
 
 const PALETTES: Record<string, MoodPalette> = {
-  love: ['#e0204a', '#ff85a1', '#8b1538'],
-  sadness: ['#1e3a7a', '#4a9ed4', '#6b8fa8'],
-  joy: ['#e8a800', '#ff7d00', '#ffe060'],
-  mystery: ['#5a1580', '#a040d8', '#1a0838'],
-  tension: ['#c84010', '#8b0000', '#ff6020'],
-  calm: ['#1ab870', '#008080', '#a0e0c0'],
-  awe: ['#3040e0', '#8060f8', '#00b8ff'],
-  fear: ['#4a3a88', '#6e5cff', '#15192e'],
-  anger: ['#b52020', '#ff4f2f', '#631018'],
-  grief: ['#4d5f77', '#8395ac', '#2a3140'],
-  hope: ['#6dbf77', '#f0c45d', '#8fd1ff'],
-  wonder: ['#6b50ff', '#27c4e8', '#ffd369'],
-  nostalgia: ['#a76b5b', '#d5a46c', '#cc8fa2'],
-  neutral: ['#304060', '#203050', '#405080']
+  love: ['#ff4f73', '#ff9ab6', '#b83363'],
+  sadness: ['#4a72e8', '#65c5f7', '#93abd0'],
+  joy: ['#ffbf2f', '#ff8f32', '#fff08a'],
+  mystery: ['#8a45ff', '#ce64ff', '#4550d8'],
+  tension: ['#f15f2f', '#df2935', '#ff9a3d'],
+  calm: ['#31d892', '#2fc7c3', '#b7f0d8'],
+  awe: ['#6677ff', '#a784ff', '#38d8ff'],
+  fear: ['#7668d9', '#9d8cff', '#505a89'],
+  anger: ['#ef3838', '#ff744d', '#a7202c'],
+  grief: ['#71859e', '#a6b8ce', '#4f5f7d'],
+  hope: ['#7bdc88', '#ffd26f', '#9dddff'],
+  wonder: ['#856cff', '#3bdcff', '#ffe07a'],
+  nostalgia: ['#c88765', '#e8b674', '#e0a0b8'],
+  neutral: ['#6d8cff', '#4bd6f0', '#b9c7ff']
 }
 
-const NON_FICTION_SCALE = 0.4
+const NON_FICTION_SCALE = 0.72
 
 function getPalette(classification: AmbientClassification): MoodPalette {
   const hinted = classification.paletteHints
@@ -94,44 +94,46 @@ function getPalette(classification: AmbientClassification): MoodPalette {
 }
 
 function getBlobOpacity(classification: AmbientClassification): number {
-  const base = 0.06 + classification.intensity * 0.12
+  const base = 0.11 + classification.intensity * 0.2
   const scale = classification.type === 'non-fiction' ? NON_FICTION_SCALE : 1
-  return Math.min(0.18, Math.max(0.04, base * scale))
+  return Math.min(0.34, Math.max(0.08, base * scale))
 }
 
-function getAmbientStyle(classification: AmbientClassification | null): React.CSSProperties {
+export function getAmbientStyle(
+  classification: AmbientClassification | null
+): React.CSSProperties {
   const [c1, c2, c3] = classification ? getPalette(classification) : PALETTES.neutral
   const opacity = classification ? getBlobOpacity(classification) : 0.09
   const intensity = classification?.intensity ?? 0.38
   const motion = classification?.motion ?? 'drift'
   const driftBase =
     motion === 'wave'
-      ? 18
+      ? 15
       : motion === 'pulse'
-        ? 16
+        ? 13
         : motion === 'embers'
-          ? 14
+          ? 12
           : motion === 'shimmer'
-            ? 20
+            ? 16
             : motion === 'mist'
-              ? 24
+              ? 20
               : motion === 'still'
-                ? 36
-                : 30
-  const drift = driftBase - Math.round(intensity * 4)
-  const glow = 120 + Math.round(intensity * 70)
+                ? 30
+                : 24
+  const drift = driftBase - Math.round(intensity * 5)
+  const glow = 82 + Math.round(intensity * 58)
   const motionScale =
     motion === 'wave'
-      ? 1.14
+      ? 1.18
       : motion === 'mist'
-        ? 1.2
+        ? 1.24
         : motion === 'pulse'
-          ? 1.08
+          ? 1.12
           : motion === 'embers'
-            ? 1.12
+            ? 1.16
             : motion === 'still'
               ? 0.92
-              : 1
+              : 1.04
   const secondary = classification?.secondaryMood
   const [c4] = secondary ? (PALETTES[secondary] ?? PALETTES.neutral) : [c2]
 

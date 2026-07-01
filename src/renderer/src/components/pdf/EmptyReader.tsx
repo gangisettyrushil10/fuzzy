@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import appIcon from '../../assets/icon.png'
 import { useDocuments } from '../../hooks/useDocuments'
 import { useDocumentStore } from '../../state/documentStore'
 import { useOnboardingStore } from '../../state/onboardingStore'
@@ -35,9 +36,7 @@ export function EmptyReader(): React.JSX.Element {
   return (
     <div className="flex flex-1 items-center justify-center p-12">
       <div className="max-w-md text-center">
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-fz-accent-2/15 text-2xl font-bold text-fz-accent">
-          F
-        </div>
+        <img src={appIcon} alt="" className="mb-4 inline-block h-12 w-12 rounded-xl" aria-hidden />
         <h1 className="mb-2 text-xl font-semibold text-fz-fg">Fuzzy</h1>
         <p className="mb-6 text-sm leading-relaxed text-fz-fg-muted">
           A reading workspace for hard documents.

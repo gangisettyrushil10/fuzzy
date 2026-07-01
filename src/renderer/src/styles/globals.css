@@ -573,18 +573,120 @@ body::before {
   backdrop-filter: blur(18px) saturate(120%);
 }
 
+.fz-feeling-toggle {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-template-columns: auto auto minmax(2.35rem, auto);
+  align-items: center;
+  gap: 0.32rem;
+  min-width: 7.45rem;
+  height: 1.6rem;
+  padding: 0 0.48rem;
+  border: 1px solid var(--color-fz-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-fz-surface-2) 78%, transparent);
+  color: var(--color-fz-fg-muted);
+  font-size: var(--text-fz-micro);
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 3%, transparent);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.fz-feeling-toggle:hover {
+  color: var(--color-fz-fg);
+  background: color-mix(in srgb, var(--color-fz-surface-2) 88%, var(--color-fz-accent) 8%);
+}
+
+.fz-feeling-toggle-on {
+  border-color: color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 72%, white 10%);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--fz-ambient-c1, var(--color-fz-accent)) 20%, transparent),
+      color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 14%, transparent)
+    ),
+    color-mix(in srgb, var(--color-fz-surface-2) 72%, transparent);
+  color: color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 64%, white 36%);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 24%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, white 8%, transparent);
+}
+
+.fz-feeling-toggle-reading .fz-feeling-glyph {
+  animation: fz-feeling-pulse 1.25s ease-in-out infinite;
+}
+
+.fz-feeling-toggle-error {
+  border-color: color-mix(in srgb, var(--color-fz-danger) 54%, var(--color-fz-border));
+}
+
+.fz-feeling-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 0.9rem;
+  color: color-mix(in srgb, currentColor 76%, white 24%);
+}
+
+.fz-feeling-label,
+.fz-feeling-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fz-feeling-detail {
+  justify-self: end;
+  color: color-mix(in srgb, currentColor 72%, var(--color-fz-fg-muted));
+  font-variant-numeric: tabular-nums;
+}
+
 .fz-ambient-shell {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  isolation: isolate;
+  background: transparent;
   transform: translate3d(
     calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.4rem),
     calc(var(--fz-ambient-velocity, 0) * -1.6rem),
     0
   );
   transition: transform 260ms ease-out;
+}
+
+.fz-ambient-shell::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(
+      circle at 14% 16%,
+      color-mix(in srgb, var(--fz-ambient-c2) 28%, white 12%) 0%,
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 84% 8%,
+      color-mix(in srgb, var(--fz-ambient-c4) 24%, white 10%) 0%,
+      transparent 32%
+    ),
+    linear-gradient(
+      125deg,
+      color-mix(in srgb, var(--fz-ambient-c1) 14%, transparent),
+      transparent 34%,
+      color-mix(in srgb, var(--fz-ambient-c3) 12%, transparent) 72%,
+      transparent
+    );
+  opacity: calc(var(--fz-ambient-opacity) * 1.35);
+  filter: saturate(150%) brightness(1.18);
+  mix-blend-mode: screen;
 }
 
 .fz-ambient-family-oceanic {
@@ -682,22 +784,22 @@ body::before {
   background:
     radial-gradient(
       circle at 20% 18%,
-      color-mix(in srgb, var(--fz-ambient-c1) 48%, transparent) 0%,
-      transparent 42%
+      color-mix(in srgb, var(--fz-ambient-c1) 62%, white 8%) 0%,
+      transparent 44%
     ),
     radial-gradient(
       circle at 80% 22%,
-      color-mix(in srgb, var(--fz-ambient-c2) 46%, transparent) 0%,
-      transparent 40%
+      color-mix(in srgb, var(--fz-ambient-c2) 58%, white 10%) 0%,
+      transparent 42%
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--fz-ambient-c3) 26%, transparent),
-      color-mix(in srgb, var(--fz-ambient-c4) 14%, transparent) 35%,
+      color-mix(in srgb, var(--fz-ambient-c3) 34%, transparent),
+      color-mix(in srgb, var(--fz-ambient-c4) 22%, transparent) 35%,
       transparent 58%
     );
-  opacity: calc(var(--fz-ambient-opacity) * 1.5);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.4));
+  opacity: calc(var(--fz-ambient-opacity) * 1.9);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.34)) saturate(142%) brightness(1.08);
   animation: fz-ambient-breathe var(--fz-ambient-drift-slow) ease-in-out infinite;
   transform: translate3d(
     calc((var(--fz-ambient-phase, 0.5) - 0.5) * 5%),
@@ -711,8 +813,8 @@ body::before {
   height: 46%;
   left: -25%;
   border-radius: 45% 55% 50% 50%;
-  opacity: calc(var(--fz-ambient-opacity) * 2.3);
-  filter: blur(var(--fz-ambient-blur));
+  opacity: calc(var(--fz-ambient-opacity) * 2.55);
+  filter: blur(var(--fz-ambient-blur)) saturate(150%) brightness(1.12);
   mix-blend-mode: screen;
   transition:
     transform 220ms ease-out,
@@ -725,13 +827,13 @@ body::before {
   background: linear-gradient(
     105deg,
     color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 0%,
-    color-mix(in srgb, var(--fz-ambient-c1) 62%, transparent) 26%,
-    color-mix(in srgb, var(--fz-ambient-c2) 70%, transparent) 46%,
-    color-mix(in srgb, var(--fz-ambient-c4) 56%, transparent) 68%,
-    color-mix(in srgb, var(--fz-ambient-c3) 58%, transparent) 100%
+    color-mix(in srgb, var(--fz-ambient-c1) 72%, white 7%) 26%,
+    color-mix(in srgb, var(--fz-ambient-c2) 78%, white 8%) 46%,
+    color-mix(in srgb, var(--fz-ambient-c4) 64%, white 8%) 68%,
+    color-mix(in srgb, var(--fz-ambient-c3) 66%, white 9%) 100%
   );
   animation: fz-ambient-sweep var(--fz-ambient-drift) ease-in-out infinite;
-  opacity: calc((var(--fz-ambient-opacity) * 2.25) + (var(--fz-ambient-surge, 0) * 0.12));
+  opacity: calc((var(--fz-ambient-opacity) * 2.55) + (var(--fz-ambient-surge, 0) * 0.16));
 }
 
 .fz-ambient-family-oceanic .fz-ambient-wave-top,
@@ -768,21 +870,21 @@ body::before {
   background: linear-gradient(
     120deg,
     color-mix(in srgb, var(--fz-ambient-c3) 8%, transparent) 0%,
-    color-mix(in srgb, var(--fz-ambient-c2) 62%, transparent) 34%,
-    color-mix(in srgb, var(--fz-ambient-c4) 42%, transparent) 58%,
-    color-mix(in srgb, var(--fz-ambient-c1) 48%, transparent) 72%,
+    color-mix(in srgb, var(--fz-ambient-c2) 72%, white 8%) 34%,
+    color-mix(in srgb, var(--fz-ambient-c4) 54%, white 9%) 58%,
+    color-mix(in srgb, var(--fz-ambient-c1) 60%, white 8%) 72%,
     color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 100%
   );
   animation: fz-ambient-sweep-reverse var(--fz-ambient-drift-fast) ease-in-out infinite;
-  opacity: calc((var(--fz-ambient-opacity) * 2.1) + (var(--fz-ambient-surge, 0) * 0.1));
+  opacity: calc((var(--fz-ambient-opacity) * 2.4) + (var(--fz-ambient-surge, 0) * 0.14));
 }
 
 .fz-ambient-orb {
   width: 44rem;
   height: 44rem;
   border-radius: 999px;
-  opacity: calc(var(--fz-ambient-opacity) * 1.95);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.72));
+  opacity: calc(var(--fz-ambient-opacity) * 2.22);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.58)) saturate(150%) brightness(1.12);
   transition:
     transform 260ms ease-out,
     opacity 260ms ease-out,
@@ -794,7 +896,7 @@ body::before {
   top: 22%;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--fz-ambient-c2) 78%, transparent) 0%,
+    color-mix(in srgb, var(--fz-ambient-c2) 82%, white 8%) 0%,
     transparent 70%
   );
   animation: fz-ambient-orbit-left var(--fz-ambient-drift-slow) ease-in-out infinite;
@@ -825,7 +927,7 @@ body::before {
   top: 4%;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--fz-ambient-c4) 78%, transparent) 0%,
+    color-mix(in srgb, var(--fz-ambient-c4) 82%, white 8%) 0%,
     transparent 72%
   );
   animation: fz-ambient-orbit-right var(--fz-ambient-drift) ease-in-out infinite;
@@ -838,13 +940,17 @@ body::before {
 
 .fz-ambient-vignette {
   background:
-    radial-gradient(circle at center, transparent 38%, rgba(6, 9, 16, 0.16) 100%),
+    radial-gradient(
+      circle at center,
+      transparent 44%,
+      color-mix(in srgb, var(--fz-ambient-c2) 8%, transparent) 100%
+    ),
     linear-gradient(
       180deg,
-      rgba(3, 6, 12, 0.12),
+      color-mix(in srgb, white 4%, transparent),
       transparent 18%,
       transparent 82%,
-      rgba(3, 6, 12, 0.14)
+      rgba(3, 6, 12, 0.07)
     );
 }
 
@@ -1120,6 +1226,18 @@ body::before {
   }
 }
 
+@keyframes fz-feeling-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
 /* Trim non-essential motion for users who ask for it. The spinner is left
    alone — a non-spinning spinner reads as broken. */
 @media (prefers-reduced-motion: reduce) {
@@ -1139,6 +1257,7 @@ body::before {
     animation: none !important;
     transition: none !important;
   }
+  .fz-feeling-glyph,
   .fz-ambient-wash,
   .fz-ambient-wave,
   .fz-ambient-orb,

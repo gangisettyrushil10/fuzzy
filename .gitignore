@@ -12,3 +12,8 @@ dist-electron
 
 # Cursor/IDE git backups
 .git.backup-cursor-*
+
+# macOS signing / notarization secrets
+.env.signing
+*.p12
+AuthKey_*.p8

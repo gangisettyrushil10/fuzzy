@@ -25,23 +25,25 @@ nsis:
   createDesktopShortcut: always
 afterPack: scripts/after-pack.mjs
 mac:
-  # identity: null skips codesigning for local DMG builds. To sign for
-  # distribution, set CSC_LINK / CSC_KEY_PASSWORD to a "Developer ID
-  # Application" p12, flip identity to null removal, and set notarize: true.
-  identity: null
+  # Signed + notarized release builds: pnpm build:mac:release
+  # Local unsigned DMG: pnpm build:mac
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
   extendInfo:
     - NSDocumentsFolderUsageDescription: Fuzzy imports PDFs you choose into your local library.
     - NSDownloadsFolderUsageDescription: Fuzzy can import PDFs from your Downloads folder when you select them.
-  notarize: false
+  notarize: true
 dmg:
   artifactName: ${name}-${version}.${ext}
 mas:
   # Mac App Store build — uses "Apple Distribution" cert from Keychain.
   # Run: pnpm build:mas
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  # Set MAS_PROVISIONING_PROFILE env var to the path of your downloaded .provisionprofile
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.plist
   hardenedRuntime: false
+  provisioningProfile: ${env.MAS_PROVISIONING_PROFILE}
 linux:
   target:
     - AppImage

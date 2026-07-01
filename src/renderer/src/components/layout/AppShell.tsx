@@ -37,7 +37,8 @@ import { ShortcutsCheatsheet } from '../command/ShortcutsCheatsheet'
 import { DigestPanel } from '../summary/DigestPanel'
 import { AmbientGlossCard } from '../reader/AmbientGlossCard'
 import { HighlightLibraryModal } from '../highlights/HighlightLibraryModal'
-import { FeelingAurora } from '../reader/FeelingAurora'
+import { ShareCardModal } from '../share/ShareCardModal'
+import { FeelingAurora, getAmbientStyle } from '../reader/FeelingAurora'
 import { useAmbientStore } from '../../state/ambientStore'
 
 export function AppShell(): React.JSX.Element {
@@ -80,6 +81,7 @@ export function AppShell(): React.JSX.Element {
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
   const ambientClassification = useAmbientStore((s) => s.classification)
   const ambientLive = useAmbientStore((s) => s.live)
+  const ambientStyle = feelingEnabled ? getAmbientStyle(ambientClassification) : undefined
 
   // ── Resizable panels ──────────────────────────────────────────────────────
   const SIZES_KEY = 'fz-panel-sizes'
@@ -222,7 +224,10 @@ export function AppShell(): React.JSX.Element {
   })
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-fz-bg text-fz-fg">
+    <div
+      className="relative flex h-full w-full flex-col overflow-hidden bg-fz-bg text-fz-fg"
+      style={ambientStyle}
+    >
       {feelingEnabled && (
         <FeelingAurora
           classification={ambientClassification}
@@ -301,6 +306,7 @@ export function AppShell(): React.JSX.Element {
         <BottomReadingBar />
         {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
         {highlightsOpen && <HighlightLibraryModal onClose={() => setHighlightsOpen(false)} />}
+        <ShareCardModal />
         {studyPackOpen && activeDocumentId && (
           <StudyPackPanel documentId={activeDocumentId} onClose={() => setStudyPackOpen(false)} />
         )}

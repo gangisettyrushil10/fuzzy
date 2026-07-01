@@ -116,7 +116,12 @@ export const IpcChannels = {
 
   devSeedDocument: 'dev:seedDocument',
 
-  ambientClassify: 'ambient:classify'
+  ambientClassify: 'ambient:classify',
+
+  shareSavePng: 'share:savePng',
+  shareCopyImage: 'share:copyImage',
+  shareToMessages: 'share:toMessages',
+  shareOpenTwitterIntent: 'share:openTwitterIntent'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

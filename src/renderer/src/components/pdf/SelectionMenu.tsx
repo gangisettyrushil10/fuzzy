@@ -5,6 +5,8 @@ import { useTutorStore } from '../../state/tutorStore'
 import { usePdfStore } from '../../state/pdfStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useOnboardingStore } from '../../state/onboardingStore'
+import { useDocumentStore } from '../../state/documentStore'
+import { useShareCardStore } from '../../state/shareCardStore'
 import { Button, IconButton } from '../ui'
 
 interface ActionDef {
@@ -29,6 +31,8 @@ export function SelectionMenu(): React.JSX.Element | null {
   const pageTexts = usePdfStore((s) => s.pageTexts)
   const registerDismiss = useAppUiStore((s) => s.registerDismissHandler)
   const advanceOnboarding = useOnboardingStore((s) => s.advance)
+  const documents = useDocumentStore((s) => s.documents)
+  const openShare = useShareCardStore((s) => s.openShare)
 
   useEffect(() => {
     return registerDismiss(() => clear())
@@ -55,6 +59,19 @@ export function SelectionMenu(): React.JSX.Element | null {
     runAction(selection, action, context)
       .then(() => advanceOnboarding())
       .catch((err) => console.error('[fuzzy] runAction', err))
+    clear()
+  }
+
+  // Not an AI action — skip runAction/ai_responses persistence entirely and
+  // just hand the excerpt to the share-card modal.
+  const handleShare = (): void => {
+    const doc = documents.find((d) => d.id === selection.documentId)
+    openShare({
+      excerptText: selection.text,
+      sourceTitle: doc?.title ?? 'Untitled',
+      sourceAuthor: doc?.author ?? null,
+      pageNumber: selection.pageNumber
+    })
     clear()
   }
 
@@ -86,6 +103,9 @@ export function SelectionMenu(): React.JSX.Element | null {
           {a.label}
         </Button>
       ))}
+      <Button variant="ghost" size="sm" title="Share this excerpt" onClick={handleShare}>
+        Share
+      </Button>
       <IconButton aria-label="Dismiss" variant="ghost" size="sm" onClick={() => clear()}>
         ✕
       </IconButton>

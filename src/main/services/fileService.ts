@@ -117,6 +117,23 @@ export async function saveTextFile(
   return { ok: true, filePath }
 }
 
+// Binary sibling of saveTextFile, for share-card PNGs.
+export async function saveBinaryFile(
+  parent: BrowserWindow | null,
+  opts: { defaultName: string; data: Uint8Array; filters?: Electron.FileFilter[] }
+): Promise<SaveTextResult> {
+  const options: Electron.SaveDialogOptions = {
+    title: 'Save Image',
+    defaultPath: opts.defaultName,
+    filters: opts.filters ?? [{ name: 'PNG Image', extensions: ['png'] }]
+  }
+  const picker = parent ? dialog.showSaveDialog(parent, options) : dialog.showSaveDialog(options)
+  const { canceled, filePath } = await picker
+  if (canceled || !filePath) return { ok: false }
+  await writeFile(filePath, Buffer.from(opts.data))
+  return { ok: true, filePath }
+}
+
 export async function openImportDialog(parent: BrowserWindow | null): Promise<ImportResult | null> {
   const options: Electron.OpenDialogOptions = {
     title: 'Import a document',
