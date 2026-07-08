@@ -108,32 +108,36 @@ export function getAmbientStyle(
   const motion = classification?.motion ?? 'drift'
   const driftBase =
     motion === 'wave'
-      ? 15
+      ? 34
       : motion === 'pulse'
-        ? 13
+        ? 32
         : motion === 'embers'
-          ? 12
+          ? 30
           : motion === 'shimmer'
-            ? 16
+            ? 36
             : motion === 'mist'
-              ? 20
+              ? 42
               : motion === 'still'
-                ? 30
-                : 24
-  const drift = driftBase - Math.round(intensity * 5)
-  const glow = 82 + Math.round(intensity * 58)
+                ? 56
+                : 44
+  const drift = driftBase - Math.round(intensity * 6)
+  // Kept well under the old 82-140px ceiling: at full-viewport size those large
+  // blur radii blew past Chromium's tile raster budget on HiDPI displays
+  // ("tile memory limits exceeded" in devtools), which is what read as choppy
+  // stutter rather than a flowing drift.
+  const glow = 44 + Math.round(intensity * 30)
   const motionScale =
     motion === 'wave'
-      ? 1.18
+      ? 1.1
       : motion === 'mist'
-        ? 1.24
+        ? 1.12
         : motion === 'pulse'
-          ? 1.12
+          ? 1.06
           : motion === 'embers'
-            ? 1.16
+            ? 1.08
             : motion === 'still'
-              ? 0.92
-              : 1.04
+              ? 0.96
+              : 1.03
   const secondary = classification?.secondaryMood
   const [c4] = secondary ? (PALETTES[secondary] ?? PALETTES.neutral) : [c2]
 
@@ -144,8 +148,9 @@ export function getAmbientStyle(
     ['--fz-ambient-c4' as string]: c4,
     ['--fz-ambient-opacity' as string]: opacity.toFixed(3),
     ['--fz-ambient-drift' as string]: `${drift}s`,
-    ['--fz-ambient-drift-slow' as string]: `${drift + 11}s`,
-    ['--fz-ambient-drift-fast' as string]: `${Math.max(14, drift - 8)}s`,
+    ['--fz-ambient-drift-slow' as string]: `${drift + 18}s`,
+    ['--fz-ambient-drift-fast' as string]: `${Math.max(24, drift - 6)}s`,
+    ['--fz-ambient-drift-glacial' as string]: `${drift + 30}s`,
     ['--fz-ambient-blur' as string]: `${glow}px`,
     ['--fz-ambient-motion-scale' as string]: `${motionScale}`
   }
@@ -191,13 +196,9 @@ type BurstKind = 'magic' | 'storm' | 'blood' | 'treasure' | 'fire' | null
 function getBurstKind(classification: AmbientClassification | null): BurstKind {
   if (!classification) return null
   const tags = new Set(classification.sceneTags)
+  if (classification.intensity < 0.72) return null
   if (tags.has('magic')) return 'magic'
-  if (tags.has('storm')) return 'storm'
-  if (tags.has('blood') || classification.mood === 'anger' || classification.mood === 'grief') {
-    return 'blood'
-  }
   if (tags.has('gold')) return 'treasure'
-  if (tags.has('fire') || classification.motion === 'embers') return 'fire'
   return null
 }
 
@@ -208,10 +209,10 @@ function parallaxStyle(
   const progress = live?.progress ?? 0.5
   const velocity = live?.velocity ?? 0
   const phase = live?.phase ?? 0.5
-  const x = (progress - 0.5) * depth * 26 + (phase - 0.5) * depth * 10
-  const y = velocity * depth * -32
-  const rotate = velocity * depth * -3.8
-  const scale = 1 + Math.abs(velocity) * depth * 0.1
+  const x = (progress - 0.5) * depth * 14 + (phase - 0.5) * depth * 5
+  const y = velocity * depth * -14
+  const rotate = velocity * depth * -1.25
+  const scale = 1 + Math.abs(velocity) * depth * 0.035
 
   return {
     transform: `translate3d(${x}px, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`
@@ -237,11 +238,18 @@ export function FeelingAurora({
     >
       <div className="fz-ambient-chapter-entry" key={`entry:${pageKey}`} />
       <div className="fz-ambient-wash" />
+      <div className="fz-ambient-haze" />
+      <div className="fz-ambient-depth fz-ambient-depth-curtain" style={parallaxStyle(0.35, live)}>
+        <div className="fz-ambient-ribbon fz-ambient-ribbon-back" />
+      </div>
       <div className="fz-ambient-depth fz-ambient-depth-back" style={parallaxStyle(0.5, live)}>
         <div className="fz-ambient-wave fz-ambient-wave-top" />
       </div>
       <div className="fz-ambient-depth fz-ambient-depth-mid" style={parallaxStyle(0.9, live)}>
         <div className="fz-ambient-wave fz-ambient-wave-bottom" />
+      </div>
+      <div className="fz-ambient-depth fz-ambient-depth-ribbon" style={parallaxStyle(1.05, live)}>
+        <div className="fz-ambient-ribbon fz-ambient-ribbon-front" />
       </div>
       <div className="fz-ambient-depth fz-ambient-depth-fore" style={parallaxStyle(1.3, live)}>
         <div className="fz-ambient-orb fz-ambient-orb-left" />

@@ -44,7 +44,7 @@ export function FeelingModeButton({
   onToggle: () => void
 }): React.JSX.Element {
   const detail = feelingDetail(enabled, status, classification)
-  const title = enabled ? `Feeling Mode on: ${detail}` : 'Feeling Mode off'
+  const title = enabled ? `Moodlight on: ${detail}` : 'Moodlight off'
 
   return (
     <button
@@ -62,7 +62,7 @@ export function FeelingModeButton({
       <span className="fz-feeling-glyph" aria-hidden="true">
         ✦
       </span>
-      <span className="fz-feeling-label">Feeling</span>
+      <span className="fz-feeling-label">Moodlight</span>
       <span className="fz-feeling-detail">{detail}</span>
     </button>
   )

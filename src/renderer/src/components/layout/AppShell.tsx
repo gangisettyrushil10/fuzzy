@@ -40,6 +40,8 @@ import { HighlightLibraryModal } from '../highlights/HighlightLibraryModal'
 import { ShareCardModal } from '../share/ShareCardModal'
 import { FeelingAurora, getAmbientStyle } from '../reader/FeelingAurora'
 import { useAmbientStore } from '../../state/ambientStore'
+import { useChromeFade } from '../../hooks/useChromeFade'
+import { cn } from '../../lib/cn'
 
 export function AppShell(): React.JSX.Element {
   const activeDocumentId = useDocumentStore((s) => s.activeDocumentId)
@@ -82,6 +84,7 @@ export function AppShell(): React.JSX.Element {
   const ambientClassification = useAmbientStore((s) => s.classification)
   const ambientLive = useAmbientStore((s) => s.live)
   const ambientStyle = feelingEnabled ? getAmbientStyle(ambientClassification) : undefined
+  const chromeHidden = useChromeFade(feelingEnabled && !!activeDocumentId)
 
   // ── Resizable panels ──────────────────────────────────────────────────────
   const SIZES_KEY = 'fz-panel-sizes'
@@ -234,7 +237,13 @@ export function AppShell(): React.JSX.Element {
           live={{ ...ambientLive, pageNumber: ambientLive.pageNumber }}
         />
       )}
-      <div className="relative z-10 flex h-full w-full flex-col">
+      <div
+        className={cn(
+          'relative z-10 flex h-full w-full flex-col',
+          feelingEnabled && 'fz-moodlight-chrome-fade',
+          feelingEnabled && chromeHidden && 'fz-moodlight-chrome-hidden'
+        )}
+      >
         <TopBar onOpenSettings={openSettings} />
         <div className="flex min-h-0 flex-1">
           {/* Focus mode hides the side panels so the reader takes the full width
