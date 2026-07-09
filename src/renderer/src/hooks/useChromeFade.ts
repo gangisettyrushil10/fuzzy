@@ -8,10 +8,7 @@ export function useChromeFade(enabled: boolean, idleMs = 3000): boolean {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!enabled) {
-      setHidden(false)
-      return
-    }
+    if (!enabled) return
 
     const arm = (): void => {
       setHidden(false)
@@ -20,13 +17,14 @@ export function useChromeFade(enabled: boolean, idleMs = 3000): boolean {
     }
 
     ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, arm, { passive: true }))
-    arm()
+    const initialTimer = setTimeout(arm, 0)
 
     return () => {
       ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, arm))
+      clearTimeout(initialTimer)
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [enabled, idleMs])
 
-  return hidden
+  return enabled && hidden
 }

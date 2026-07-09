@@ -38,7 +38,8 @@ import { DigestPanel } from '../summary/DigestPanel'
 import { AmbientGlossCard } from '../reader/AmbientGlossCard'
 import { HighlightLibraryModal } from '../highlights/HighlightLibraryModal'
 import { ShareCardModal } from '../share/ShareCardModal'
-import { FeelingAurora, getAmbientStyle } from '../reader/FeelingAurora'
+import { FeelingAurora } from '../reader/FeelingAurora'
+import { getAmbientStyle } from '../reader/ambientStyle'
 import { useAmbientStore } from '../../state/ambientStore'
 import { useChromeFade } from '../../hooks/useChromeFade'
 import { cn } from '../../lib/cn'
@@ -127,8 +128,14 @@ export function AppShell(): React.JSX.Element {
   const [rightOpen, setRightOpen] = useState(() => loadBool('rightOpen', true))
   const leftWRef = useRef(leftW)
   const rightWRef = useRef(rightW)
-  leftWRef.current = leftW
-  rightWRef.current = rightW
+
+  useEffect(() => {
+    leftWRef.current = leftW
+  }, [leftW])
+
+  useEffect(() => {
+    rightWRef.current = rightW
+  }, [rightW])
 
   useEffect(() => {
     try {

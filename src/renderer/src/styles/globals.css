@@ -864,18 +864,17 @@ body::before {
   inset: auto -22%;
   height: 64%;
   border-radius: 48% 52% 45% 55%;
-  background:
-    linear-gradient(
-      100deg,
-      transparent 0%,
-      color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 8%,
-      color-mix(in srgb, var(--fz-ambient-c1) 58%, white 7%) 24%,
-      color-mix(in srgb, var(--fz-ambient-c2) 66%, white 8%) 42%,
-      color-mix(in srgb, var(--fz-ambient-c4) 46%, white 8%) 56%,
-      color-mix(in srgb, var(--fz-ambient-c3) 44%, white 10%) 72%,
-      color-mix(in srgb, var(--fz-ambient-c3) 0%, transparent) 90%,
-      transparent 100%
-    );
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 8%,
+    color-mix(in srgb, var(--fz-ambient-c1) 58%, white 7%) 24%,
+    color-mix(in srgb, var(--fz-ambient-c2) 66%, white 8%) 42%,
+    color-mix(in srgb, var(--fz-ambient-c4) 46%, white 8%) 56%,
+    color-mix(in srgb, var(--fz-ambient-c3) 44%, white 10%) 72%,
+    color-mix(in srgb, var(--fz-ambient-c3) 0%, transparent) 90%,
+    transparent 100%
+  );
   filter: blur(calc(var(--fz-ambient-blur) * 0.34)) saturate(158%) brightness(1.08);
   -webkit-mask-image: radial-gradient(ellipse at center, black 44%, transparent 78%);
   mask-image: radial-gradient(ellipse at center, black 44%, transparent 78%);
