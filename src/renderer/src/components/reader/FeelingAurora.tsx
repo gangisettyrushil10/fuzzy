@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { AmbientClassification } from '@shared/types/api'
 import { getAmbientStyle } from './ambientStyle'
 
@@ -14,6 +15,23 @@ type AmbientFamily =
   | 'treasure'
   | 'city'
   | 'default'
+
+interface LayerSnapshot {
+  classification: AmbientClassification | null
+  signature: string
+}
+
+function classificationSignature(classification: AmbientClassification | null): string {
+  if (!classification) return 'neutral'
+  return [
+    classification.mood,
+    classification.secondaryMood ?? 'none',
+    classification.motion,
+    classification.intensity.toFixed(2),
+    classification.sceneTags.slice(0, 3).join(','),
+    classification.paletteHints.slice(0, 4).join(',')
+  ].join(':')
+}
 
 function getFamily(classification: AmbientClassification | null): AmbientFamily {
   if (!classification) return 'default'
@@ -85,15 +103,66 @@ export function FeelingAurora({
   classification: AmbientClassification | null
   live?: { progress: number; velocity: number; phase: number; pageNumber?: number }
 }): React.JSX.Element {
+  const signature = classificationSignature(classification)
+  const lastLayerRef = useRef<LayerSnapshot | null>(null)
+  const [previousLayer, setPreviousLayer] = useState<LayerSnapshot | null>(null)
+
+  useEffect(() => {
+    const nextLayer = { classification, signature }
+    const lastLayer = lastLayerRef.current
+
+    if (lastLayer && lastLayer.signature !== signature) {
+      setPreviousLayer(lastLayer)
+      const clearTimer = window.setTimeout(() => setPreviousLayer(null), 680)
+      lastLayerRef.current = nextLayer
+      return () => window.clearTimeout(clearTimer)
+    }
+
+    lastLayerRef.current = nextLayer
+    return undefined
+  }, [classification, signature])
+
+  return (
+    <div className="fz-ambient-shell" style={withLive({}, live)} aria-hidden="true">
+      {previousLayer && (
+        <AmbientLayer
+          key={`previous:${previousLayer.signature}`}
+          classification={previousLayer.classification}
+          live={live}
+          layerClassName="fz-ambient-layer-exit"
+          showBurst={false}
+        />
+      )}
+      <AmbientLayer
+        key={`current:${signature}`}
+        classification={classification}
+        live={live}
+        layerClassName="fz-ambient-layer-enter"
+        showBurst
+      />
+    </div>
+  )
+}
+
+function AmbientLayer({
+  classification,
+  live,
+  layerClassName,
+  showBurst
+}: {
+  classification: AmbientClassification | null
+  live?: { progress: number; velocity: number; phase: number; pageNumber?: number }
+  layerClassName: string
+  showBurst: boolean
+}): React.JSX.Element {
   const pageKey = `${live?.pageNumber ?? 0}:${classification?.mood ?? 'neutral'}:${classification?.sceneTags[0] ?? 'none'}`
   const burstKind = getBurstKind(classification)
   const family = getFamily(classification)
 
   return (
     <div
-      className={`fz-ambient-shell fz-ambient-family-${family}`}
+      className={`fz-ambient-layer ${layerClassName} fz-ambient-family-${family}`}
       style={withLive(getAmbientStyle(classification), live)}
-      aria-hidden="true"
     >
       <div className="fz-ambient-chapter-entry" key={`entry:${pageKey}`} />
       <div className="fz-ambient-wash" />
@@ -116,7 +185,7 @@ export function FeelingAurora({
       <div className="fz-ambient-depth fz-ambient-depth-crest" style={parallaxStyle(1.7, live)}>
         <div className="fz-ambient-orb fz-ambient-orb-right" />
       </div>
-      {burstKind && (
+      {showBurst && burstKind && (
         <div
           className={`fz-ambient-burst fz-ambient-burst-${burstKind}`}
           key={`burst:${pageKey}`}
