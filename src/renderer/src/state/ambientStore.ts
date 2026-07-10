@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { hardestSentence } from '../lib/sentences'
 import { isCommonWord } from '../lib/frequencyList'
+import { previewAmbientClassification } from '../lib/ambientPreview'
 import type { AmbientClassification } from '@shared/types/api'
 
 // Ambient auto-explain: when enabled, the hardest sentence on each page you
@@ -62,6 +63,7 @@ interface AmbientState {
   // --- Shared classification ---
   classification: AmbientClassification | null
   classificationKey: string | null
+  previewForPage: (documentId: string, pageNumber: number, text: string) => void
   classifyForPage: (documentId: string, pageNumber: number, text: string) => Promise<void>
   live: AmbientLiveState
   setLive: (documentId: string, pageNumber: number, progress: number, velocity?: number) => void
@@ -159,9 +161,25 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
         velocity: Math.max(-1, Math.min(1, velocity)),
         phase
       },
-      ...(changedPage
-        ? { classification: null, classificationKey: null, feelingStatus: 'idle' as const }
-        : {})
+      ...(changedPage ? { classificationKey: null, feelingStatus: 'idle' as const } : {})
+    })
+  },
+
+  previewForPage: (documentId, pageNumber, text) => {
+    if (!get().feelingEnabled) return
+    if (!text.trim()) return
+
+    const cacheKey = excerptCacheKey(documentId, pageNumber, text)
+    const cached = classificationCache.get(cacheKey)
+    if (cached) {
+      set({ classification: cached, classificationKey: cacheKey, feelingStatus: 'ready' })
+      return
+    }
+
+    set({
+      classification: previewAmbientClassification(text),
+      classificationKey: cacheKey,
+      feelingStatus: 'classifying'
     })
   },
 
@@ -177,7 +195,11 @@ export const useAmbientStore = create<AmbientState>((set, get) => ({
       return
     }
 
-    set({ classificationKey: cacheKey, feelingStatus: 'classifying' })
+    set({
+      classification: previewAmbientClassification(text),
+      classificationKey: cacheKey,
+      feelingStatus: 'classifying'
+    })
 
     try {
       const existingRequest = classificationRequests.get(cacheKey)

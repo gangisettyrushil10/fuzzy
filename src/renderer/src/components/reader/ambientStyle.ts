@@ -94,18 +94,18 @@ export function getAmbientStyle(classification: AmbientClassification | null): C
   const motion = classification?.motion ?? 'drift'
   const driftBase =
     motion === 'wave'
-      ? 34
+      ? 26
       : motion === 'pulse'
-        ? 32
+        ? 24
         : motion === 'embers'
-          ? 30
+          ? 24
           : motion === 'shimmer'
-            ? 36
+            ? 28
             : motion === 'mist'
-              ? 42
+              ? 30
               : motion === 'still'
-                ? 56
-                : 44
+                ? 38
+                : 32
   const drift = driftBase - Math.round(intensity * 6)
   // Keep blur radii modest: large full-viewport filtered layers blow past
   // Chromium's tile raster budget and read as choppy rather than relaxing.
@@ -132,9 +132,9 @@ export function getAmbientStyle(classification: AmbientClassification | null): C
     ['--fz-ambient-c4' as string]: c4,
     ['--fz-ambient-opacity' as string]: opacity.toFixed(3),
     ['--fz-ambient-drift' as string]: `${drift}s`,
-    ['--fz-ambient-drift-slow' as string]: `${drift + 18}s`,
-    ['--fz-ambient-drift-fast' as string]: `${Math.max(24, drift - 6)}s`,
-    ['--fz-ambient-drift-glacial' as string]: `${drift + 30}s`,
+    ['--fz-ambient-drift-slow' as string]: `${drift + 12}s`,
+    ['--fz-ambient-drift-fast' as string]: `${Math.max(18, drift - 5)}s`,
+    ['--fz-ambient-drift-glacial' as string]: `${drift + 22}s`,
     ['--fz-ambient-blur' as string]: `${glow}px`,
     ['--fz-ambient-motion-scale' as string]: `${motionScale}`
   }

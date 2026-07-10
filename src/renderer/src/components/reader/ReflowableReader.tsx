@@ -193,6 +193,7 @@ export function ReflowableReader({
   const feelingStatus = useAmbientStore((s) => s.feelingStatus)
   const ambientClassification = useAmbientStore((s) => s.classification)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
+  const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
   useEffect(() => {
@@ -210,13 +211,14 @@ export function ReflowableReader({
       prevProgress = progress
       const excerpt = excerptForProgress(current.textContent ?? '', progress)
       if (!excerpt) return
+      previewForPage(documentId, current.pageNumber, excerpt)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
       classifyTimer = window.setTimeout(
         () => {
           classifyTimer = undefined
           void classifyForPage(documentId, current.pageNumber, excerpt)
         },
-        immediate ? 0 : 220
+        immediate ? 0 : 140
       )
     }
 
@@ -233,7 +235,7 @@ export function ReflowableReader({
       host.removeEventListener('scroll', onScroll)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
     }
-  }, [feelingEnabled, current, documentId, classifyForPage, setAmbientLive])
+  }, [feelingEnabled, current, documentId, previewForPage, classifyForPage, setAmbientLive])
 
   useEffect(() => {
     if (!feelingEnabled || !current) return

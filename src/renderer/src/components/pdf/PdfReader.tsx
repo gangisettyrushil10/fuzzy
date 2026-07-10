@@ -64,6 +64,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const feelingStatus = useAmbientStore((s) => s.feelingStatus)
   const ambientClassification = useAmbientStore((s) => s.classification)
   const setFeelingEnabled = useAmbientStore((s) => s.setFeelingEnabled)
+  const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
 
@@ -128,13 +129,14 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       prevProgress = progress
       const excerpt = excerptForProgress(pageText, progress)
       if (!excerpt) return
+      previewForPage(documentId, currentPage, excerpt)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
       classifyTimer = window.setTimeout(
         () => {
           classifyTimer = undefined
           void classifyForPage(documentId, currentPage, excerpt)
         },
-        immediate ? 0 : 220
+        immediate ? 0 : 140
       )
     }
 
@@ -151,7 +153,15 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
       host.removeEventListener('scroll', onScroll)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
     }
-  }, [feelingEnabled, pageText, documentId, currentPage, classifyForPage, setAmbientLive])
+  }, [
+    feelingEnabled,
+    pageText,
+    documentId,
+    currentPage,
+    previewForPage,
+    classifyForPage,
+    setAmbientLive
+  ])
 
   useEffect(() => {
     if (!feelingEnabled) return
