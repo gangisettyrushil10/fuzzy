@@ -107,11 +107,9 @@ export function getAmbientStyle(classification: AmbientClassification | null): C
                 ? 56
                 : 44
   const drift = driftBase - Math.round(intensity * 6)
-  // Kept well under the old 82-140px ceiling: at full-viewport size those large
-  // blur radii blew past Chromium's tile raster budget on HiDPI displays
-  // ("tile memory limits exceeded" in devtools), which is what read as choppy
-  // stutter rather than a flowing drift.
-  const glow = 44 + Math.round(intensity * 30)
+  // Keep blur radii modest: large full-viewport filtered layers blow past
+  // Chromium's tile raster budget and read as choppy rather than relaxing.
+  const glow = 24 + Math.round(intensity * 18)
   const motionScale =
     motion === 'wave'
       ? 1.1

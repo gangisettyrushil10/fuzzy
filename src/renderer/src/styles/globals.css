@@ -677,7 +677,7 @@ body::before {
 .fz-ambient-shell::before {
   content: '';
   position: absolute;
-  inset: -12%;
+  inset: -7%;
   background:
     radial-gradient(
       circle at 14% 16%,
@@ -700,7 +700,6 @@ body::before {
   filter: saturate(150%) brightness(1.18);
   mix-blend-mode: screen;
   animation: fz-ambient-horizon-drift var(--fz-ambient-drift-glacial) linear infinite;
-  will-change: transform;
 }
 
 .fz-ambient-family-oceanic {
@@ -805,6 +804,7 @@ body::before {
 }
 
 .fz-ambient-wash {
+  inset: -6%;
   background:
     radial-gradient(
       circle at 20% 18%,
@@ -823,9 +823,8 @@ body::before {
       transparent 58%
     );
   opacity: calc(var(--fz-ambient-opacity) * 1.38);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.34)) saturate(142%) brightness(1.08);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.22)) saturate(136%) brightness(1.06);
   animation: fz-ambient-breathe var(--fz-ambient-drift-slow) linear infinite;
-  will-change: transform, opacity;
   transform: translate3d(
     calc((var(--fz-ambient-phase, 0.5) - 0.5) * 5%),
     calc((var(--fz-ambient-progress, 0.5) - 0.5) * 5%),
@@ -834,7 +833,7 @@ body::before {
 }
 
 .fz-ambient-haze {
-  inset: -16% -12%;
+  inset: -7% -5%;
   background:
     radial-gradient(
       ellipse at 18% 20%,
@@ -853,16 +852,15 @@ body::before {
       color-mix(in srgb, var(--fz-ambient-c3) 8%, transparent) 62%,
       transparent 100%
     );
-  opacity: calc(var(--fz-ambient-opacity) * 1.18);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.5)) saturate(136%);
+  opacity: calc(var(--fz-ambient-opacity) * 1.06);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.26)) saturate(128%);
   mix-blend-mode: screen;
   animation: fz-ambient-haze-drift var(--fz-ambient-drift-glacial) linear infinite;
-  will-change: transform, opacity;
 }
 
 .fz-ambient-ribbon {
-  inset: auto -22%;
-  height: 64%;
+  inset: auto -12%;
+  height: 42%;
   border-radius: 48% 52% 45% 55%;
   background: linear-gradient(
     100deg,
@@ -875,35 +873,33 @@ body::before {
     color-mix(in srgb, var(--fz-ambient-c3) 0%, transparent) 90%,
     transparent 100%
   );
-  filter: blur(calc(var(--fz-ambient-blur) * 0.34)) saturate(158%) brightness(1.08);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.2)) saturate(146%) brightness(1.06);
   -webkit-mask-image: radial-gradient(ellipse at center, black 44%, transparent 78%);
   mask-image: radial-gradient(ellipse at center, black 44%, transparent 78%);
   mix-blend-mode: screen;
-  opacity: calc(var(--fz-ambient-opacity) * 1.62);
+  opacity: calc(var(--fz-ambient-opacity) * 1.42);
   transform-origin: 50% 50%;
-  will-change: transform;
 }
 
 .fz-ambient-ribbon-back {
-  top: -9%;
+  top: 1%;
   animation: fz-ambient-aurora-ribbon-back var(--fz-ambient-drift-glacial) linear infinite;
 }
 
 .fz-ambient-ribbon-front {
-  top: 7%;
-  opacity: calc(var(--fz-ambient-opacity) * 1.34);
+  top: 18%;
+  opacity: calc(var(--fz-ambient-opacity) * 1.16);
   animation: fz-ambient-aurora-ribbon-front var(--fz-ambient-drift-slow) linear infinite;
 }
 
 .fz-ambient-wave {
-  width: 166%;
-  height: 52%;
-  left: -33%;
+  width: 132%;
+  height: 40%;
+  left: -16%;
   border-radius: 42% 58% 45% 55%;
-  opacity: calc(var(--fz-ambient-opacity) * 1.42);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.88)) saturate(146%) brightness(1.08);
+  opacity: calc(var(--fz-ambient-opacity) * 1.24);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.42)) saturate(132%) brightness(1.06);
   mix-blend-mode: screen;
-  will-change: transform;
   transition:
     transform 680ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 680ms ease,
@@ -911,7 +907,7 @@ body::before {
 }
 
 .fz-ambient-wave-top {
-  top: -14%;
+  top: -7%;
   background: linear-gradient(
     105deg,
     color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 0%,
@@ -921,12 +917,12 @@ body::before {
     color-mix(in srgb, var(--fz-ambient-c3) 66%, white 9%) 100%
   );
   animation: fz-ambient-sweep var(--fz-ambient-drift) linear infinite;
-  opacity: calc((var(--fz-ambient-opacity) * 1.42) + (var(--fz-ambient-surge, 0) * 0.08));
+  opacity: calc((var(--fz-ambient-opacity) * 1.22) + (var(--fz-ambient-surge, 0) * 0.06));
 }
 
 .fz-ambient-family-oceanic .fz-ambient-wave-top,
 .fz-ambient-family-oceanic .fz-ambient-wave-bottom {
-  height: 54%;
+  height: 42%;
   border-radius: 40% 60% 48% 52%;
 }
 
@@ -940,7 +936,7 @@ body::before {
 
 .fz-ambient-family-storm .fz-ambient-wave-top,
 .fz-ambient-family-storm .fz-ambient-wave-bottom {
-  filter: blur(calc(var(--fz-ambient-blur) * 0.86));
+  filter: blur(calc(var(--fz-ambient-blur) * 0.44));
 }
 
 .fz-ambient-family-magic .fz-ambient-wave-top,
@@ -950,11 +946,11 @@ body::before {
 
 .fz-ambient-family-ember .fz-ambient-wave-top,
 .fz-ambient-family-blood .fz-ambient-wave-top {
-  opacity: calc((var(--fz-ambient-opacity) * 1.75) + (var(--fz-ambient-surge, 0) * 0.15));
+  opacity: calc((var(--fz-ambient-opacity) * 1.34) + (var(--fz-ambient-surge, 0) * 0.08));
 }
 
 .fz-ambient-wave-bottom {
-  bottom: -18%;
+  bottom: -9%;
   background: linear-gradient(
     120deg,
     color-mix(in srgb, var(--fz-ambient-c3) 8%, transparent) 0%,
@@ -964,16 +960,15 @@ body::before {
     color-mix(in srgb, var(--fz-ambient-c1) 0%, transparent) 100%
   );
   animation: fz-ambient-sweep-reverse var(--fz-ambient-drift-fast) linear infinite;
-  opacity: calc((var(--fz-ambient-opacity) * 1.36) + (var(--fz-ambient-surge, 0) * 0.07));
+  opacity: calc((var(--fz-ambient-opacity) * 1.16) + (var(--fz-ambient-surge, 0) * 0.05));
 }
 
 .fz-ambient-orb {
-  width: 34rem;
-  height: 22rem;
+  width: 24rem;
+  height: 15rem;
   border-radius: 999px;
-  opacity: calc(var(--fz-ambient-opacity) * 1.22);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.54)) saturate(140%) brightness(1.08);
-  will-change: transform;
+  opacity: calc(var(--fz-ambient-opacity) * 1.06);
+  filter: blur(calc(var(--fz-ambient-blur) * 0.32)) saturate(130%) brightness(1.06);
   transition:
     transform 760ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 760ms ease,
@@ -981,7 +976,7 @@ body::before {
 }
 
 .fz-ambient-orb-left {
-  left: -7rem;
+  left: -5rem;
   top: 22%;
   background: radial-gradient(
     circle,
@@ -999,7 +994,7 @@ body::before {
 .fz-ambient-family-stone .fz-ambient-orb-left,
 .fz-ambient-family-stone .fz-ambient-orb-right {
   opacity: calc(var(--fz-ambient-opacity) * 1.35);
-  filter: blur(calc(var(--fz-ambient-blur) * 0.92));
+  filter: blur(calc(var(--fz-ambient-blur) * 0.42));
 }
 
 .fz-ambient-family-magic .fz-ambient-orb-right {
@@ -1008,11 +1003,11 @@ body::before {
 
 .fz-ambient-family-woodland .fz-ambient-orb-left,
 .fz-ambient-family-woodland .fz-ambient-orb-right {
-  opacity: calc(var(--fz-ambient-opacity) * 1.7);
+  opacity: calc(var(--fz-ambient-opacity) * 1.28);
 }
 
 .fz-ambient-orb-right {
-  right: -8rem;
+  right: -5rem;
   top: 4%;
   background: radial-gradient(
     circle,
