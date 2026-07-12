@@ -20,6 +20,7 @@ import { analyzeComplexity } from '../../lib/complexity'
 import { isCommonWord } from '../../lib/frequencyList'
 import { cn } from '../../lib/cn'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
+import { moodlightClassificationDelay, moodlightExcerptChars } from '../../lib/moodlightSampling'
 
 // One reader for every reflowable format (epub, txt, md, docx, mobi). It does
 // NOT parse the source file — the main-process extractor already turned it into
@@ -196,6 +197,7 @@ export function ReflowableReader({
   const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
+  const moodlightResponsiveness = useAmbientStore((s) => s.moodlightPreferences.responsiveness)
   useEffect(() => {
     if (!feelingEnabled || !current?.textContent) return
     const host = scrollRef.current
@@ -209,7 +211,11 @@ export function ReflowableReader({
           : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
       setAmbientLive(documentId, current.pageNumber, progress, progress - prevProgress)
       prevProgress = progress
-      const excerpt = excerptForProgress(current.textContent ?? '', progress)
+      const excerpt = excerptForProgress(
+        current.textContent ?? '',
+        progress,
+        moodlightExcerptChars(moodlightResponsiveness)
+      )
       if (!excerpt) return
       previewForPage(documentId, current.pageNumber, excerpt)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
@@ -218,7 +224,7 @@ export function ReflowableReader({
           classifyTimer = undefined
           void classifyForPage(documentId, current.pageNumber, excerpt)
         },
-        immediate ? 360 : 760
+        moodlightClassificationDelay(moodlightResponsiveness, immediate)
       )
     }
 
@@ -235,7 +241,15 @@ export function ReflowableReader({
       host.removeEventListener('scroll', onScroll)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
     }
-  }, [feelingEnabled, current, documentId, previewForPage, classifyForPage, setAmbientLive])
+  }, [
+    feelingEnabled,
+    current,
+    documentId,
+    previewForPage,
+    classifyForPage,
+    setAmbientLive,
+    moodlightResponsiveness
+  ])
 
   useEffect(() => {
     if (!feelingEnabled || !current) return

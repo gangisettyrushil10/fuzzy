@@ -3,6 +3,7 @@ import type { AmbientClassification } from '@shared/types/api'
 import { getAmbientOpacity } from './ambientStyle'
 import { getMoodlightPalette, mixRgb, rgba, vividRgb, type MoodlightRgb } from './moodlightColor'
 import { resolveMoodlightMotionEnvelope, resolveMoodlightMotionProfile } from './moodlightMotion'
+import type { MoodlightPreferences } from '../../state/ambientStore'
 
 type Rgb = MoodlightRgb
 
@@ -16,6 +17,18 @@ interface AuroraTarget {
   turbulence: number
   pulse: number
   flow: number
+  streakDensity: number
+  burstFrequency: number
+  burstRadius: number
+  burstStrength: number
+}
+
+interface MoodlightImpulse {
+  startedAt: number
+  strength: number
+  radius: number
+  colorIndex: number
+  durationMs: number
 }
 
 const NEUTRAL_TARGET: AuroraTarget = {
@@ -32,7 +45,11 @@ const NEUTRAL_TARGET: AuroraTarget = {
   energy: 0.3,
   turbulence: 0.13,
   pulse: 0.06,
-  flow: 1
+  flow: 1,
+  streakDensity: 0,
+  burstFrequency: 0,
+  burstRadius: 0.4,
+  burstStrength: 0
 }
 
 function lerp(a: number, b: number, amount: number): number {
@@ -58,7 +75,11 @@ function cloneTarget(target: AuroraTarget): AuroraTarget {
     energy: target.energy,
     turbulence: target.turbulence,
     pulse: target.pulse,
-    flow: target.flow
+    flow: target.flow,
+    streakDensity: target.streakDensity,
+    burstFrequency: target.burstFrequency,
+    burstRadius: target.burstRadius,
+    burstStrength: target.burstStrength
   }
 }
 
@@ -83,7 +104,11 @@ function makeAuroraTarget(classification: AmbientClassification | null): AuroraT
     energy: motion.energy,
     turbulence: motion.turbulence,
     pulse: motion.pulse,
-    flow: motion.flow
+    flow: motion.flow,
+    streakDensity: motion.streaks?.density ?? 0,
+    burstFrequency: motion.bursts?.frequency ?? 0,
+    burstRadius: motion.bursts?.radius ?? 0.4,
+    burstStrength: motion.bursts?.strength ?? 0
   }
 }
 
@@ -199,6 +224,75 @@ function drawSoftCurtain(
   ctx.fill()
 }
 
+function drawDepthVeil(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  phase: number,
+  target: AuroraTarget,
+  alpha: number
+): void {
+  const gradient = ctx.createLinearGradient(0, height * 0.34, width, height * 0.92)
+  gradient.addColorStop(0, rgba(target.colors[2], 0))
+  gradient.addColorStop(0.32, rgba(target.colors[2], alpha * 0.44))
+  gradient.addColorStop(0.7, rgba(target.colors[0], alpha * 0.3))
+  gradient.addColorStop(1, rgba(target.colors[1], 0))
+
+  ctx.beginPath()
+  ctx.moveTo(-width * 0.08, height * 0.72)
+  for (let index = 0; index <= 8; index += 1) {
+    const x = (width / 8) * index
+    const y =
+      height * 0.7 +
+      Math.sin(index * 0.82 + phase * 0.24) * height * 0.09 +
+      Math.sin(index * 0.37 - phase * 0.13) * height * 0.035
+    ctx.lineTo(x, y)
+  }
+  ctx.lineTo(width * 1.08, height * 1.08)
+  ctx.lineTo(-width * 0.08, height * 1.08)
+  ctx.closePath()
+  ctx.fillStyle = gradient
+  ctx.fill()
+}
+
+function drawImpulseBloom(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  target: AuroraTarget,
+  impulse: MoodlightImpulse | null,
+  timeMs: number,
+  progress: number,
+  alpha: number
+): void {
+  if (!impulse) return
+  const elapsed = timeMs - impulse.startedAt
+  const life = clamp01(elapsed / impulse.durationMs)
+  if (life >= 1) return
+
+  const rise = Math.sin(Math.PI * life)
+  const envelope = rise * rise * (1 - life * 0.24)
+  const radius = Math.max(width, height) * (0.18 + impulse.radius * 0.28 + life * 0.16)
+  const x = width * (0.24 + progress * 0.52)
+  const y = height * (0.34 + Math.sin(impulse.colorIndex * 1.8) * 0.12)
+  const color = target.colors[impulse.colorIndex % target.colors.length]
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, radius)
+  glow.addColorStop(0, rgba(vividRgb(color), alpha * impulse.strength * envelope * 0.48))
+  glow.addColorStop(0.34, rgba(color, alpha * impulse.strength * envelope * 0.24))
+  glow.addColorStop(1, rgba(color, 0))
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.save()
+  ctx.globalAlpha = alpha * impulse.strength * envelope * 0.22
+  ctx.strokeStyle = rgba(vividRgb(color), 0.7)
+  ctx.lineWidth = Math.max(1, height * 0.002)
+  ctx.beginPath()
+  ctx.ellipse(x, y, radius * 0.72, radius * 0.22, -0.12, Math.PI * 0.12, Math.PI * 1.72)
+  ctx.stroke()
+  ctx.restore()
+}
+
 function drawEnergyStreaks(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -240,7 +334,10 @@ function drawAuroraFrame(
   live: { progress: number; velocity: number; phase: number },
   timeMs: number,
   motionPhase: number,
-  reducedMotion: boolean
+  reducedMotion: boolean,
+  preferences: MoodlightPreferences,
+  impulse: MoodlightImpulse | null,
+  readingActivity: number
 ): void {
   const width = canvas.width
   const height = canvas.height
@@ -249,13 +346,15 @@ function drawAuroraFrame(
   const progressShift = (live.progress - 0.5) * width * 0.035
   const velocityLift = live.velocity * height * -0.018
   const basePhase = motionPhase + live.phase * Math.PI * 0.55
-  const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
+  const intensityPreference = 0.56 + preferences.intensity * 0.68
+  const motionPreference = reducedMotion ? 0.18 : 0.48 + preferences.motion * 0.7
+  const opacity = target.opacity * intensityPreference * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
   const envelope = resolveMoodlightMotionEnvelope(timeMs, target, reducedMotion)
-  const amplitudeScale = envelope.amplitudeScale
-  const counterAmplitudeScale = envelope.counterAmplitudeScale
-  const thicknessScale = envelope.thicknessScale
-  const flowScale = envelope.flowScale
+  const amplitudeScale = 1 + (envelope.amplitudeScale - 1) * motionPreference
+  const counterAmplitudeScale = 1 + (envelope.counterAmplitudeScale - 1) * motionPreference
+  const thicknessScale = 1 + (envelope.thicknessScale - 1) * motionPreference
+  const flowScale = 1 + (envelope.flowScale - 1) * motionPreference
   const verticalDrift = height * envelope.verticalOffset
   const pulseWave = Math.sin(basePhase * 2.4)
   const shapePulse = 1 + pulseWave * target.pulse * 0.55
@@ -293,7 +392,7 @@ function drawAuroraFrame(
     target.colors[0],
     target.colors[1],
     opacity * 0.58 * luminancePulse,
-    target.flow * 0.92 * flowScale,
+    target.flow * 0.92 * flowScale * (0.94 + motionPreference * 0.06),
     target.turbulence * 0.72
   )
   drawRibbon(
@@ -348,7 +447,17 @@ function drawAuroraFrame(
     target.flow * 0.64 * flowScale,
     target.turbulence * 0.42
   )
-  if (target.energy > 0.64) {
+  drawDepthVeil(
+    ctx,
+    width,
+    height,
+    basePhase + readingActivity * 0.8,
+    target,
+    opacity * (0.2 + target.spread * 0.12)
+  )
+  drawImpulseBloom(ctx, width, height, target, impulse, timeMs, live.progress, opacity)
+
+  if (target.energy > 0.58 && target.streakDensity > 0.2) {
     drawRibbon(
       ctx,
       width,
@@ -362,7 +471,14 @@ function drawAuroraFrame(
       target.flow * 1.12,
       Math.min(1, target.turbulence * 1.2)
     )
-    drawEnergyStreaks(ctx, width, height, basePhase, target, opacity * target.energy * 0.26)
+    drawEnergyStreaks(
+      ctx,
+      width,
+      height,
+      basePhase,
+      target,
+      opacity * target.energy * target.streakDensity * 0.32
+    )
   }
 
   ctx.globalCompositeOperation = 'source-over'
@@ -376,10 +492,12 @@ function drawAuroraFrame(
 
 export function FeelingAurora({
   classification,
-  live
+  live,
+  preferences
 }: {
   classification: AmbientClassification | null
   live?: { progress: number; velocity: number; phase: number; pageNumber?: number }
+  preferences: MoodlightPreferences
 }): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const targetRef = useRef<AuroraTarget | null>(null)
@@ -387,12 +505,59 @@ export function FeelingAurora({
   const liveRef = useRef({ progress: 0.5, velocity: 0, phase: 0 })
   const smoothLiveRef = useRef({ progress: 0.5, velocity: 0, phase: 0 })
   const motionPhaseRef = useRef(0)
+  const readingActivityRef = useRef(0)
+  const preferencesRef = useRef(preferences)
+  const impulseRef = useRef<MoodlightImpulse | null>(null)
+  const classificationSignatureRef = useRef<string | null>(null)
+  const pageNumberRef = useRef<number | null>(null)
 
   useEffect(() => {
     const nextTarget = makeAuroraTarget(classification)
+    const previousTarget = targetRef.current
+    if (previousTarget) {
+      nextTarget.colors = nextTarget.colors.map((color, index) =>
+        mixRgb(color, previousTarget.colors[index], 0.1)
+      ) as [Rgb, Rgb, Rgb, Rgb]
+    }
     targetRef.current = nextTarget
     currentRef.current ??= cloneTarget(nextTarget)
+
+    const signature = classification
+      ? `${classification.mood}:${classification.sceneTags[0] ?? 'none'}:${classification.motion}`
+      : null
+    const previousSignature = classificationSignatureRef.current
+    if (signature && previousSignature && signature !== previousSignature) {
+      impulseRef.current = {
+        startedAt: performance.now(),
+        strength: Math.max(0.34, nextTarget.burstStrength * 0.72),
+        radius: nextTarget.burstRadius,
+        colorIndex: Math.abs(signature.length + classification!.sceneTags.length) % 4,
+        durationMs: 6200 - nextTarget.burstFrequency * 1100
+      }
+    }
+    classificationSignatureRef.current = signature
   }, [classification])
+
+  useEffect(() => {
+    preferencesRef.current = preferences
+  }, [preferences])
+
+  useEffect(() => {
+    const pageNumber = live?.pageNumber
+    if (pageNumber === undefined) return
+    const previousPage = pageNumberRef.current
+    pageNumberRef.current = pageNumber
+    if (previousPage === null || previousPage === pageNumber) return
+
+    const target = targetRef.current ?? NEUTRAL_TARGET
+    impulseRef.current = {
+      startedAt: performance.now(),
+      strength: 0.3 + target.energy * 0.18,
+      radius: Math.max(0.42, target.burstRadius),
+      colorIndex: Math.abs(pageNumber) % 4,
+      durationMs: 7200
+    }
+  }, [live?.pageNumber])
 
   useEffect(() => {
     liveRef.current = {
@@ -443,19 +608,47 @@ export function FeelingAurora({
       current.turbulence = lerp(current.turbulence, target.turbulence, motionEase)
       current.pulse = lerp(current.pulse, target.pulse, motionEase)
       current.flow = lerp(current.flow, target.flow, motionEase)
+      current.streakDensity = lerp(current.streakDensity, target.streakDensity, motionEase)
+      current.burstFrequency = lerp(current.burstFrequency, target.burstFrequency, motionEase)
+      current.burstRadius = lerp(current.burstRadius, target.burstRadius, motionEase)
+      current.burstStrength = lerp(current.burstStrength, target.burstStrength, motionEase)
       smoothLive.progress = lerp(smoothLive.progress, liveTarget.progress, liveEase)
       smoothLive.velocity = lerp(smoothLive.velocity, liveTarget.velocity, liveEase * 0.5)
       smoothLive.phase = lerp(smoothLive.phase, liveTarget.phase, liveEase)
 
       const envelope = resolveMoodlightMotionEnvelope(time, current, reducedMotion)
-      const scrollLift = clamp01(Math.abs(smoothLive.velocity)) * 0.12
+      const activityTarget = clamp01(Math.abs(smoothLive.velocity) * 18)
+      const activityEase = easeForDelta(
+        delta,
+        activityTarget > readingActivityRef.current ? 520 : 4200
+      )
+      readingActivityRef.current = lerp(readingActivityRef.current, activityTarget, activityEase)
+      const preference = preferencesRef.current
+      const scrollLift = readingActivityRef.current * 0.08
+      const motionPreference = 0.6 + preference.motion * 0.65
       motionPhaseRef.current +=
-        delta * current.speed * envelope.speedScale * (1 + scrollLift) * (reducedMotion ? 0.18 : 1)
+        delta *
+        current.speed *
+        envelope.speedScale *
+        motionPreference *
+        (1 + scrollLift) *
+        (reducedMotion ? 0.18 : 1)
       if (motionPhaseRef.current > Math.PI * 2000) {
         motionPhaseRef.current %= Math.PI * 2
       }
 
-      drawAuroraFrame(ctx, canvas, current, smoothLive, time, motionPhaseRef.current, reducedMotion)
+      drawAuroraFrame(
+        ctx,
+        canvas,
+        current,
+        smoothLive,
+        time,
+        motionPhaseRef.current,
+        reducedMotion,
+        preference,
+        impulseRef.current,
+        readingActivityRef.current
+      )
       animationFrame = window.requestAnimationFrame(animate)
     }
 

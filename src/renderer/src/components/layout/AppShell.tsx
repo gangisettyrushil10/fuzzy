@@ -83,6 +83,7 @@ export function AppShell(): React.JSX.Element {
   const feelingEnabled = useAmbientStore((s) => s.feelingEnabled)
   const ambientClassification = useAmbientStore((s) => s.classification)
   const ambientLive = useAmbientStore((s) => s.live)
+  const moodlightPreferences = useAmbientStore((s) => s.moodlightPreferences)
   const ambientStyle = feelingEnabled ? getAmbientStyle(ambientClassification) : undefined
 
   // ── Resizable panels ──────────────────────────────────────────────────────
@@ -240,6 +241,7 @@ export function AppShell(): React.JSX.Element {
         <FeelingAurora
           classification={ambientClassification}
           live={{ ...ambientLive, pageNumber: ambientLive.pageNumber }}
+          preferences={moodlightPreferences}
         />
       )}
       <div
