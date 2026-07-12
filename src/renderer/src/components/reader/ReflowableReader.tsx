@@ -218,7 +218,7 @@ export function ReflowableReader({
           classifyTimer = undefined
           void classifyForPage(documentId, current.pageNumber, excerpt)
         },
-        immediate ? 0 : 140
+        immediate ? 360 : 760
       )
     }
 

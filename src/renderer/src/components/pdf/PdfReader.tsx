@@ -136,7 +136,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
           classifyTimer = undefined
           void classifyForPage(documentId, currentPage, excerpt)
         },
-        immediate ? 0 : 140
+        immediate ? 360 : 760
       )
     }
 

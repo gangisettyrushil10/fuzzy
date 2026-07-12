@@ -27,9 +27,8 @@ function classificationSignature(classification: AmbientClassification | null): 
     classification.mood,
     classification.secondaryMood ?? 'none',
     classification.motion,
-    classification.intensity.toFixed(2),
-    classification.sceneTags.slice(0, 3).join(','),
-    classification.paletteHints.slice(0, 4).join(',')
+    classification.sceneTags.slice(0, 2).join(','),
+    classification.paletteHints.slice(0, 3).join(',')
   ].join(':')
 }
 
@@ -86,10 +85,10 @@ function parallaxStyle(
   const progress = live?.progress ?? 0.5
   const velocity = live?.velocity ?? 0
   const phase = live?.phase ?? 0.5
-  const x = (progress - 0.5) * depth * 14 + (phase - 0.5) * depth * 5
-  const y = velocity * depth * -14
-  const rotate = velocity * depth * -1.25
-  const scale = 1 + Math.abs(velocity) * depth * 0.035
+  const x = (progress - 0.5) * depth * 7 + (phase - 0.5) * depth * 2.5
+  const y = velocity * depth * -6
+  const rotate = velocity * depth * -0.45
+  const scale = 1 + Math.abs(velocity) * depth * 0.014
 
   return {
     transform: `translate3d(${x}px, ${y}px, 0) rotate(${rotate}deg) scale(${scale})`

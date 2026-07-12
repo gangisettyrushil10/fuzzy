@@ -718,11 +718,11 @@ body::before {
   isolation: isolate;
   background: transparent;
   transform: translate3d(
-    calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.4rem),
-    calc(var(--fz-ambient-velocity, 0) * -1.6rem),
+    calc((var(--fz-ambient-progress, 0.5) - 0.5) * 0.8rem),
+    calc(var(--fz-ambient-velocity, 0) * -0.9rem),
     0
   );
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fz-ambient-layer {
@@ -730,11 +730,11 @@ body::before {
   inset: 0;
   overflow: hidden;
   opacity: 1;
-  animation: fz-ambient-layer-in 520ms ease both;
+  animation: fz-ambient-layer-in 1600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .fz-ambient-layer-exit {
-  animation: fz-ambient-layer-out 680ms ease both;
+  animation: fz-ambient-layer-out 2000ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes fz-ambient-layer-in {
@@ -783,8 +783,8 @@ body::before {
 
 .fz-ambient-family-oceanic {
   transform: translate3d(
-      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 2.2rem),
-      calc(var(--fz-ambient-velocity, 0) * -2rem),
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1rem),
+      calc(var(--fz-ambient-velocity, 0) * -0.9rem),
       0
     )
     scale(1.01);
@@ -792,8 +792,8 @@ body::before {
 
 .fz-ambient-family-storm {
   transform: translate3d(
-      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.8rem),
-      calc(var(--fz-ambient-velocity, 0) * -2.4rem),
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 0.9rem),
+      calc(var(--fz-ambient-velocity, 0) * -1rem),
       0
     )
     scale(1.015);
@@ -801,8 +801,8 @@ body::before {
 
 .fz-ambient-family-magic {
   transform: translate3d(
-      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.6rem),
-      calc(var(--fz-ambient-velocity, 0) * -1.8rem),
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 0.8rem),
+      calc(var(--fz-ambient-velocity, 0) * -0.8rem),
       0
     )
     scale(1.02);
@@ -811,8 +811,8 @@ body::before {
 .fz-ambient-family-ember,
 .fz-ambient-family-blood {
   transform: translate3d(
-      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 1.4rem),
-      calc(var(--fz-ambient-velocity, 0) * -2.2rem),
+      calc((var(--fz-ambient-progress, 0.5) - 0.5) * 0.8rem),
+      calc(var(--fz-ambient-velocity, 0) * -0.9rem),
       0
     )
     scale(1.018);
@@ -821,7 +821,7 @@ body::before {
 .fz-ambient-depth {
   position: absolute;
   inset: 0;
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fz-ambient-depth-back {
@@ -877,9 +877,9 @@ body::before {
   position: absolute;
   inset: 0;
   transition:
-    background 0.86s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.62s ease,
-    filter 0.86s ease;
+    background 1.8s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 1.45s ease,
+    filter 1.8s ease;
 }
 
 .fz-ambient-wash {
@@ -973,9 +973,9 @@ body::before {
   border-radius: 42% 58% 45% 55%;
   opacity: calc(var(--fz-ambient-opacity) * 0.94);
   transition:
-    transform 430ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 520ms ease,
-    filter 620ms ease;
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 1.45s ease,
+    filter 1.8s ease;
 }
 
 .fz-ambient-wave-top {
@@ -1041,9 +1041,9 @@ body::before {
   border-radius: 999px;
   opacity: calc(var(--fz-ambient-opacity) * 0.72);
   transition:
-    transform 430ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 520ms ease,
-    filter 620ms ease;
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 1.45s ease,
+    filter 1.8s ease;
 }
 
 .fz-ambient-orb-left {
