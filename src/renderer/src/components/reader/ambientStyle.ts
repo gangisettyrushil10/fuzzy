@@ -82,9 +82,9 @@ function getPalette(classification: AmbientClassification): MoodPalette {
 }
 
 function getBlobOpacity(classification: AmbientClassification): number {
-  const base = 0.11 + classification.intensity * 0.2
-  const scale = classification.type === 'non-fiction' ? NON_FICTION_SCALE : 1
-  return Math.min(0.34, Math.max(0.08, base * scale))
+  const base = 0.2 + classification.intensity * 0.32
+  const scale = classification.type === 'non-fiction' ? Math.max(NON_FICTION_SCALE, 0.9) : 1
+  return Math.min(0.58, Math.max(0.18, base * scale))
 }
 
 export function getAmbientPalette(classification: AmbientClassification | null): MoodPalette {
@@ -92,7 +92,7 @@ export function getAmbientPalette(classification: AmbientClassification | null):
 }
 
 export function getAmbientOpacity(classification: AmbientClassification | null): number {
-  return classification ? getBlobOpacity(classification) : 0.09
+  return classification ? getBlobOpacity(classification) : 0.28
 }
 
 export function getAmbientStyle(classification: AmbientClassification | null): CSSProperties {

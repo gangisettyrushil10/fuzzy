@@ -14,15 +14,21 @@ interface AuroraTarget {
 
 const NEUTRAL_TARGET: AuroraTarget = {
   colors: [
-    [109, 140, 255],
-    [75, 214, 240],
-    [185, 199, 255],
-    [112, 170, 255]
+    [83, 108, 255],
+    [0, 232, 255],
+    [205, 72, 255],
+    [255, 214, 54]
   ],
-  opacity: 0.1,
+  opacity: 0.28,
   intensity: 0.38,
   speed: 0.000055,
   spread: 0.42
+}
+
+interface Hsl {
+  h: number
+  s: number
+  l: number
 }
 
 function hexToRgb(hex: string): Rgb {
@@ -46,6 +52,63 @@ function mixRgb(a: Rgb, b: Rgb, amount: number): Rgb {
     a[1] + (b[1] - a[1]) * amount,
     a[2] + (b[2] - a[2]) * amount
   ]
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+function rgbToHsl([rRaw, gRaw, bRaw]: Rgb): Hsl {
+  const r = rRaw / 255
+  const g = gRaw / 255
+  const b = bRaw / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+  const l = (max + min) / 2
+
+  if (delta === 0) return { h: 0, s: 0, l }
+
+  const s = delta / (1 - Math.abs(2 * l - 1))
+  const hue =
+    max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4
+
+  return { h: (hue * 60 + 360) % 360, s, l }
+}
+
+function hslToRgb({ h, s, l }: Hsl): Rgb {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  const segment = Math.floor(h / 60) % 6
+  const [r1, g1, b1]: Rgb =
+    segment === 0
+      ? [c, x, 0]
+      : segment === 1
+        ? [x, c, 0]
+        : segment === 2
+          ? [0, c, x]
+          : segment === 3
+            ? [0, x, c]
+            : segment === 4
+              ? [x, 0, c]
+              : [c, 0, x]
+
+  return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255]
+}
+
+function rotateHue(color: Rgb, degrees: number): Rgb {
+  const hsl = rgbToHsl(color)
+  return hslToRgb({ ...hsl, h: (hsl.h + degrees + 360) % 360 })
+}
+
+function vividRgb(color: Rgb): Rgb {
+  const hsl = rgbToHsl(color)
+  return hslToRgb({
+    h: hsl.h,
+    s: Math.max(0.9, clamp01(hsl.s * 1.65 + 0.18)),
+    l: Math.min(0.68, Math.max(0.5, hsl.l * 0.72 + 0.24))
+  })
 }
 
 function rgba(color: Rgb, alpha: number): string {
@@ -73,8 +136,11 @@ function cloneTarget(target: AuroraTarget): AuroraTarget {
 function makeAuroraTarget(classification: AmbientClassification | null): AuroraTarget {
   if (!classification) return cloneTarget(NEUTRAL_TARGET)
 
-  const [c1, c2, c3] = getAmbientPalette(classification).map(hexToRgb) as [Rgb, Rgb, Rgb]
-  const c4 = mixRgb(c2, c3, 0.42)
+  const [c1, c2, c3] = getAmbientPalette(classification).map((color) =>
+    vividRgb(hexToRgb(color))
+  ) as [Rgb, Rgb, Rgb]
+  const spectrumAccent = vividRgb(rotateHue(c1, 128 + classification.intensity * 72))
+  const c4 = mixRgb(spectrumAccent, vividRgb(rotateHue(c2, -96)), 0.38)
   const motionSpeed =
     classification.motion === 'wave'
       ? 0.000064
@@ -88,7 +154,10 @@ function makeAuroraTarget(classification: AmbientClassification | null): AuroraT
 
   return {
     colors: [c1, c2, c3, c4],
-    opacity: Math.min(0.24, Math.max(0.075, getAmbientOpacity(classification) * 0.72)),
+    opacity: Math.min(
+      0.58,
+      Math.max(0.24, getAmbientOpacity(classification) * 1.55 + classification.intensity * 0.1)
+    ),
     intensity: Math.min(1, Math.max(0, classification.intensity)),
     speed: motionSpeed,
     spread: classification.motion === 'mist' || classification.motion === 'still' ? 0.34 : 0.44
@@ -132,9 +201,9 @@ function drawRibbon(
 
   const gradient = ctx.createLinearGradient(0, yBase - thickness, width, yBase + thickness)
   gradient.addColorStop(0, rgba(colorA, 0))
-  gradient.addColorStop(0.22, rgba(colorA, alpha * 0.62))
-  gradient.addColorStop(0.5, rgba(mixRgb(colorA, colorB, 0.5), alpha))
-  gradient.addColorStop(0.78, rgba(colorB, alpha * 0.58))
+  gradient.addColorStop(0.18, rgba(colorA, alpha * 0.82))
+  gradient.addColorStop(0.5, rgba(vividRgb(mixRgb(colorA, colorB, 0.5)), alpha))
+  gradient.addColorStop(0.82, rgba(colorB, alpha * 0.78))
   gradient.addColorStop(1, rgba(colorB, 0))
   ctx.fillStyle = gradient
   ctx.fill()
@@ -155,7 +224,7 @@ function drawAuroraFrame(
   const progressShift = (live.progress - 0.5) * width * 0.035
   const velocityLift = live.velocity * height * -0.018
   const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 2
-  const opacity = target.opacity * (reducedMotion ? 0.75 : 1)
+  const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
 
   ctx.clearRect(0, 0, width, height)
@@ -169,8 +238,9 @@ function drawAuroraFrame(
     height * 0.2,
     height * 0.88
   )
-  wash.addColorStop(0, rgba(target.colors[1], opacity * 0.7))
-  wash.addColorStop(0.42, rgba(target.colors[2], opacity * 0.28))
+  wash.addColorStop(0, rgba(target.colors[1], opacity * 1.05))
+  wash.addColorStop(0.38, rgba(target.colors[2], opacity * 0.58))
+  wash.addColorStop(0.72, rgba(target.colors[3], opacity * 0.22))
   wash.addColorStop(1, rgba(target.colors[0], 0))
   ctx.fillStyle = wash
   ctx.fillRect(0, 0, width, height)
@@ -185,7 +255,7 @@ function drawAuroraFrame(
     basePhase,
     target.colors[0],
     target.colors[1],
-    opacity * 0.95
+    opacity * 1.22
   )
   drawRibbon(
     ctx,
@@ -196,7 +266,7 @@ function drawAuroraFrame(
     basePhase * 0.82 + 1.4,
     target.colors[1],
     target.colors[3],
-    opacity * 0.84
+    opacity * 1.08
   )
   drawRibbon(
     ctx,
@@ -207,7 +277,18 @@ function drawAuroraFrame(
     basePhase * 0.68 + 2.2,
     target.colors[2],
     target.colors[0],
-    opacity * 0.62
+    opacity * 0.92
+  )
+  drawRibbon(
+    ctx,
+    width,
+    height * 0.48 + velocityLift * 0.22,
+    height * (0.028 + intensity * 0.01),
+    height * (0.13 + target.spread * 0.06),
+    basePhase * 0.55 + 3.1,
+    target.colors[3],
+    target.colors[1],
+    opacity * 0.72
   )
 
   ctx.globalCompositeOperation = 'source-over'
