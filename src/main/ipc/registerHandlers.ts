@@ -21,6 +21,7 @@ import { registerArgumentIpc } from './argument.ipc'
 import { registerGlossaryIpc } from './glossary.ipc'
 import { registerAmbientIpc } from './ambient.ipc'
 import { registerShareIpc } from './share.ipc'
+import { registerSpotifyIpc } from './spotify.ipc'
 
 // Central registration for all main-process IPC handlers.
 // Each slice adds one call here as it ships.
@@ -48,4 +49,5 @@ export function registerIpcHandlers(): void {
   registerGlossaryIpc()
   registerAmbientIpc()
   registerShareIpc()
+  registerSpotifyIpc()
 }

@@ -13,15 +13,17 @@ import {
 import { Button, Input, Modal, SegmentedControl, Section, Slider, Tabs, type TabItem } from '../ui'
 import { toast } from '../../state/toastStore'
 import { AppearanceSettings } from './AppearanceSettings'
+import { SpotifySettings } from './SpotifySettings'
 import { ReaderTypographyControls } from '../reader/ReaderTypographyControls'
 
-type SettingsTab = 'appearance' | 'reading' | 'study' | 'ai'
+type SettingsTab = 'appearance' | 'reading' | 'study' | 'ai' | 'spotify'
 
 const SETTINGS_TABS: ReadonlyArray<TabItem<SettingsTab>> = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'reading', label: 'Reading' },
   { id: 'study', label: 'Study' },
-  { id: 'ai', label: 'AI' }
+  { id: 'ai', label: 'AI' },
+  { id: 'spotify', label: 'Soundtrack' }
 ]
 
 export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.Element {
@@ -339,6 +341,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.E
         </Section>
         </div>
       )}
+
+      {tab === 'spotify' && <SpotifySettings />}
     </Modal>
   )
 }

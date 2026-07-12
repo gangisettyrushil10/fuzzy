@@ -193,6 +193,18 @@ const fuzzy: FuzzyApi = {
     toMessages: (data) => ipcRenderer.invoke(IpcChannels.shareToMessages, data),
     openTwitterIntent: (text) => ipcRenderer.invoke(IpcChannels.shareOpenTwitterIntent, text)
   },
+  spotify: {
+    getStatus: () => ipcRenderer.invoke(IpcChannels.spotifyGetStatus),
+    setClientId: (clientId) => ipcRenderer.invoke(IpcChannels.spotifySetClientId, clientId),
+    connect: () => ipcRenderer.invoke(IpcChannels.spotifyConnect),
+    disconnect: () => ipcRenderer.invoke(IpcChannels.spotifyDisconnect),
+    setPlaybackMode: (mode) => ipcRenderer.invoke(IpcChannels.spotifySetPlaybackMode, mode),
+    setGenrePreferences: (genres) =>
+      ipcRenderer.invoke(IpcChannels.spotifySetGenrePreferences, genres),
+    suggestForMood: (classification) =>
+      ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification),
+    openSuggestion: (suggestion) => ipcRenderer.invoke(IpcChannels.spotifyOpenSuggestion, suggestion)
+  },
   ...(IS_DEV
     ? {
         dev: {

@@ -121,7 +121,16 @@ export const IpcChannels = {
   shareSavePng: 'share:savePng',
   shareCopyImage: 'share:copyImage',
   shareToMessages: 'share:toMessages',
-  shareOpenTwitterIntent: 'share:openTwitterIntent'
+  shareOpenTwitterIntent: 'share:openTwitterIntent',
+
+  spotifyGetStatus: 'spotify:getStatus',
+  spotifySetClientId: 'spotify:setClientId',
+  spotifyConnect: 'spotify:connect',
+  spotifyDisconnect: 'spotify:disconnect',
+  spotifySetPlaybackMode: 'spotify:setPlaybackMode',
+  spotifySetGenrePreferences: 'spotify:setGenrePreferences',
+  spotifySuggestForMood: 'spotify:suggestForMood',
+  spotifyOpenSuggestion: 'spotify:openSuggestion'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

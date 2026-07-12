@@ -10,6 +10,7 @@ import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
 import { FeelingModeButton } from '../reader/FeelingModeButton'
+import { SoundtrackButton } from '../reader/SoundtrackButton'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { normalizeRectsToPage } from '../../lib/rects'
 
@@ -69,6 +70,18 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const setAmbientLive = useAmbientStore((s) => s.setLive)
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
+
+  const classifyVisiblePassage = useCallback(async (): Promise<AmbientClassification | null> => {
+    if (!pageText) return null
+    const host = pagesContainerRef.current
+    const progress =
+      !host || host.scrollHeight <= host.clientHeight
+        ? 0.5
+        : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
+    const excerpt = excerptForProgress(pageText, progress)
+    if (!excerpt) return null
+    return classifyForPage(documentId, currentPage, excerpt)
+  }, [pageText, classifyForPage, documentId, currentPage])
 
   useEffect(() => {
     loadForDocument(documentId)
@@ -293,6 +306,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
         feelingEnabled={feelingEnabled}
         feelingStatus={feelingStatus}
         ambientClassification={ambientClassification}
+        classifyVisiblePassage={classifyVisiblePassage}
         onFeelingToggle={() => setFeelingEnabled(!feelingEnabled)}
         onPrev={() => setPage(currentPage - 1)}
         onNext={() => setPage(currentPage + 1)}
@@ -330,6 +344,7 @@ function PdfToolbar({
   feelingEnabled,
   feelingStatus,
   ambientClassification,
+  classifyVisiblePassage,
   onFeelingToggle,
   onPrev,
   onNext,
@@ -343,6 +358,7 @@ function PdfToolbar({
   feelingEnabled: boolean
   feelingStatus: 'idle' | 'classifying' | 'ready' | 'error'
   ambientClassification: AmbientClassification | null
+  classifyVisiblePassage: () => Promise<AmbientClassification | null>
   onFeelingToggle: () => void
   onPrev: () => void
   onNext: () => void
@@ -360,6 +376,11 @@ function PdfToolbar({
         status={feelingStatus}
         classification={ambientClassification}
         onToggle={onFeelingToggle}
+      />
+      <SoundtrackButton
+        classification={ambientClassification}
+        feelingEnabled={feelingEnabled}
+        classifyVisiblePassage={classifyVisiblePassage}
       />
       <div className="flex items-center gap-1">
         <ToolbarButton onClick={onPrev} disabled={currentPage <= 1} label="Prev" />
