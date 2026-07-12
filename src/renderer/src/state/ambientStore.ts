@@ -12,6 +12,7 @@ import type { AmbientClassification } from '@shared/types/api'
 
 const KEY = 'fuzzy.ambientExplain'
 const FEELING_KEY = 'fuzzy.feelingAurora'
+const MOODLIGHT_PREFERENCES_KEY = 'fuzzy.moodlightPreferences.v1'
 const CLASSIFICATION_CACHE_LIMIT = 64
 
 let classificationCommitTimer: number | null = null
@@ -29,6 +30,50 @@ function loadBoolPref(key: string): boolean {
     return localStorage.getItem(key) === '1'
   } catch {
     return false
+  }
+}
+
+export interface MoodlightPreferences {
+  intensity: number
+  motion: number
+  responsiveness: number
+}
+
+const DEFAULT_MOODLIGHT_PREFERENCES: MoodlightPreferences = {
+  intensity: 0.72,
+  motion: 0.58,
+  responsiveness: 0.68
+}
+
+function clampPreference(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value))
+    : fallback
+}
+
+function loadMoodlightPreferences(): MoodlightPreferences {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(MOODLIGHT_PREFERENCES_KEY) ?? '{}'
+    ) as Partial<MoodlightPreferences>
+    return {
+      intensity: clampPreference(saved.intensity, DEFAULT_MOODLIGHT_PREFERENCES.intensity),
+      motion: clampPreference(saved.motion, DEFAULT_MOODLIGHT_PREFERENCES.motion),
+      responsiveness: clampPreference(
+        saved.responsiveness,
+        DEFAULT_MOODLIGHT_PREFERENCES.responsiveness
+      )
+    }
+  } catch {
+    return { ...DEFAULT_MOODLIGHT_PREFERENCES }
+  }
+}
+
+function saveMoodlightPreferences(preferences: MoodlightPreferences): void {
+  try {
+    localStorage.setItem(MOODLIGHT_PREFERENCES_KEY, JSON.stringify(preferences))
+  } catch {
+    /* keep the in-session settings */
   }
 }
 
@@ -69,7 +114,9 @@ interface AmbientState {
   // --- Feeling Aurora ---
   feelingEnabled: boolean
   feelingStatus: FeelingStatus
+  moodlightPreferences: MoodlightPreferences
   setFeelingEnabled: (enabled: boolean) => void
+  setMoodlightPreference: (key: keyof MoodlightPreferences, value: number) => void
 
   // --- Shared classification ---
   classification: AmbientClassification | null
@@ -123,12 +170,15 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
       set({ classification, feelingStatus: status })
     }
 
-    if (decision.delayMs <= 0) {
+    const responsiveness = get().moodlightPreferences.responsiveness
+    const adjustedDelay = Math.round(decision.delayMs * (1.32 - responsiveness * 0.62))
+
+    if (adjustedDelay <= 0) {
       apply()
       return
     }
 
-    classificationCommitTimer = window.setTimeout(apply, decision.delayMs)
+    classificationCommitTimer = window.setTimeout(apply, adjustedDelay)
   }
 
   return {
@@ -184,6 +234,7 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
     // --- Feeling Aurora ---
     feelingEnabled: loadBoolPref(FEELING_KEY),
     feelingStatus: 'idle',
+    moodlightPreferences: loadMoodlightPreferences(),
     setFeelingEnabled: (enabled) => {
       try {
         localStorage.setItem(FEELING_KEY, enabled ? '1' : '0')
@@ -196,6 +247,14 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
         moodlightTimeline.reset()
         set({ classification: null, classificationKey: null, feelingStatus: 'idle' })
       }
+    },
+    setMoodlightPreference: (key, value) => {
+      const preferences = {
+        ...get().moodlightPreferences,
+        [key]: clampPreference(value, get().moodlightPreferences[key])
+      }
+      saveMoodlightPreferences(preferences)
+      set({ moodlightPreferences: preferences })
     },
 
     // --- Shared classification ---

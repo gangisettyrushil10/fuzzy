@@ -12,6 +12,7 @@ import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
 import { FeelingModeButton } from '../reader/FeelingModeButton'
 import { SoundtrackButton } from '../reader/SoundtrackButton'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
+import { moodlightClassificationDelay, moodlightExcerptChars } from '../../lib/moodlightSampling'
 import { normalizeRectsToPage } from '../../lib/rects'
 
 // Renders the active PDF, paginated. One page at a time keeps render work
@@ -68,6 +69,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
+  const moodlightResponsiveness = useAmbientStore((s) => s.moodlightPreferences.responsiveness)
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
@@ -140,7 +142,11 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
           : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
       setAmbientLive(documentId, currentPage, progress, progress - prevProgress)
       prevProgress = progress
-      const excerpt = excerptForProgress(pageText, progress)
+      const excerpt = excerptForProgress(
+        pageText,
+        progress,
+        moodlightExcerptChars(moodlightResponsiveness)
+      )
       if (!excerpt) return
       previewForPage(documentId, currentPage, excerpt)
       if (classifyTimer !== undefined) window.clearTimeout(classifyTimer)
@@ -149,7 +155,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
           classifyTimer = undefined
           void classifyForPage(documentId, currentPage, excerpt)
         },
-        immediate ? 360 : 760
+        moodlightClassificationDelay(moodlightResponsiveness, immediate)
       )
     }
 
@@ -173,7 +179,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     currentPage,
     previewForPage,
     classifyForPage,
-    setAmbientLive
+    setAmbientLive,
+    moodlightResponsiveness
   ])
 
   useEffect(() => {
