@@ -10,6 +10,10 @@ interface AuroraTarget {
   intensity: number
   speed: number
   spread: number
+  energy: number
+  turbulence: number
+  pulse: number
+  flow: number
 }
 
 const NEUTRAL_TARGET: AuroraTarget = {
@@ -22,13 +26,54 @@ const NEUTRAL_TARGET: AuroraTarget = {
   opacity: 0.28,
   intensity: 0.38,
   speed: 0.000055,
-  spread: 0.42
+  spread: 0.42,
+  energy: 0.42,
+  turbulence: 0.22,
+  pulse: 0.08,
+  flow: 1
 }
 
 interface Hsl {
   h: number
   s: number
   l: number
+}
+
+const MOOD_PALETTES: Record<string, [string, string, string]> = {
+  love: ['#ff2f7d', '#ff6bd6', '#ffb15f'],
+  sadness: ['#236bff', '#31d7ff', '#9a7cff'],
+  joy: ['#ffe433', '#ff7a1a', '#00f0ff'],
+  mystery: ['#7a2cff', '#d83cff', '#17e7ff'],
+  tension: ['#ff2a1f', '#ff9f1c', '#4b36ff'],
+  calm: ['#00e6b0', '#32ff70', '#55d6ff'],
+  awe: ['#314dff', '#00e5ff', '#b949ff'],
+  fear: ['#6d35ff', '#00ff9d', '#1b2cff'],
+  anger: ['#ff1e2d', '#ff5a00', '#ffd000'],
+  grief: ['#315eff', '#8298ff', '#25d6ff'],
+  hope: ['#27ff7a', '#ffe14d', '#4bd8ff'],
+  wonder: ['#8f35ff', '#00eaff', '#ffdf38'],
+  nostalgia: ['#ff8a35', '#ffcf59', '#f06dff'],
+  neutral: ['#536cff', '#00e8ff', '#cd48ff']
+}
+
+const SCENE_PALETTES: Record<string, [string, string, string]> = {
+  battle: ['#ff1f2e', '#ff7a00', '#ffd400'],
+  blood: ['#ff1648', '#8d00ff', '#ff7a00'],
+  city: ['#00d5ff', '#ff2fe0', '#fff23a'],
+  dawn: ['#ff7a2b', '#ffe55a', '#45d7ff'],
+  fire: ['#ff2b00', '#ff8a00', '#ffe600'],
+  fog: ['#78a6ff', '#d46bff', '#2ffff3'],
+  forest: ['#00f060', '#b7ff2c', '#00dbff'],
+  garden: ['#00f060', '#ff4fd8', '#ffe24a'],
+  gold: ['#ffe033', '#ff8f00', '#00e0ff'],
+  magic: ['#9438ff', '#00eaff', '#ffd52e'],
+  night: ['#314dff', '#9b43ff', '#00d8ff'],
+  ocean: ['#006dff', '#00eaff', '#00ffb3'],
+  rain: ['#177cff', '#00e0ff', '#996bff'],
+  river: ['#007dff', '#00ffc2', '#6da8ff'],
+  snow: ['#79c8ff', '#ffffff', '#9b72ff'],
+  storm: ['#3a3bff', '#00eaff', '#f6ff3d'],
+  treasure: ['#ffe033', '#ff4fd8', '#00f0ff']
 }
 
 function hexToRgb(hex: string): Rgb {
@@ -129,28 +174,140 @@ function cloneTarget(target: AuroraTarget): AuroraTarget {
     opacity: target.opacity,
     intensity: target.intensity,
     speed: target.speed,
-    spread: target.spread
+    spread: target.spread,
+    energy: target.energy,
+    turbulence: target.turbulence,
+    pulse: target.pulse,
+    flow: target.flow
+  }
+}
+
+function paletteFromHex(values: [string, string, string]): [Rgb, Rgb, Rgb] {
+  return values.map((color) => vividRgb(hexToRgb(color))) as [Rgb, Rgb, Rgb]
+}
+
+function dominantScene(classification: AmbientClassification): string | null {
+  return classification.sceneTags.find((tag) => SCENE_PALETTES[tag]) ?? null
+}
+
+function semanticPalette(classification: AmbientClassification): [Rgb, Rgb, Rgb] {
+  const fallback = getAmbientPalette(classification).map((color) => vividRgb(hexToRgb(color))) as [
+    Rgb,
+    Rgb,
+    Rgb
+  ]
+  const moodColors = MOOD_PALETTES[classification.mood]
+    ? paletteFromHex(MOOD_PALETTES[classification.mood])
+    : fallback
+  const scene = dominantScene(classification)
+  const sceneColors = scene ? paletteFromHex(SCENE_PALETTES[scene]) : null
+  const sceneWeight =
+    sceneColors && classification.sceneTags.length > 0
+      ? Math.min(0.72, 0.38 + classification.intensity * 0.34)
+      : 0
+  const secondary = classification.secondaryMood
+  const secondaryColors =
+    secondary && MOOD_PALETTES[secondary] ? paletteFromHex(MOOD_PALETTES[secondary]) : null
+
+  return [
+    vividRgb(mixRgb(moodColors[0], sceneColors?.[0] ?? fallback[0], sceneWeight)),
+    vividRgb(mixRgb(moodColors[1], sceneColors?.[1] ?? fallback[1], sceneWeight)),
+    vividRgb(
+      mixRgb(
+        secondaryColors ? mixRgb(moodColors[2], secondaryColors[1], 0.34) : moodColors[2],
+        sceneColors?.[2] ?? fallback[2],
+        sceneWeight * 0.86
+      )
+    )
+  ]
+}
+
+function sceneMotion(
+  classification: AmbientClassification
+): Pick<AuroraTarget, 'energy' | 'flow' | 'pulse' | 'speed' | 'spread' | 'turbulence'> {
+  const tags = new Set(classification.sceneTags)
+  const mood = classification.mood
+  const hot = tags.has('battle') || tags.has('fire') || tags.has('blood') || mood === 'anger'
+  const tense = hot || tags.has('storm') || mood === 'tension' || mood === 'fear'
+  const fluid = tags.has('ocean') || tags.has('rain') || tags.has('river')
+  const quiet =
+    tags.has('fog') ||
+    tags.has('snow') ||
+    tags.has('night') ||
+    classification.motion === 'mist' ||
+    classification.motion === 'still' ||
+    mood === 'calm' ||
+    mood === 'grief' ||
+    mood === 'sadness'
+  const luminous =
+    tags.has('magic') ||
+    tags.has('gold') ||
+    tags.has('treasure') ||
+    mood === 'wonder' ||
+    mood === 'awe'
+  const baseEnergy = Math.min(1, Math.max(0, classification.intensity))
+
+  if (tense) {
+    return {
+      energy: Math.max(0.78, baseEnergy),
+      flow: tags.has('storm') ? 1.9 : 1.65,
+      pulse: tags.has('storm') ? 0.36 : 0.3,
+      speed: tags.has('storm') ? 0.00012 : 0.000105,
+      spread: 0.5,
+      turbulence: tags.has('storm') ? 0.72 : 0.58
+    }
+  }
+
+  if (fluid) {
+    return {
+      energy: Math.max(0.48, baseEnergy * 0.8),
+      flow: 1.42,
+      pulse: 0.08,
+      speed: 0.000066,
+      spread: 0.52,
+      turbulence: 0.22
+    }
+  }
+
+  if (luminous) {
+    return {
+      energy: Math.max(0.58, baseEnergy * 0.86),
+      flow: 1.2,
+      pulse: 0.18,
+      speed: 0.000074,
+      spread: 0.48,
+      turbulence: 0.32
+    }
+  }
+
+  if (quiet) {
+    return {
+      energy: Math.max(0.24, baseEnergy * 0.52),
+      flow: 0.72,
+      pulse: 0.04,
+      speed: 0.000034,
+      spread: 0.34,
+      turbulence: 0.08
+    }
+  }
+
+  return {
+    energy: Math.max(0.36, baseEnergy * 0.72),
+    flow: 1,
+    pulse: 0.1,
+    speed: 0.000054,
+    spread: 0.42,
+    turbulence: 0.18
   }
 }
 
 function makeAuroraTarget(classification: AmbientClassification | null): AuroraTarget {
   if (!classification) return cloneTarget(NEUTRAL_TARGET)
 
-  const [c1, c2, c3] = getAmbientPalette(classification).map((color) =>
-    vividRgb(hexToRgb(color))
-  ) as [Rgb, Rgb, Rgb]
+  const [c1, c2, c3] = semanticPalette(classification)
   const spectrumAccent = vividRgb(rotateHue(c1, 128 + classification.intensity * 72))
   const c4 = mixRgb(spectrumAccent, vividRgb(rotateHue(c2, -96)), 0.38)
-  const motionSpeed =
-    classification.motion === 'wave'
-      ? 0.000064
-      : classification.motion === 'shimmer'
-        ? 0.00006
-        : classification.motion === 'mist'
-          ? 0.000042
-          : classification.motion === 'still'
-            ? 0.000032
-            : 0.000052
+  const motion = sceneMotion(classification)
 
   return {
     colors: [c1, c2, c3, c4],
@@ -159,8 +316,12 @@ function makeAuroraTarget(classification: AmbientClassification | null): AuroraT
       Math.max(0.24, getAmbientOpacity(classification) * 1.55 + classification.intensity * 0.1)
     ),
     intensity: Math.min(1, Math.max(0, classification.intensity)),
-    speed: motionSpeed,
-    spread: classification.motion === 'mist' || classification.motion === 'still' ? 0.34 : 0.44
+    speed: motion.speed,
+    spread: motion.spread,
+    energy: motion.energy,
+    turbulence: motion.turbulence,
+    pulse: motion.pulse,
+    flow: motion.flow
   }
 }
 
@@ -173,7 +334,9 @@ function drawRibbon(
   phase: number,
   colorA: Rgb,
   colorB: Rgb,
-  alpha: number
+  alpha: number,
+  flow = 1,
+  turbulence = 0.18
 ): void {
   const step = Math.max(34, width / 24)
   const points: Array<[number, number]> = []
@@ -182,8 +345,11 @@ function drawRibbon(
     const xRatio = x / Math.max(1, width)
     const y =
       yBase +
-      Math.sin(xRatio * Math.PI * 2.1 + phase) * amplitude +
-      Math.sin(xRatio * Math.PI * 4.3 + phase * 0.58) * amplitude * 0.36
+      Math.sin(xRatio * Math.PI * 2.1 * flow + phase) * amplitude +
+      Math.sin(xRatio * Math.PI * 4.3 * flow + phase * 0.58) *
+        amplitude *
+        (0.18 + turbulence * 0.36) +
+      Math.sin(xRatio * Math.PI * 8.1 + phase * 1.12) * amplitude * turbulence * 0.12
     points.push([x, y])
   }
 
@@ -226,6 +392,9 @@ function drawAuroraFrame(
   const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 2
   const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
+  const pulse = 1 + Math.sin(basePhase * 2.4) * target.pulse
+  const energyScale = 1 + target.energy * 0.34
+  const turbulenceScale = 1 + target.turbulence * 0.32
 
   ctx.clearRect(0, 0, width, height)
   ctx.globalCompositeOperation = 'source-over'
@@ -250,46 +419,69 @@ function drawAuroraFrame(
     ctx,
     width,
     height * 0.08 + velocityLift,
-    height * (0.035 + intensity * 0.014),
-    height * (0.18 + target.spread * 0.08),
+    height * (0.035 + intensity * 0.014) * turbulenceScale,
+    height * (0.18 + target.spread * 0.08) * pulse,
     basePhase,
     target.colors[0],
     target.colors[1],
-    opacity * 1.22
+    opacity * 1.22 * pulse,
+    target.flow,
+    target.turbulence
   )
   drawRibbon(
     ctx,
     width,
     height * 0.2 + progressShift * 0.08,
-    height * (0.05 + intensity * 0.016),
+    height * (0.05 + intensity * 0.016) * energyScale,
     height * (0.2 + target.spread * 0.1),
     basePhase * 0.82 + 1.4,
     target.colors[1],
     target.colors[3],
-    opacity * 1.08
+    opacity * 1.08,
+    target.flow * 0.9,
+    target.turbulence * 0.82
   )
   drawRibbon(
     ctx,
     width,
     height * 0.34 - velocityLift * 0.45,
-    height * (0.038 + intensity * 0.012),
+    height * (0.038 + intensity * 0.012) * energyScale,
     height * (0.17 + target.spread * 0.07),
     basePhase * 0.68 + 2.2,
     target.colors[2],
     target.colors[0],
-    opacity * 0.92
+    opacity * 0.92,
+    target.flow * 0.74,
+    target.turbulence * 0.68
   )
   drawRibbon(
     ctx,
     width,
     height * 0.48 + velocityLift * 0.22,
-    height * (0.028 + intensity * 0.01),
+    height * (0.028 + intensity * 0.01) * energyScale,
     height * (0.13 + target.spread * 0.06),
     basePhase * 0.55 + 3.1,
     target.colors[3],
     target.colors[1],
-    opacity * 0.72
+    opacity * 0.72,
+    target.flow * 0.66,
+    target.turbulence * 0.55
   )
+  if (target.energy > 0.64) {
+    drawRibbon(
+      ctx,
+      width,
+      height * 0.13 - velocityLift * 0.26,
+      height * (0.018 + target.energy * 0.016),
+      height * (0.055 + target.turbulence * 0.045),
+      basePhase * 1.8 + 0.8,
+      target.colors[3],
+      target.colors[2],
+      opacity * target.energy * 0.78,
+      target.flow * 1.45,
+      Math.min(1, target.turbulence * 1.2)
+    )
+  }
 
   ctx.globalCompositeOperation = 'source-over'
   const vignette = ctx.createLinearGradient(0, 0, 0, height)
