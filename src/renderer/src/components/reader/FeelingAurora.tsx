@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { AmbientClassification } from '@shared/types/api'
 import { getAmbientOpacity } from './ambientStyle'
 import { getMoodlightPalette, mixRgb, rgba, vividRgb, type MoodlightRgb } from './moodlightColor'
-import { resolveMoodlightMotionProfile } from './moodlightMotion'
+import { resolveMoodlightMotionEnvelope, resolveMoodlightMotionProfile } from './moodlightMotion'
 
 type Rgb = MoodlightRgb
 
@@ -239,6 +239,7 @@ function drawAuroraFrame(
   target: AuroraTarget,
   live: { progress: number; velocity: number; phase: number },
   timeMs: number,
+  motionPhase: number,
   reducedMotion: boolean
 ): void {
   const width = canvas.width
@@ -247,9 +248,15 @@ function drawAuroraFrame(
 
   const progressShift = (live.progress - 0.5) * width * 0.035
   const velocityLift = live.velocity * height * -0.018
-  const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 0.55
+  const basePhase = motionPhase + live.phase * Math.PI * 0.55
   const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
+  const envelope = resolveMoodlightMotionEnvelope(timeMs, target, reducedMotion)
+  const amplitudeScale = envelope.amplitudeScale
+  const counterAmplitudeScale = envelope.counterAmplitudeScale
+  const thicknessScale = envelope.thicknessScale
+  const flowScale = envelope.flowScale
+  const verticalDrift = height * envelope.verticalOffset
   const pulseWave = Math.sin(basePhase * 2.4)
   const shapePulse = 1 + pulseWave * target.pulse * 0.55
   const luminancePulse = 1 + pulseWave * target.pulse * 0.2
@@ -279,66 +286,66 @@ function drawAuroraFrame(
   drawRibbon(
     ctx,
     width,
-    -height * 0.04 + velocityLift * 0.4,
-    height * (0.068 + intensity * 0.018) * turbulenceScale,
-    height * (0.27 + target.spread * 0.09) * shapePulse,
-    basePhase * 0.72,
+    -height * 0.04 + velocityLift * 0.4 + verticalDrift,
+    height * (0.068 + intensity * 0.018) * turbulenceScale * amplitudeScale,
+    height * (0.27 + target.spread * 0.09) * shapePulse * thicknessScale,
+    basePhase,
     target.colors[0],
     target.colors[1],
     opacity * 0.58 * luminancePulse,
-    target.flow * 0.92,
+    target.flow * 0.92 * flowScale,
     target.turbulence * 0.72
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.19 + progressShift * 0.04,
-    height * (0.082 + intensity * 0.022) * energyScale,
-    height * (0.3 + target.spread * 0.1),
-    basePhase * 0.58 + 1.4,
+    height * 0.19 + progressShift * 0.04 - verticalDrift * 0.58,
+    height * (0.082 + intensity * 0.022) * energyScale * counterAmplitudeScale,
+    height * (0.3 + target.spread * 0.1) * (1 - (thicknessScale - 1) * 0.72),
+    basePhase * 0.82 + 1.4,
     target.colors[1],
     target.colors[3],
     opacity * 0.62,
-    target.flow * 0.84,
+    (target.flow * 0.84) / flowScale,
     target.turbulence * 0.68
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.43 - velocityLift * 0.28,
-    height * (0.075 + intensity * 0.02) * energyScale,
-    height * (0.28 + target.spread * 0.09),
-    basePhase * 0.46 + 2.2,
+    height * 0.43 - velocityLift * 0.28 + verticalDrift * 0.34,
+    height * (0.075 + intensity * 0.02) * energyScale * amplitudeScale,
+    height * (0.28 + target.spread * 0.09) * thicknessScale,
+    basePhase * 0.68 + 2.2,
     target.colors[2],
     target.colors[0],
     opacity * 0.54,
-    target.flow * 0.76,
+    target.flow * 0.76 * flowScale,
     target.turbulence * 0.58
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.66 + velocityLift * 0.14,
-    height * (0.064 + intensity * 0.018) * energyScale,
-    height * (0.25 + target.spread * 0.08),
-    basePhase * 0.36 + 3.1,
+    height * 0.66 + velocityLift * 0.14 - verticalDrift * 0.46,
+    height * (0.064 + intensity * 0.018) * energyScale * counterAmplitudeScale,
+    height * (0.25 + target.spread * 0.08) * (1 - (thicknessScale - 1) * 0.56),
+    basePhase * 0.56 + 3.1,
     target.colors[3],
     target.colors[1],
     opacity * 0.46,
-    target.flow * 0.7,
+    (target.flow * 0.7) / flowScale,
     target.turbulence * 0.5
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.86 - velocityLift * 0.08,
-    height * (0.05 + intensity * 0.014) * energyScale,
-    height * (0.2 + target.spread * 0.07),
-    basePhase * 0.28 + 4.1,
+    height * 0.86 - velocityLift * 0.08 + verticalDrift * 0.24,
+    height * (0.05 + intensity * 0.014) * energyScale * amplitudeScale,
+    height * (0.2 + target.spread * 0.07) * thicknessScale,
+    basePhase * 0.46 + 4.1,
     target.colors[0],
     target.colors[2],
     opacity * 0.34,
-    target.flow * 0.64,
+    target.flow * 0.64 * flowScale,
     target.turbulence * 0.42
   )
   if (target.energy > 0.64) {
@@ -379,6 +386,7 @@ export function FeelingAurora({
   const currentRef = useRef<AuroraTarget | null>(null)
   const liveRef = useRef({ progress: 0.5, velocity: 0, phase: 0 })
   const smoothLiveRef = useRef({ progress: 0.5, velocity: 0, phase: 0 })
+  const motionPhaseRef = useRef(0)
 
   useEffect(() => {
     const nextTarget = makeAuroraTarget(classification)
@@ -439,7 +447,15 @@ export function FeelingAurora({
       smoothLive.velocity = lerp(smoothLive.velocity, liveTarget.velocity, liveEase * 0.5)
       smoothLive.phase = lerp(smoothLive.phase, liveTarget.phase, liveEase)
 
-      drawAuroraFrame(ctx, canvas, current, smoothLive, time, reducedMotion)
+      const envelope = resolveMoodlightMotionEnvelope(time, current, reducedMotion)
+      const scrollLift = clamp01(Math.abs(smoothLive.velocity)) * 0.12
+      motionPhaseRef.current +=
+        delta * current.speed * envelope.speedScale * (1 + scrollLift) * (reducedMotion ? 0.18 : 1)
+      if (motionPhaseRef.current > Math.PI * 2000) {
+        motionPhaseRef.current %= Math.PI * 2
+      }
+
+      drawAuroraFrame(ctx, canvas, current, smoothLive, time, motionPhaseRef.current, reducedMotion)
       animationFrame = window.requestAnimationFrame(animate)
     }
 

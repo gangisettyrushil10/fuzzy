@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AmbientClassification } from '@shared/types/api'
 import { getMoodlightPalette, vividRgb, type MoodlightRgb } from './moodlightColor'
-import { resolveMoodlightMotionProfile } from './moodlightMotion'
+import { resolveMoodlightMotionEnvelope, resolveMoodlightMotionProfile } from './moodlightMotion'
 
 const BASE_CLASSIFICATION: AmbientClassification = {
   mood: 'neutral',
@@ -112,6 +112,22 @@ describe('moodlight color and motion', () => {
     expect(violentStorm.energy).toBeGreaterThan(quietStorm.energy)
     expect(violentStorm.speed).toBeGreaterThan(quietStorm.speed)
     expect(violentStorm.pulse).toBeGreaterThan(quietStorm.pulse)
-    expect(violentStorm.speed).toBeLessThanOrEqual(0.000084)
+    expect(violentStorm.speed).toBeLessThanOrEqual(0.000105)
+  })
+
+  it('varies speed, amplitude, and ribbon depth continuously without changing scenes', () => {
+    const motion = resolveMoodlightMotionProfile({
+      ...BASE_CLASSIFICATION,
+      mood: 'wonder',
+      intensity: 0.68,
+      sceneTags: ['magic'],
+      motion: 'shimmer'
+    })
+    const first = resolveMoodlightMotionEnvelope(0, motion)
+    const later = resolveMoodlightMotionEnvelope(12_000, motion)
+
+    expect(later.speedScale).not.toBeCloseTo(first.speedScale, 4)
+    expect(later.amplitudeScale).not.toBeCloseTo(first.amplitudeScale, 4)
+    expect(later.thicknessScale).not.toBeCloseTo(first.thicknessScale, 4)
   })
 })

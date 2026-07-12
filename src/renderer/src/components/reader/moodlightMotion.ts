@@ -17,6 +17,15 @@ export interface MoodlightMotionValues {
   spread: number
 }
 
+export interface MoodlightMotionEnvelope {
+  speedScale: number
+  amplitudeScale: number
+  counterAmplitudeScale: number
+  thicknessScale: number
+  flowScale: number
+  verticalOffset: number
+}
+
 export interface MoodlightStreakHints {
   density: number
   length: number
@@ -74,7 +83,7 @@ const MOOD_ACTIVITY: Record<AmbientClassification['mood'], number> = {
 const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = {
   storm: {
     id: 'storm',
-    speed: 0.000056,
+    speed: 0.000072,
     energy: 0.66,
     turbulence: 0.58,
     pulse: 0.22,
@@ -85,7 +94,7 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   'battle-fire-blood': {
     id: 'battle-fire-blood',
-    speed: 0.000052,
+    speed: 0.000066,
     energy: 0.64,
     turbulence: 0.5,
     pulse: 0.24,
@@ -96,7 +105,7 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   'ocean-rain-river': {
     id: 'ocean-rain-river',
-    speed: 0.000038,
+    speed: 0.00005,
     energy: 0.4,
     turbulence: 0.16,
     pulse: 0.06,
@@ -106,7 +115,7 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   'magic-treasure-awe-wonder': {
     id: 'magic-treasure-awe-wonder',
-    speed: 0.000042,
+    speed: 0.000055,
     energy: 0.48,
     turbulence: 0.22,
     pulse: 0.12,
@@ -117,7 +126,7 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   calm: {
     id: 'calm',
-    speed: 0.000024,
+    speed: 0.000032,
     energy: 0.2,
     turbulence: 0.06,
     pulse: 0.03,
@@ -126,7 +135,7 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   neutral: {
     id: 'neutral',
-    speed: 0.000032,
+    speed: 0.000044,
     energy: 0.3,
     turbulence: 0.13,
     pulse: 0.06,
@@ -297,7 +306,7 @@ export function resolveMoodlightMotionProfile(
     MOOD_ACTIVITY[classification.mood]
   const motion = scaleHints(base, pace)
 
-  motion.speed = clamp(base.speed * (1 + pace * response.speed), 0.000018, 0.000084)
+  motion.speed = clamp(base.speed * (1 + pace * response.speed), 0.000026, 0.000105)
   motion.energy = clamp01(base.energy + pace * response.energy)
   motion.turbulence = clamp01(base.turbulence + pace * response.turbulence)
   motion.pulse = clamp01(base.pulse + pace * response.pulse)
@@ -305,4 +314,25 @@ export function resolveMoodlightMotionProfile(
   motion.spread = clamp(base.spread + pace * response.spread, 0.28, 0.58)
 
   return motion
+}
+
+export function resolveMoodlightMotionEnvelope(
+  timeMs: number,
+  motion: MoodlightMotionValues,
+  reducedMotion = false
+): MoodlightMotionEnvelope {
+  const motionScale = reducedMotion ? 0.22 : 1
+  const speedWave = Math.sin(timeMs * 0.00011 + motion.flow)
+  const amplitudeWave = Math.sin(timeMs * 0.00012 + motion.energy * 1.7)
+  const depthWave = Math.sin(timeMs * 0.000085 + motion.spread * 2.4)
+  const flowWave = Math.sin(timeMs * 0.0001 + motion.turbulence * 2.1 + 1.2)
+
+  return {
+    speedScale: 1 + speedWave * (0.1 + motion.energy * 0.12) * motionScale,
+    amplitudeScale: 1 + amplitudeWave * (0.09 + motion.energy * 0.08) * motionScale,
+    counterAmplitudeScale: 1 - amplitudeWave * (0.06 + motion.energy * 0.05) * motionScale,
+    thicknessScale: 1 + depthWave * (0.07 + motion.spread * 0.06) * motionScale,
+    flowScale: 1 + flowWave * (0.035 + motion.turbulence * 0.035) * motionScale,
+    verticalOffset: depthWave * (0.012 + motion.spread * 0.012) * motionScale
+  }
 }
