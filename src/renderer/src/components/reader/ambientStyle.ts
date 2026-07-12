@@ -87,9 +87,17 @@ function getBlobOpacity(classification: AmbientClassification): number {
   return Math.min(0.34, Math.max(0.08, base * scale))
 }
 
+export function getAmbientPalette(classification: AmbientClassification | null): MoodPalette {
+  return classification ? getPalette(classification) : PALETTES.neutral
+}
+
+export function getAmbientOpacity(classification: AmbientClassification | null): number {
+  return classification ? getBlobOpacity(classification) : 0.09
+}
+
 export function getAmbientStyle(classification: AmbientClassification | null): CSSProperties {
-  const [c1, c2, c3] = classification ? getPalette(classification) : PALETTES.neutral
-  const opacity = classification ? getBlobOpacity(classification) : 0.09
+  const [c1, c2, c3] = getAmbientPalette(classification)
+  const opacity = getAmbientOpacity(classification)
   const intensity = classification?.intensity ?? 0.38
   const motion = classification?.motion ?? 'drift'
   const driftBase =

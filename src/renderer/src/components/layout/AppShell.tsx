@@ -41,7 +41,6 @@ import { ShareCardModal } from '../share/ShareCardModal'
 import { FeelingAurora } from '../reader/FeelingAurora'
 import { getAmbientStyle } from '../reader/ambientStyle'
 import { useAmbientStore } from '../../state/ambientStore'
-import { useChromeFade } from '../../hooks/useChromeFade'
 import { cn } from '../../lib/cn'
 
 export function AppShell(): React.JSX.Element {
@@ -85,7 +84,6 @@ export function AppShell(): React.JSX.Element {
   const ambientClassification = useAmbientStore((s) => s.classification)
   const ambientLive = useAmbientStore((s) => s.live)
   const ambientStyle = feelingEnabled ? getAmbientStyle(ambientClassification) : undefined
-  const chromeHidden = useChromeFade(feelingEnabled && !!activeDocumentId)
 
   // ── Resizable panels ──────────────────────────────────────────────────────
   const SIZES_KEY = 'fz-panel-sizes'
@@ -247,8 +245,7 @@ export function AppShell(): React.JSX.Element {
       <div
         className={cn(
           'relative z-10 flex h-full w-full flex-col',
-          feelingEnabled && 'fz-moodlight-chrome-fade',
-          feelingEnabled && chromeHidden && 'fz-moodlight-chrome-hidden'
+          feelingEnabled && 'fz-moodlight-chrome-fade'
         )}
       >
         <TopBar onOpenSettings={openSettings} />
