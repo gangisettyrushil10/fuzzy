@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { hardestSentence } from '../lib/sentences'
 import { isCommonWord } from '../lib/frequencyList'
 import { previewAmbientClassification } from '../lib/ambientPreview'
+import { MoodlightTimeline, type MoodlightTimelineSource } from '../lib/moodlightTimeline'
 import type { AmbientClassification } from '@shared/types/api'
 
 // Ambient auto-explain: when enabled, the hardest sentence on each page you
@@ -11,9 +12,7 @@ import type { AmbientClassification } from '@shared/types/api'
 
 const KEY = 'fuzzy.ambientExplain'
 const FEELING_KEY = 'fuzzy.feelingAurora'
-const PREVIEW_SETTLE_MS = 520
-const CACHED_SETTLE_MS = 260
-const RICH_SETTLE_MS = 900
+const CLASSIFICATION_CACHE_LIMIT = 64
 
 let classificationCommitTimer: number | null = null
 
@@ -38,17 +37,6 @@ function clearClassificationCommitTimer(): void {
     window.clearTimeout(classificationCommitTimer)
     classificationCommitTimer = null
   }
-}
-
-function visualClassificationKey(classification: AmbientClassification | null): string {
-  if (!classification) return 'neutral'
-  return [
-    classification.mood,
-    classification.secondaryMood ?? 'none',
-    classification.motion,
-    classification.sceneTags[0] ?? 'none',
-    classification.paletteHints.slice(0, 3).join(',')
-  ].join(':')
 }
 
 interface AmbientTarget {
@@ -96,33 +84,47 @@ interface AmbientState {
 const done = new Set<string>()
 // Pages already classified this session, keyed by document/page/excerpt hash.
 const classificationCache = new Map<string, AmbientClassification>()
+const classificationCacheOrder: string[] = []
 const classificationRequests = new Map<string, Promise<AmbientClassification | null>>()
+const moodlightTimeline = new MoodlightTimeline()
+
+function rememberClassification(cacheKey: string, classification: AmbientClassification): void {
+  if (!classificationCache.has(cacheKey)) {
+    classificationCacheOrder.push(cacheKey)
+  }
+  classificationCache.set(cacheKey, classification)
+
+  while (classificationCacheOrder.length > CLASSIFICATION_CACHE_LIMIT) {
+    const oldest = classificationCacheOrder.shift()
+    if (oldest) classificationCache.delete(oldest)
+  }
+}
 
 export const useAmbientStore = create<AmbientState>((set, get) => {
   const commitClassification = (
     classification: AmbientClassification,
     cacheKey: string,
     status: FeelingStatus,
-    delayMs: number
+    source: MoodlightTimelineSource,
+    forceImmediate = false
   ): void => {
     clearClassificationCommitTimer()
-
-    const current = get().classification
-    const shouldApplyNow =
-      !current || visualClassificationKey(current) === visualClassificationKey(classification)
+    const current = forceImmediate ? null : get().classification
+    const decision = moodlightTimeline.plan(current, classification, source)
 
     const apply = (): void => {
       classificationCommitTimer = null
       if (!get().feelingEnabled || get().classificationKey !== cacheKey) return
+      moodlightTimeline.noteCommitted()
       set({ classification, feelingStatus: status })
     }
 
-    if (shouldApplyNow || delayMs <= 0) {
+    if (decision.delayMs <= 0) {
       apply()
       return
     }
 
-    classificationCommitTimer = window.setTimeout(apply, delayMs)
+    classificationCommitTimer = window.setTimeout(apply, decision.delayMs)
   }
 
   return {
@@ -187,6 +189,7 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
       set({ feelingEnabled: enabled })
       if (!enabled) {
         clearClassificationCommitTimer()
+        moodlightTimeline.reset()
         set({ classification: null, classificationKey: null, feelingStatus: 'idle' })
       }
     },
@@ -211,6 +214,10 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
         : previous.progress + (clamped - previous.progress) * 0.42
       const smoothVelocity = changedPage ? 0 : previous.velocity * 0.72 + rawVelocity * 0.28
       const phase = (((pageNumber * 0.173 + smoothProgress * 0.81) % 1) + 1) % 1
+      if (changedPage) {
+        clearClassificationCommitTimer()
+        moodlightTimeline.reset()
+      }
       set({
         live: {
           documentId,
@@ -230,17 +237,19 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
       const cacheKey = excerptCacheKey(documentId, pageNumber, text)
       const cached = classificationCache.get(cacheKey)
       if (cached) {
+        const forceImmediate = get().classificationKey === null
         set({ classificationKey: cacheKey, feelingStatus: 'ready' })
-        commitClassification(cached, cacheKey, 'ready', CACHED_SETTLE_MS)
+        commitClassification(cached, cacheKey, 'ready', 'cached', forceImmediate)
         return
       }
 
       const preview = previewAmbientClassification(text)
+      const forceImmediate = get().classificationKey === null
       set({
         classificationKey: cacheKey,
         feelingStatus: 'classifying'
       })
-      commitClassification(preview, cacheKey, 'classifying', PREVIEW_SETTLE_MS)
+      commitClassification(preview, cacheKey, 'classifying', 'preview', forceImmediate)
     },
 
     classifyForPage: async (documentId, pageNumber, text) => {
@@ -251,18 +260,21 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
       const cacheKey = excerptCacheKey(documentId, pageNumber, text)
       const cached = classificationCache.get(cacheKey)
       if (cached) {
+        const forceImmediate = get().classificationKey === null
         set({ classificationKey: cacheKey, feelingStatus: 'ready' })
-        commitClassification(cached, cacheKey, 'ready', CACHED_SETTLE_MS)
+        commitClassification(cached, cacheKey, 'ready', 'cached', forceImmediate)
         return
       }
 
       if (get().classificationKey !== cacheKey) {
+        const forceImmediate = get().classificationKey === null
         set({ classificationKey: cacheKey, feelingStatus: 'classifying' })
         commitClassification(
           previewAmbientClassification(text),
           cacheKey,
           'classifying',
-          PREVIEW_SETTLE_MS
+          'preview',
+          forceImmediate
         )
       }
 
@@ -282,10 +294,10 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
           }
           return
         }
-        classificationCache.set(cacheKey, result)
+        rememberClassification(cacheKey, result)
         if (get().classificationKey === cacheKey) {
           set({ feelingStatus: 'ready' })
-          commitClassification(result, cacheKey, 'ready', RICH_SETTLE_MS)
+          commitClassification(result, cacheKey, 'ready', 'rich')
         }
       } catch {
         classificationRequests.delete(cacheKey)

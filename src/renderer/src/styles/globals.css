@@ -615,9 +615,41 @@ body::before {
 }
 
 .fz-moodlight-chrome-fade.fz-moodlight-chrome-hidden .fz-shell-chrome {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.fz-moodlight-chrome-fade .fz-shell-chrome {
+  border-color: color-mix(in srgb, var(--color-fz-border) 90%, white 10%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-fz-surface-2) 96%, black 4%),
+      color-mix(in srgb, var(--color-fz-surface) 95%, black 5%)
+    ),
+    color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 3%, transparent);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+  color: var(--color-fz-fg);
+  text-shadow: none;
+  backdrop-filter: blur(18px) saturate(106%) brightness(0.98);
+}
+
+.fz-moodlight-chrome-fade .fz-shell-chrome .text-fz-fg-muted {
+  color: color-mix(in srgb, var(--color-fz-fg) 76%, var(--color-fz-fg-muted) 24%) !important;
+}
+
+.fz-moodlight-chrome-fade .fz-shell-chrome .text-fz-fg-subtle {
+  color: color-mix(in srgb, var(--color-fz-fg) 62%, var(--color-fz-fg-muted) 38%) !important;
+}
+
+.fz-moodlight-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .fz-feeling-toggle {
@@ -707,6 +739,69 @@ body::before {
   justify-self: end;
   color: color-mix(in srgb, currentColor 72%, var(--color-fz-fg-muted));
   font-variant-numeric: tabular-nums;
+}
+
+.fz-moodlight-mode-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(2.25rem, auto));
+  align-items: center;
+  height: 1.6rem;
+  padding: 0.12rem;
+  border: 1px solid
+    color-mix(in srgb, var(--color-fz-border) 86%, var(--fz-ambient-c2, var(--color-fz-accent)) 14%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-fz-surface-2) 88%, black 6%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 5%, transparent);
+}
+
+.fz-moodlight-mode-toggle button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.25rem;
+  height: 1.28rem;
+  padding: 0 0.42rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-fz-fg-muted);
+  font-size: var(--text-fz-micro);
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.fz-moodlight-mode-toggle button:hover {
+  color: var(--color-fz-fg);
+}
+
+.fz-moodlight-mode-toggle button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-fz-accent) 72%, white 12%);
+  outline-offset: 1px;
+}
+
+.fz-moodlight-mode-toggle .fz-moodlight-mode-active {
+  background: color-mix(
+    in srgb,
+    var(--fz-ambient-c2, var(--color-fz-accent)) 22%,
+    var(--color-fz-surface-2) 78%
+  );
+  color: color-mix(in srgb, var(--color-fz-fg) 88%, white 12%);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--fz-ambient-c2, var(--color-fz-accent)) 28%, transparent);
+}
+
+:root:not([data-fz-moodlight-mode]) .fz-ambient-shell,
+:root[data-fz-moodlight-mode='vivid'] .fz-ambient-shell {
+  opacity: 1;
+  filter: saturate(1.32) contrast(1.08) brightness(1.06);
+}
+
+:root[data-fz-moodlight-mode='readable'] .fz-ambient-shell {
+  opacity: 0.82;
+  filter: saturate(1.12) contrast(1.02);
 }
 
 .fz-ambient-shell {
