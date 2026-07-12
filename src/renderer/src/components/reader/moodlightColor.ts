@@ -46,12 +46,37 @@ export interface MoodlightPaletteResult {
   sceneFamily: MoodlightSceneFamily | null
   sceneWeight: number
   intensity: number
+  presence: number
 }
 
 interface Hsl {
   h: number
   s: number
   l: number
+}
+
+interface MoodColorGrade {
+  saturation: number
+  lightness: number
+  accentRange: number
+  presence: number
+}
+
+const MOOD_COLOR_GRADES: Record<AmbientMood, MoodColorGrade> = {
+  love: { saturation: 0.76, lightness: 0.57, accentRange: 28, presence: 0.9 },
+  sadness: { saturation: 0.58, lightness: 0.46, accentRange: 18, presence: 0.72 },
+  joy: { saturation: 0.84, lightness: 0.6, accentRange: 42, presence: 0.96 },
+  mystery: { saturation: 0.72, lightness: 0.48, accentRange: 32, presence: 0.8 },
+  tension: { saturation: 0.8, lightness: 0.47, accentRange: 22, presence: 0.88 },
+  calm: { saturation: 0.6, lightness: 0.53, accentRange: 22, presence: 0.7 },
+  awe: { saturation: 0.76, lightness: 0.55, accentRange: 38, presence: 0.87 },
+  fear: { saturation: 0.64, lightness: 0.41, accentRange: 16, presence: 0.76 },
+  anger: { saturation: 0.84, lightness: 0.48, accentRange: 16, presence: 0.9 },
+  grief: { saturation: 0.4, lightness: 0.42, accentRange: 14, presence: 0.66 },
+  hope: { saturation: 0.72, lightness: 0.57, accentRange: 36, presence: 0.86 },
+  wonder: { saturation: 0.78, lightness: 0.57, accentRange: 42, presence: 0.9 },
+  nostalgia: { saturation: 0.6, lightness: 0.52, accentRange: 24, presence: 0.74 },
+  neutral: { saturation: 0.54, lightness: 0.49, accentRange: 24, presence: 0.68 }
 }
 
 const MOOD_PALETTES: Record<AmbientMood, [string, string, string]> = {
@@ -345,11 +370,50 @@ function rotateHue(color: MoodlightRgb, degrees: number): MoodlightRgb {
 
 export function vividRgb(color: MoodlightRgb): MoodlightRgb {
   const hsl = rgbToHsl(color)
+
+  if (hsl.s < 0.08) {
+    return hslToRgb({
+      h: hsl.h,
+      s: hsl.s,
+      l: Math.min(0.72, Math.max(0.4, hsl.l))
+    })
+  }
+
   return hslToRgb({
     h: hsl.h,
-    s: Math.max(0.96, clamp01(hsl.s * 1.75 + 0.2)),
-    l: Math.min(0.72, Math.max(0.52, hsl.l * 0.68 + 0.28))
+    s: Math.min(0.9, Math.max(0.66, hsl.s * 0.78 + 0.18)),
+    l: Math.min(0.66, Math.max(0.42, hsl.l * 0.62 + 0.2))
   })
+}
+
+function gradeForMood(
+  color: MoodlightRgb,
+  mood: AmbientMood,
+  intensity: number,
+  accent = false
+): MoodlightRgb {
+  const hsl = rgbToHsl(color)
+  const grade = MOOD_COLOR_GRADES[mood]
+  const intensityShift = (clamp01(intensity) - 0.5) * 0.1
+  const neutralColor = hsl.s < 0.08
+  const saturation = neutralColor
+    ? Math.min(0.14, grade.saturation * 0.18)
+    : Math.min(
+        0.9,
+        Math.max(
+          0.34,
+          hsl.s * 0.25 + grade.saturation * 0.75 + intensityShift - (accent ? 0.03 : 0)
+        )
+      )
+  const lightness = Math.min(
+    0.66,
+    Math.max(
+      0.36,
+      hsl.l * 0.42 + grade.lightness * 0.58 + intensityShift * 0.4 + (accent ? 0.015 : 0)
+    )
+  )
+
+  return hslToRgb({ h: hsl.h, s: saturation, l: lightness })
 }
 
 export function rgba(color: MoodlightRgb, alpha: number): string {
@@ -440,6 +504,7 @@ export function getMoodlightPalette(
   const genreWeight =
     genreColors && classification?.genre !== 'unknown' ? 0.14 + intensity * 0.08 : 0
   const hintWeight = hintColors.length > 0 ? Math.min(0.34, 0.18 + hintColors.length * 0.035) : 0
+  const grade = MOOD_COLOR_GRADES[mood]
   const secondaryAccent = secondaryColors
     ? mixRgb(moodColors[2], secondaryColors[1], 0.34)
     : moodColors[2]
@@ -447,34 +512,44 @@ export function getMoodlightPalette(
   const c1Base = mixRgb(moodColors[0], sceneColors?.[0] ?? moodColors[0], sceneWeight)
   const c2Base = mixRgb(moodColors[1], sceneColors?.[1] ?? moodColors[1], sceneWeight)
   const c3Base = mixRgb(secondaryAccent, sceneColors?.[2] ?? secondaryAccent, sceneWeight * 0.86)
-  const c1 = vividRgb(
+  const c1 = gradeForMood(
     mixRgb(
       mixRgb(c1Base, genreColors?.[0] ?? c1Base, genreWeight),
       hintColors[0] ?? c1Base,
       hintWeight
-    )
+    ),
+    mood,
+    intensity
   )
-  const c2 = vividRgb(
+  const c2 = gradeForMood(
     mixRgb(
       mixRgb(c2Base, genreColors?.[1] ?? c2Base, genreWeight),
       hintColors[1] ?? c2Base,
       hintWeight
-    )
+    ),
+    mood,
+    intensity
   )
-  const c3 = vividRgb(
+  const c3 = gradeForMood(
     mixRgb(
       mixRgb(c3Base, genreColors?.[2] ?? c3Base, genreWeight),
       hintColors[2] ?? c3Base,
       hintWeight
-    )
+    ),
+    mood,
+    intensity
   )
-  const spectrumAccent = vividRgb(rotateHue(c1, 128 + intensity * 72))
-  const c4 = vividRgb(
+  const coherentAccent = rotateHue(mixRgb(c1, c2, 0.46), grade.accentRange + intensity * 8)
+  const counterAccent = rotateHue(c2, -grade.accentRange * 0.55)
+  const c4 = gradeForMood(
     mixRgb(
-      mixRgb(spectrumAccent, vividRgb(rotateHue(c2, -96)), 0.38),
-      hintColors[3] ?? hintColors[4] ?? spectrumAccent,
-      hintWeight * 0.72
-    )
+      mixRgb(coherentAccent, counterAccent, 0.32),
+      hintColors[3] ?? hintColors[4] ?? coherentAccent,
+      hintWeight * 0.42
+    ),
+    mood,
+    intensity,
+    true
   )
 
   return {
@@ -484,6 +559,7 @@ export function getMoodlightPalette(
     primaryScene,
     sceneFamily,
     sceneWeight,
-    intensity
+    intensity,
+    presence: Math.min(1, grade.presence * (0.88 + intensity * 0.16))
   }
 }

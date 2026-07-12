@@ -20,18 +20,18 @@ interface AuroraTarget {
 
 const NEUTRAL_TARGET: AuroraTarget = {
   colors: [
-    [83, 108, 255],
-    [0, 232, 255],
-    [205, 72, 255],
-    [255, 214, 54]
+    [93, 111, 205],
+    [73, 181, 198],
+    [154, 101, 195],
+    [203, 176, 92]
   ],
-  opacity: 0.28,
+  opacity: 0.2,
   intensity: 0.38,
   speed: 0.000055,
   spread: 0.42,
-  energy: 0.42,
-  turbulence: 0.22,
-  pulse: 0.08,
+  energy: 0.3,
+  turbulence: 0.13,
+  pulse: 0.06,
   flow: 1
 }
 
@@ -71,8 +71,11 @@ function makeAuroraTarget(classification: AmbientClassification | null): AuroraT
   return {
     colors: palette.colors,
     opacity: Math.min(
-      0.68,
-      Math.max(0.3, getAmbientOpacity(classification) * 1.72 + palette.intensity * 0.14)
+      0.46,
+      Math.max(
+        0.16,
+        (getAmbientOpacity(classification) * 0.68 + palette.intensity * 0.05) * palette.presence
+      )
     ),
     intensity: palette.intensity,
     speed: motion.speed,
@@ -240,7 +243,9 @@ function drawAuroraFrame(
   const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 2
   const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
-  const pulse = 1 + Math.sin(basePhase * 2.4) * target.pulse
+  const pulseWave = Math.sin(basePhase * 2.4)
+  const shapePulse = 1 + pulseWave * target.pulse * 0.55
+  const luminancePulse = 1 + pulseWave * target.pulse * 0.2
   const energyScale = 1 + target.energy * 0.34
   const turbulenceScale = 1 + target.turbulence * 0.32
 
@@ -255,25 +260,25 @@ function drawAuroraFrame(
     height * 0.2,
     height * 0.88
   )
-  wash.addColorStop(0, rgba(target.colors[1], opacity * 1.05))
-  wash.addColorStop(0.38, rgba(target.colors[2], opacity * 0.58))
-  wash.addColorStop(0.72, rgba(target.colors[3], opacity * 0.22))
+  wash.addColorStop(0, rgba(target.colors[1], opacity * 0.7))
+  wash.addColorStop(0.38, rgba(target.colors[2], opacity * 0.35))
+  wash.addColorStop(0.72, rgba(target.colors[3], opacity * 0.12))
   wash.addColorStop(1, rgba(target.colors[0], 0))
   ctx.fillStyle = wash
   ctx.fillRect(0, 0, width, height)
 
-  ctx.globalCompositeOperation = 'lighter'
-  drawSoftCurtain(ctx, width, height, basePhase, target, opacity * 0.9)
+  ctx.globalCompositeOperation = 'screen'
+  drawSoftCurtain(ctx, width, height, basePhase, target, opacity * 0.55)
   drawRibbon(
     ctx,
     width,
     height * 0.08 + velocityLift,
     height * (0.035 + intensity * 0.014) * turbulenceScale,
-    height * (0.18 + target.spread * 0.08) * pulse,
+    height * (0.18 + target.spread * 0.08) * shapePulse,
     basePhase,
     target.colors[0],
     target.colors[1],
-    opacity * 1.22 * pulse,
+    opacity * 0.86 * luminancePulse,
     target.flow,
     target.turbulence
   )
@@ -286,7 +291,7 @@ function drawAuroraFrame(
     basePhase * 0.82 + 1.4,
     target.colors[1],
     target.colors[3],
-    opacity * 1.08,
+    opacity * 0.75,
     target.flow * 0.9,
     target.turbulence * 0.82
   )
@@ -299,7 +304,7 @@ function drawAuroraFrame(
     basePhase * 0.68 + 2.2,
     target.colors[2],
     target.colors[0],
-    opacity * 0.92,
+    opacity * 0.62,
     target.flow * 0.74,
     target.turbulence * 0.68
   )
@@ -312,7 +317,7 @@ function drawAuroraFrame(
     basePhase * 0.55 + 3.1,
     target.colors[3],
     target.colors[1],
-    opacity * 0.72,
+    opacity * 0.48,
     target.flow * 0.66,
     target.turbulence * 0.55
   )
@@ -326,11 +331,11 @@ function drawAuroraFrame(
       basePhase * 1.8 + 0.8,
       target.colors[3],
       target.colors[2],
-      opacity * target.energy * 0.78,
+      opacity * target.energy * 0.5,
       target.flow * 1.45,
       Math.min(1, target.turbulence * 1.2)
     )
-    drawEnergyStreaks(ctx, width, height, basePhase, target, opacity * target.energy * 0.52)
+    drawEnergyStreaks(ctx, width, height, basePhase, target, opacity * target.energy * 0.26)
   }
 
   ctx.globalCompositeOperation = 'source-over'

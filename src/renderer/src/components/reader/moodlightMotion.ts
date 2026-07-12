@@ -54,65 +54,82 @@ const MOTION_PACE: Record<AmbientMotion, number> = {
   embers: 0.18
 }
 
+const MOOD_ACTIVITY: Record<AmbientClassification['mood'], number> = {
+  love: -0.02,
+  sadness: -0.12,
+  joy: 0.12,
+  mystery: -0.02,
+  tension: 0.18,
+  calm: -0.18,
+  awe: 0.04,
+  fear: 0.08,
+  anger: 0.2,
+  grief: -0.16,
+  hope: 0.03,
+  wonder: 0.06,
+  nostalgia: -0.08,
+  neutral: -0.04
+}
+
 const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = {
   storm: {
     id: 'storm',
-    speed: 0.00012,
-    energy: 0.84,
-    turbulence: 0.72,
-    pulse: 0.34,
-    flow: 1.9,
+    speed: 0.00009,
+    energy: 0.66,
+    turbulence: 0.58,
+    pulse: 0.22,
+    flow: 1.7,
     spread: 0.52,
     streaks: { density: 0.72, length: 0.82, speed: 1.72, opacity: 0.68 },
     bursts: { frequency: 0.62, radius: 0.72, strength: 0.82 }
   },
   'battle-fire-blood': {
     id: 'battle-fire-blood',
-    speed: 0.000106,
-    energy: 0.8,
-    turbulence: 0.6,
-    pulse: 0.3,
-    flow: 1.68,
+    speed: 0.000088,
+    energy: 0.64,
+    turbulence: 0.5,
+    pulse: 0.24,
+    flow: 1.52,
     spread: 0.5,
     streaks: { density: 0.6, length: 0.68, speed: 1.48, opacity: 0.62 },
     bursts: { frequency: 0.5, radius: 0.56, strength: 0.72 }
   },
   'ocean-rain-river': {
     id: 'ocean-rain-river',
-    speed: 0.000066,
-    energy: 0.5,
-    turbulence: 0.22,
-    pulse: 0.08,
-    flow: 1.42,
+    speed: 0.000058,
+    energy: 0.4,
+    turbulence: 0.16,
+    pulse: 0.06,
+    flow: 1.3,
     spread: 0.53,
     streaks: { density: 0.24, length: 0.72, speed: 0.82, opacity: 0.34 }
   },
   'magic-treasure-awe-wonder': {
     id: 'magic-treasure-awe-wonder',
-    speed: 0.000076,
-    energy: 0.6,
-    turbulence: 0.32,
-    pulse: 0.18,
-    flow: 1.22,
+    speed: 0.000064,
+    energy: 0.48,
+    turbulence: 0.22,
+    pulse: 0.12,
+    flow: 1.16,
     spread: 0.48,
     streaks: { density: 0.42, length: 0.48, speed: 1.08, opacity: 0.54 },
     bursts: { frequency: 0.28, radius: 0.5, strength: 0.48 }
   },
   calm: {
     id: 'calm',
-    speed: 0.000034,
-    energy: 0.25,
-    turbulence: 0.08,
-    pulse: 0.04,
+    speed: 0.000032,
+    energy: 0.2,
+    turbulence: 0.06,
+    pulse: 0.03,
     flow: 0.72,
     spread: 0.34
   },
   neutral: {
     id: 'neutral',
-    speed: 0.000055,
-    energy: 0.4,
-    turbulence: 0.18,
-    pulse: 0.1,
+    speed: 0.000045,
+    energy: 0.3,
+    turbulence: 0.13,
+    pulse: 0.06,
     flow: 1,
     spread: 0.42
   }
@@ -120,51 +137,51 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
 
 const RESPONSE: Record<MoodlightMotionProfileId, MoodlightMotionValues> = {
   storm: {
-    speed: 0.32,
-    energy: 0.14,
-    turbulence: 0.12,
-    pulse: 0.1,
-    flow: 0.16,
+    speed: 0.42,
+    energy: 0.28,
+    turbulence: 0.22,
+    pulse: 0.16,
+    flow: 0.24,
     spread: 0.04
   },
   'battle-fire-blood': {
-    speed: 0.3,
-    energy: 0.14,
-    turbulence: 0.12,
-    pulse: 0.1,
-    flow: 0.14,
+    speed: 0.4,
+    energy: 0.3,
+    turbulence: 0.22,
+    pulse: 0.17,
+    flow: 0.22,
     spread: 0.04
   },
   'ocean-rain-river': {
-    speed: 0.2,
-    energy: 0.1,
-    turbulence: 0.08,
-    pulse: 0.04,
-    flow: 0.08,
+    speed: 0.3,
+    energy: 0.2,
+    turbulence: 0.14,
+    pulse: 0.08,
+    flow: 0.14,
     spread: 0.03
   },
   'magic-treasure-awe-wonder': {
-    speed: 0.22,
-    energy: 0.11,
-    turbulence: 0.08,
-    pulse: 0.06,
-    flow: 0.08,
+    speed: 0.32,
+    energy: 0.22,
+    turbulence: 0.14,
+    pulse: 0.1,
+    flow: 0.14,
     spread: 0.03
   },
   calm: {
-    speed: 0.08,
-    energy: 0.05,
-    turbulence: 0.03,
-    pulse: 0.02,
-    flow: 0.04,
+    speed: 0.14,
+    energy: 0.12,
+    turbulence: 0.06,
+    pulse: 0.04,
+    flow: 0.08,
     spread: 0.02
   },
   neutral: {
-    speed: 0.2,
-    energy: 0.1,
-    turbulence: 0.07,
-    pulse: 0.05,
-    flow: 0.08,
+    speed: 0.28,
+    energy: 0.2,
+    turbulence: 0.12,
+    pulse: 0.08,
+    flow: 0.12,
     spread: 0.03
   }
 }
@@ -274,7 +291,10 @@ export function resolveMoodlightMotionProfile(
   const base = BASE_PROFILES[profileId]
   const response = RESPONSE[profileId]
   const intensity = clamp01(classification.intensity)
-  const pace = intensity - 0.45 + MOTION_PACE[classification.motion]
+  const pace =
+    (intensity - 0.5) * 1.35 +
+    MOTION_PACE[classification.motion] +
+    MOOD_ACTIVITY[classification.mood]
   const motion = scaleHints(base, pace)
 
   motion.speed = clamp(base.speed * (1 + pace * response.speed), 0.000026, 0.000148)
