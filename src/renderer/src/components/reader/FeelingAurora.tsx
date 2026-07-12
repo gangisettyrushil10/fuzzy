@@ -120,24 +120,30 @@ function drawRibbon(
   flow = 1,
   turbulence = 0.18
 ): void {
-  const step = Math.max(22, width / 44)
+  const step = Math.max(28, width / 36)
   const points: Array<[number, number]> = []
 
   for (let x = -step; x <= width + step; x += step) {
     const xRatio = x / Math.max(1, width)
+    const primaryFrequency = 0.72 + flow * 0.3
     const y =
       yBase +
-      Math.sin(xRatio * Math.PI * 2.1 * flow + phase) * amplitude +
-      Math.sin(xRatio * Math.PI * 4.3 * flow + phase * 0.58) *
+      Math.sin(xRatio * Math.PI * 2 * primaryFrequency + phase) * amplitude +
+      Math.sin(xRatio * Math.PI * 2 * (primaryFrequency * 1.86) + phase * 0.46) *
         amplitude *
-        (0.18 + turbulence * 0.36) +
-      Math.sin(xRatio * Math.PI * 8.1 + phase * 1.12) * amplitude * turbulence * 0.12
+        (0.14 + turbulence * 0.22) +
+      Math.sin(xRatio * Math.PI * 2 * 3.7 + phase * 0.68) * amplitude * turbulence * 0.065
     points.push([x, y])
   }
   const lowerPoints = points
     .map(
-      ([x, y], index) =>
-        [x, y + thickness * (0.86 + Math.sin(index * 0.72 + phase) * 0.035)] as [number, number]
+      ([x, y]) =>
+        [
+          x,
+          y +
+            thickness *
+              (0.9 + Math.sin((x / Math.max(1, width)) * Math.PI * 1.6 + phase * 0.3) * 0.05)
+        ] as [number, number]
     )
     .reverse()
 
@@ -164,13 +170,14 @@ function drawSoftCurtain(
   target: AuroraTarget,
   alpha: number
 ): void {
-  const folds = 7
-  const top = height * 0.03
-  const bottom = height * (0.48 + target.spread * 0.1)
+  const folds = 5
+  const top = -height * 0.04
+  const bottom = height * (0.9 + target.spread * 0.12)
   const gradient = ctx.createLinearGradient(0, top, 0, bottom)
   gradient.addColorStop(0, rgba(target.colors[0], 0))
-  gradient.addColorStop(0.24, rgba(target.colors[1], alpha * 0.34))
-  gradient.addColorStop(0.58, rgba(target.colors[2], alpha * 0.2))
+  gradient.addColorStop(0.22, rgba(target.colors[1], alpha * 0.26))
+  gradient.addColorStop(0.56, rgba(target.colors[2], alpha * 0.18))
+  gradient.addColorStop(0.82, rgba(target.colors[0], alpha * 0.1))
   gradient.addColorStop(1, rgba(target.colors[3], 0))
 
   ctx.beginPath()
@@ -178,14 +185,14 @@ function drawSoftCurtain(
   for (let i = 0; i <= folds; i += 1) {
     const x = (width / folds) * i
     const nextX = (width / folds) * (i + 0.5)
-    const wave = Math.sin(i * 1.13 + phase * 0.7) * width * 0.026
-    ctx.quadraticCurveTo(x + wave, top + height * 0.06, nextX, top + height * 0.02)
+    const wave = Math.sin(i * 1.02 + phase * 0.36) * width * 0.035
+    ctx.quadraticCurveTo(x + wave, top + height * 0.1, nextX, top + height * 0.025)
   }
   ctx.lineTo(width * 1.04, bottom)
   for (let i = folds; i >= 0; i -= 1) {
     const x = (width / folds) * i
-    const wave = Math.sin(i * 1.04 + phase * 0.53) * width * 0.038
-    ctx.quadraticCurveTo(x - wave, bottom - height * 0.08, x, bottom)
+    const wave = Math.sin(i * 0.94 + phase * 0.28) * width * 0.05
+    ctx.quadraticCurveTo(x - wave, bottom - height * 0.13, x, bottom)
   }
   ctx.closePath()
   ctx.fillStyle = gradient
@@ -206,10 +213,10 @@ function drawEnergyStreaks(
   for (let index = 0; index < count; index += 1) {
     const seed = index * 1.73
     const x =
-      ((((phase * 92 * target.flow + seed * 137) % (width * 1.24)) + width * 1.24) %
+      ((((phase * 46 * target.flow + seed * 137) % (width * 1.24)) + width * 1.24) %
         (width * 1.24)) -
       width * 0.12
-    const y = height * (0.08 + ((index * 0.137 + target.energy * 0.05) % 0.34))
+    const y = height * (0.08 + ((index * 0.173 + target.energy * 0.05) % 0.78))
     const length = width * (0.06 + target.energy * 0.055)
     const color = target.colors[index % target.colors.length]
     const gradient = ctx.createLinearGradient(x - length, y, x + length, y)
@@ -240,7 +247,7 @@ function drawAuroraFrame(
 
   const progressShift = (live.progress - 0.5) * width * 0.035
   const velocityLift = live.velocity * height * -0.018
-  const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 2
+  const basePhase = timeMs * target.speed * (reducedMotion ? 0.18 : 1) + live.phase * Math.PI * 0.55
   const opacity = target.opacity * (reducedMotion ? 0.78 : 1)
   const intensity = target.intensity
   const pulseWave = Math.sin(basePhase * 2.4)
@@ -254,11 +261,11 @@ function drawAuroraFrame(
 
   const wash = ctx.createRadialGradient(
     width * 0.5,
-    height * 0.22,
+    height * 0.44,
     0,
     width * 0.5,
-    height * 0.2,
-    height * 0.88
+    height * 0.46,
+    height * 1.08
   )
   wash.addColorStop(0, rgba(target.colors[1], opacity * 0.7))
   wash.addColorStop(0.38, rgba(target.colors[2], opacity * 0.35))
@@ -268,71 +275,84 @@ function drawAuroraFrame(
   ctx.fillRect(0, 0, width, height)
 
   ctx.globalCompositeOperation = 'screen'
-  drawSoftCurtain(ctx, width, height, basePhase, target, opacity * 0.55)
+  drawSoftCurtain(ctx, width, height, basePhase, target, opacity * 0.48)
   drawRibbon(
     ctx,
     width,
-    height * 0.08 + velocityLift,
-    height * (0.035 + intensity * 0.014) * turbulenceScale,
-    height * (0.18 + target.spread * 0.08) * shapePulse,
-    basePhase,
+    -height * 0.04 + velocityLift * 0.4,
+    height * (0.068 + intensity * 0.018) * turbulenceScale,
+    height * (0.27 + target.spread * 0.09) * shapePulse,
+    basePhase * 0.72,
     target.colors[0],
     target.colors[1],
-    opacity * 0.86 * luminancePulse,
-    target.flow,
-    target.turbulence
+    opacity * 0.58 * luminancePulse,
+    target.flow * 0.92,
+    target.turbulence * 0.72
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.2 + progressShift * 0.08,
-    height * (0.05 + intensity * 0.016) * energyScale,
-    height * (0.2 + target.spread * 0.1),
-    basePhase * 0.82 + 1.4,
+    height * 0.19 + progressShift * 0.04,
+    height * (0.082 + intensity * 0.022) * energyScale,
+    height * (0.3 + target.spread * 0.1),
+    basePhase * 0.58 + 1.4,
     target.colors[1],
     target.colors[3],
-    opacity * 0.75,
-    target.flow * 0.9,
-    target.turbulence * 0.82
-  )
-  drawRibbon(
-    ctx,
-    width,
-    height * 0.34 - velocityLift * 0.45,
-    height * (0.038 + intensity * 0.012) * energyScale,
-    height * (0.17 + target.spread * 0.07),
-    basePhase * 0.68 + 2.2,
-    target.colors[2],
-    target.colors[0],
     opacity * 0.62,
-    target.flow * 0.74,
+    target.flow * 0.84,
     target.turbulence * 0.68
   )
   drawRibbon(
     ctx,
     width,
-    height * 0.48 + velocityLift * 0.22,
-    height * (0.028 + intensity * 0.01) * energyScale,
-    height * (0.13 + target.spread * 0.06),
-    basePhase * 0.55 + 3.1,
+    height * 0.43 - velocityLift * 0.28,
+    height * (0.075 + intensity * 0.02) * energyScale,
+    height * (0.28 + target.spread * 0.09),
+    basePhase * 0.46 + 2.2,
+    target.colors[2],
+    target.colors[0],
+    opacity * 0.54,
+    target.flow * 0.76,
+    target.turbulence * 0.58
+  )
+  drawRibbon(
+    ctx,
+    width,
+    height * 0.66 + velocityLift * 0.14,
+    height * (0.064 + intensity * 0.018) * energyScale,
+    height * (0.25 + target.spread * 0.08),
+    basePhase * 0.36 + 3.1,
     target.colors[3],
     target.colors[1],
-    opacity * 0.48,
-    target.flow * 0.66,
-    target.turbulence * 0.55
+    opacity * 0.46,
+    target.flow * 0.7,
+    target.turbulence * 0.5
+  )
+  drawRibbon(
+    ctx,
+    width,
+    height * 0.86 - velocityLift * 0.08,
+    height * (0.05 + intensity * 0.014) * energyScale,
+    height * (0.2 + target.spread * 0.07),
+    basePhase * 0.28 + 4.1,
+    target.colors[0],
+    target.colors[2],
+    opacity * 0.34,
+    target.flow * 0.64,
+    target.turbulence * 0.42
   )
   if (target.energy > 0.64) {
     drawRibbon(
       ctx,
       width,
-      height * 0.13 - velocityLift * 0.26,
+      height * 0.38 - velocityLift * 0.18,
       height * (0.018 + target.energy * 0.016),
       height * (0.055 + target.turbulence * 0.045),
-      basePhase * 1.8 + 0.8,
+      basePhase * 1.06 + 0.8,
       target.colors[3],
       target.colors[2],
       opacity * target.energy * 0.5,
-      target.flow * 1.45,
+      target.flow * 1.12,
       Math.min(1, target.turbulence * 1.2)
     )
     drawEnergyStreaks(ctx, width, height, basePhase, target, opacity * target.energy * 0.26)

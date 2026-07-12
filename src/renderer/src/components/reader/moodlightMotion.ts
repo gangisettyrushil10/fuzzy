@@ -74,50 +74,50 @@ const MOOD_ACTIVITY: Record<AmbientClassification['mood'], number> = {
 const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = {
   storm: {
     id: 'storm',
-    speed: 0.00009,
+    speed: 0.000056,
     energy: 0.66,
     turbulence: 0.58,
     pulse: 0.22,
-    flow: 1.7,
+    flow: 1.4,
     spread: 0.52,
     streaks: { density: 0.72, length: 0.82, speed: 1.72, opacity: 0.68 },
     bursts: { frequency: 0.62, radius: 0.72, strength: 0.82 }
   },
   'battle-fire-blood': {
     id: 'battle-fire-blood',
-    speed: 0.000088,
+    speed: 0.000052,
     energy: 0.64,
     turbulence: 0.5,
     pulse: 0.24,
-    flow: 1.52,
+    flow: 1.32,
     spread: 0.5,
     streaks: { density: 0.6, length: 0.68, speed: 1.48, opacity: 0.62 },
     bursts: { frequency: 0.5, radius: 0.56, strength: 0.72 }
   },
   'ocean-rain-river': {
     id: 'ocean-rain-river',
-    speed: 0.000058,
+    speed: 0.000038,
     energy: 0.4,
     turbulence: 0.16,
     pulse: 0.06,
-    flow: 1.3,
+    flow: 1.05,
     spread: 0.53,
     streaks: { density: 0.24, length: 0.72, speed: 0.82, opacity: 0.34 }
   },
   'magic-treasure-awe-wonder': {
     id: 'magic-treasure-awe-wonder',
-    speed: 0.000064,
+    speed: 0.000042,
     energy: 0.48,
     turbulence: 0.22,
     pulse: 0.12,
-    flow: 1.16,
+    flow: 1,
     spread: 0.48,
     streaks: { density: 0.42, length: 0.48, speed: 1.08, opacity: 0.54 },
     bursts: { frequency: 0.28, radius: 0.5, strength: 0.48 }
   },
   calm: {
     id: 'calm',
-    speed: 0.000032,
+    speed: 0.000024,
     energy: 0.2,
     turbulence: 0.06,
     pulse: 0.03,
@@ -126,11 +126,11 @@ const BASE_PROFILES: Record<MoodlightMotionProfileId, MoodlightMotionProfile> = 
   },
   neutral: {
     id: 'neutral',
-    speed: 0.000045,
+    speed: 0.000032,
     energy: 0.3,
     turbulence: 0.13,
     pulse: 0.06,
-    flow: 1,
+    flow: 0.9,
     spread: 0.42
   }
 }
@@ -297,11 +297,11 @@ export function resolveMoodlightMotionProfile(
     MOOD_ACTIVITY[classification.mood]
   const motion = scaleHints(base, pace)
 
-  motion.speed = clamp(base.speed * (1 + pace * response.speed), 0.000026, 0.000148)
+  motion.speed = clamp(base.speed * (1 + pace * response.speed), 0.000018, 0.000084)
   motion.energy = clamp01(base.energy + pace * response.energy)
   motion.turbulence = clamp01(base.turbulence + pace * response.turbulence)
   motion.pulse = clamp01(base.pulse + pace * response.pulse)
-  motion.flow = clamp(base.flow + pace * response.flow, 0.62, 2.08)
+  motion.flow = clamp(base.flow + pace * response.flow, 0.6, 1.62)
   motion.spread = clamp(base.spread + pace * response.spread, 0.28, 0.58)
 
   return motion

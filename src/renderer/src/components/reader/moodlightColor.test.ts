@@ -112,5 +112,6 @@ describe('moodlight color and motion', () => {
     expect(violentStorm.energy).toBeGreaterThan(quietStorm.energy)
     expect(violentStorm.speed).toBeGreaterThan(quietStorm.speed)
     expect(violentStorm.pulse).toBeGreaterThan(quietStorm.pulse)
+    expect(violentStorm.speed).toBeLessThanOrEqual(0.000084)
   })
 })
