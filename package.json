@@ -1,6 +1,6 @@
 {
   "name": "fuzzy",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Mac-first AI-native PDF reading workspace",
   "main": "./out/main/index.js",
   "author": "Rushil Gangisetty",
