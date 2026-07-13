@@ -63,14 +63,14 @@ function normalizeTags(tags: string[] | undefined): string[] {
   return out
 }
 
-function normalizeMetadata(
-  metadata: Record<string, string> | undefined
-): Record<string, string> {
+function normalizeMetadata(metadata: Record<string, string> | undefined): Record<string, string> {
   if (!metadata || typeof metadata !== 'object') return {}
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(metadata)) {
     const k = key.trim().slice(0, 48)
-    const v = String(value ?? '').trim().slice(0, 300)
+    const v = String(value ?? '')
+      .trim()
+      .slice(0, 300)
     if (!k || !v) continue
     out[k] = v
   }
@@ -230,9 +230,9 @@ export function createHighlight(input: CreateHighlightInput): HighlightRecord {
     externalId: input.externalId ?? null,
     text: input.text
   })
-  const row = getDb()
-    .prepare(`SELECT id FROM highlights WHERE dedupe_hash = ?`)
-    .get(dedupeHash) as { id: string } | undefined
+  const row = getDb().prepare(`SELECT id FROM highlights WHERE dedupe_hash = ?`).get(dedupeHash) as
+    | { id: string }
+    | undefined
   const existing = row ? getHighlightById(row.id) : null
   if (existing) return existing
   throw new Error('Could not create highlight.')
@@ -294,14 +294,16 @@ export function listHighlights(filters: HighlightSearchInput = {}): HighlightRec
   const tags = normalizeTags(filters.tags)
   for (const tag of tags) {
     where.push(`LOWER(h.tags_json) LIKE ?`)
-    params.push(`%\"${tag.toLowerCase()}\"%`)
+    params.push(`%"${tag.toLowerCase()}"%`)
   }
   if (where.length > 0) sql += ` WHERE ${where.join(' AND ')}`
   sql += ` ORDER BY CASE WHEN datetime(h.due_at) <= datetime(?) THEN 0 ELSE 1 END, datetime(h.highlighted_at) DESC`
   params.push(nowIso)
   sql += ` LIMIT ?`
   params.push(clampLimit(filters.limit))
-  const rows = getDb().prepare(sql).all(...params) as HighlightRow[]
+  const rows = getDb()
+    .prepare(sql)
+    .all(...params) as HighlightRow[]
   return rows.map(toRecord)
 }
 
@@ -409,7 +411,9 @@ export function getHighlightStats(nowIso: string): HighlightStats {
        FROM highlights`
     )
     .get() as { total: number; favorite_count: number | null; source_count: number }
-  const tagRows = getDb().prepare(`SELECT tags_json FROM highlights`).all() as Array<{ tags_json: string }>
+  const tagRows = getDb().prepare(`SELECT tags_json FROM highlights`).all() as Array<{
+    tags_json: string
+  }>
   const tagCounts = new Map<string, number>()
   for (const row of tagRows) {
     for (const tag of safeJsonParse<string[]>(row.tags_json, [])) {

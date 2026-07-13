@@ -9,7 +9,7 @@ import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createHash, randomUUID } from 'crypto'
+import { randomUUID } from 'crypto'
 import { execSync } from 'child_process'
 import os from 'os'
 import fs from 'fs'
@@ -21,8 +21,9 @@ const require = createRequire(import.meta.url)
 const JSZip = require(path.join(ROOT, 'node_modules/jszip'))
 
 const EPUB_PATH = process.argv[2] ?? '/tmp/great-gatsby.epub'
-const DOC_ID    = process.argv[3] ?? 'gatsby-epub-001'
-const DB_PATH   = process.argv[4] ?? path.join(os.homedir(), 'Library/Application Support/fuzzy/fuzzy.db')
+const DOC_ID = process.argv[3] ?? 'gatsby-epub-001'
+const DB_PATH =
+  process.argv[4] ?? path.join(os.homedir(), 'Library/Application Support/fuzzy/fuzzy.db')
 
 // ---- Minimal HTML-to-text (mirrors epubExtractor.ts htmlToText) ----
 function htmlToText(html) {
@@ -32,7 +33,8 @@ function htmlToText(html) {
   text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
   text = text.replace(/<!--[\s\S]*?-->/g, '')
   text = text.replace(/<br\s*\/?>/gi, '\n')
-  const blockTags = 'address|article|aside|blockquote|div|dl|dd|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tr|ul'
+  const blockTags =
+    'address|article|aside|blockquote|div|dl|dd|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tr|ul'
   text = text.replace(new RegExp(`</(?:${blockTags})>`, 'gi'), '\n\n')
   text = text.replace(new RegExp(`<(?:${blockTags})\\b[^>]*>`, 'gi'), '\n')
   text = text.replace(/<[^>]+>/g, '')
@@ -50,7 +52,13 @@ function decodeEntities(t) {
     const l = body.toLowerCase()
     if (l[0] === '#') {
       const cp = l[1] === 'x' ? parseInt(l.slice(2), 16) : parseInt(l.slice(1), 10)
-      if (Number.isFinite(cp) && cp > 0) { try { return String.fromCodePoint(cp) } catch {} }
+      if (Number.isFinite(cp) && cp > 0) {
+        try {
+          return String.fromCodePoint(cp)
+        } catch {
+          return whole
+        }
+      }
       return whole
     }
     return Object.prototype.hasOwnProperty.call(NAMED, l) ? NAMED[l] : whole
@@ -63,8 +71,13 @@ function attr(tag, name) {
   return m ? m[1] : null
 }
 
-function normalizeZipPath(p) { return p.replace(/\\/g, '/').replace(/^\.\//, '') }
-function dirname(p) { const i = p.lastIndexOf('/'); return i === -1 ? '' : p.slice(0, i) }
+function normalizeZipPath(p) {
+  return p.replace(/\\/g, '/').replace(/^\.\//, '')
+}
+function dirname(p) {
+  const i = p.lastIndexOf('/')
+  return i === -1 ? '' : p.slice(0, i)
+}
 function resolvePath(base, href) {
   const clean = normalizeZipPath(decodeURIComponent(href).split('#')[0])
   if (clean.startsWith('/')) return clean.slice(1)
@@ -82,7 +95,9 @@ async function readZipText(zip, p) {
   let entry = zip.file(p)
   if (!entry) {
     const lower = p.toLowerCase()
-    zip.forEach((rel, f) => { if (!entry && rel.toLowerCase() === lower) entry = f })
+    zip.forEach((rel, f) => {
+      if (!entry && rel.toLowerCase() === lower) entry = f
+    })
   }
   return entry ? entry.async('string') : null
 }
@@ -108,14 +123,16 @@ async function extractEpub(filePath) {
   const manifest = new Map()
   const manifestBlock = opfXml.match(/<manifest\b[^>]*>([\s\S]*?)<\/manifest>/i)?.[1] ?? opfXml
   for (const m of manifestBlock.matchAll(/<item\b[^>]*>/gi)) {
-    const id = attr(m[0], 'id'), href = attr(m[0], 'href')
+    const id = attr(m[0], 'id'),
+      href = attr(m[0], 'href')
     if (id && href) manifest.set(id, decodeEntities(href))
   }
 
   // Parse spine
   const spineBlock = opfXml.match(/<spine\b[^>]*>([\s\S]*?)<\/spine>/i)?.[1] ?? ''
   const spine = [...spineBlock.matchAll(/<itemref\b[^>]*>/gi)]
-    .map(m => attr(m[0], 'idref')).filter(Boolean)
+    .map((m) => attr(m[0], 'idref'))
+    .filter(Boolean)
 
   const sections = []
   for (const idref of spine) {
@@ -125,8 +142,8 @@ async function extractEpub(filePath) {
     const xhtml = await readZipText(zip, docPath)
     if (!xhtml) continue
     const text = htmlToText(xhtml)
-    if (text.length < 20) continue  // skip nav/toc pages
-    sections.push({ text, html: null })  // skip images for speed
+    if (text.length < 20) continue // skip nav/toc pages
+    sections.push({ text, html: null }) // skip images for speed
   }
 
   return sections
@@ -165,7 +182,9 @@ for (const { text } of sections) {
 }
 
 // Update page_count on the document
-execSync(`sqlite3 "${DB_PATH}" "UPDATE documents SET page_count = ${pageNumber - 1} WHERE id = '${DOC_ID}';"`)
+execSync(
+  `sqlite3 "${DB_PATH}" "UPDATE documents SET page_count = ${pageNumber - 1} WHERE id = '${DOC_ID}';"`
+)
 
 console.log(`Done. Inserted ${insertedCount} / ${sections.length} pages.`)
 console.log(`Page count set to ${pageNumber - 1}.`)

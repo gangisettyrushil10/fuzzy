@@ -36,8 +36,18 @@ export default defineConfig(
       'react-refresh': eslintPluginReactRefresh
     },
     rules: {
-      ...eslintPluginReactHooks.configs.recommended.rules,
+      // Keep the stable Hooks correctness rules explicit. In v7 the generic
+      // `recommended` preset also enables React Compiler migration rules,
+      // which made dependency updates retroactively fail existing UI code.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       ...eslintPluginReactRefresh.configs.vite.rules
+    }
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
     }
   },
   eslintConfigPrettier
