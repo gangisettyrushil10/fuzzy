@@ -89,7 +89,7 @@ export function SpotifySettings(): React.JSX.Element {
     <div className="space-y-6">
       <Section
         title="Spotify Ambient Companion"
-        description="Moodlight detects a page's mood; Fuzzy suggests a matching playlist. Opening a suggestion hands it to your existing Spotify app or the web player — Fuzzy never streams audio itself."
+        description="Moodlight reads the passage in view, finds a matching track, and controls your existing Spotify player. Fuzzy never receives or streams audio itself."
       >
         <div className="space-y-3">
           <div>
@@ -125,11 +125,24 @@ export function SpotifySettings(): React.JSX.Element {
               {status.connected ? (
                 <>
                   <span className={cn('h-2 w-2 rounded-full', 'bg-fz-success')} />
-                  <span className="text-fz-ui text-fz-fg">Connected</span>
+                  <span className="text-fz-ui text-fz-fg">
+                    {status.playbackControl ? 'Connected for playback' : 'Connected for search'}
+                  </span>
+                  {!status.playbackControl && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="ml-auto"
+                      onClick={() => void onConnect()}
+                      disabled={busy}
+                    >
+                      Reconnect for playback
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="ml-auto"
+                    className={status.playbackControl ? 'ml-auto' : undefined}
                     onClick={() => void onDisconnect()}
                     disabled={busy}
                   >
@@ -152,14 +165,14 @@ export function SpotifySettings(): React.JSX.Element {
 
       <Section
         title="Playback mode"
-        description="Suggest only shows a card you click; Auto companion re-suggests when the mood meaningfully changes (with a cooldown so it never feels jittery). Neither mode starts playback on its own — you always click to open Spotify."
+        description="Manual changes the track whenever you press Soundtrack. Auto companion also re-scores meaningful mood, scene, and intensity shifts after a calm cooldown."
       >
         <SegmentedControl<SpotifyPlaybackMode>
           aria-label="Spotify playback mode"
           value={status.playbackMode}
           onChange={(v) => void setPlaybackMode(v)}
           options={[
-            { value: 'suggest', label: 'Suggest only' },
+            { value: 'suggest', label: 'Manual' },
             { value: 'auto', label: 'Auto companion' }
           ]}
         />
@@ -189,10 +202,9 @@ export function SpotifySettings(): React.JSX.Element {
       </Section>
 
       <p className="text-fz-micro leading-relaxed text-fz-fg-subtle">
-        Fuzzy only requests permission to search Spotify&apos;s public catalog — never your library,
-        playlists, or playback. Playing a suggestion requires the Spotify app (or open.spotify.com)
-        signed in separately; a free Spotify account works for this, since we open a normal Spotify
-        link rather than calling the Premium-only playback-control API.
+        One-click control uses Spotify Connect and requires Spotify Premium plus an available
+        device. When direct control is unavailable, Fuzzy opens the chosen track in Spotify instead.
+        Fuzzy never requests access to your library or playlists.
       </p>
     </div>
   )

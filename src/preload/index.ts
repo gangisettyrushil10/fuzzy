@@ -32,8 +32,7 @@ const fuzzy: FuzzyApi = {
   },
   thesis: {
     search: (request) => ipcRenderer.invoke(IpcChannels.thesisSearch, request),
-    getMetadata: (documentId) =>
-      ipcRenderer.invoke(IpcChannels.documentsGetMetadata, documentId),
+    getMetadata: (documentId) => ipcRenderer.invoke(IpcChannels.documentsGetMetadata, documentId),
     updateMetadata: (documentId, patch) =>
       ipcRenderer.invoke(IpcChannels.documentsUpdateMetadata, documentId, patch)
   },
@@ -63,7 +62,8 @@ const fuzzy: FuzzyApi = {
   essays: {
     list: () => ipcRenderer.invoke(IpcChannels.essaysList),
     get: (id) => ipcRenderer.invoke(IpcChannels.essaysGet, id),
-    create: (title, thesis, scope) => ipcRenderer.invoke(IpcChannels.essaysCreate, title, thesis, scope),
+    create: (title, thesis, scope) =>
+      ipcRenderer.invoke(IpcChannels.essaysCreate, title, thesis, scope),
     update: (id, patch) => ipcRenderer.invoke(IpcChannels.essaysUpdate, id, patch),
     delete: (id) => ipcRenderer.invoke(IpcChannels.essaysDelete, id),
     generateOutline: (request) => ipcRenderer.invoke(IpcChannels.essaysGenerateOutline, request),
@@ -137,8 +137,7 @@ const fuzzy: FuzzyApi = {
     stats: (documentId) => ipcRenderer.invoke(IpcChannels.quizAttemptsStats, documentId)
   },
   flashcardReviews: {
-    forPack: (studyPackId) =>
-      ipcRenderer.invoke(IpcChannels.flashcardReviewsForPack, studyPackId),
+    forPack: (studyPackId) => ipcRenderer.invoke(IpcChannels.flashcardReviewsForPack, studyPackId),
     grade: (studyPackId, documentId, cardIndex, grade) =>
       ipcRenderer.invoke(
         IpcChannels.flashcardReviewsGrade,
@@ -201,9 +200,13 @@ const fuzzy: FuzzyApi = {
     setPlaybackMode: (mode) => ipcRenderer.invoke(IpcChannels.spotifySetPlaybackMode, mode),
     setGenrePreferences: (genres) =>
       ipcRenderer.invoke(IpcChannels.spotifySetGenrePreferences, genres),
-    suggestForMood: (classification) =>
-      ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification),
-    openSuggestion: (suggestion) => ipcRenderer.invoke(IpcChannels.spotifyOpenSuggestion, suggestion)
+    suggestForMood: (classification, options) =>
+      ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification, options),
+    playSuggestion: (suggestion) =>
+      ipcRenderer.invoke(IpcChannels.spotifyPlaySuggestion, suggestion),
+    restorePlayback: (snapshot) => ipcRenderer.invoke(IpcChannels.spotifyRestorePlayback, snapshot),
+    openSuggestion: (suggestion) =>
+      ipcRenderer.invoke(IpcChannels.spotifyOpenSuggestion, suggestion)
   },
   ...(IS_DEV
     ? {

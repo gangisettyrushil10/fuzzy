@@ -7,13 +7,10 @@ import type { SpotifyTokens } from './spotifyTokenStore'
 export const SPOTIFY_LOOPBACK_PORT = 51821
 export const SPOTIFY_REDIRECT_URI = `http://127.0.0.1:${SPOTIFY_LOOPBACK_PORT}/callback`
 
-// Deliberately empty: playlist/track search over Spotify's public catalog
-// needs a valid user token but no specific scope. Keeping this empty means
-// the consent screen asks for nothing beyond "know who's logged in," and we
-// never touch the user's library or playback. See Fuzzy CLAUDE.md notes on
-// the Spotify Ambient Companion feature for why write/playback scopes were
-// deliberately deferred.
-export const SPOTIFY_SCOPE = ''
+// These scopes control the user's existing Spotify Connect player. Fuzzy never
+// receives audio data and never requests library or playlist write access.
+export const SPOTIFY_SCOPES = ['user-read-playback-state', 'user-modify-playback-state'] as const
+export const SPOTIFY_SCOPE = SPOTIFY_SCOPES.join(' ')
 
 function base64url(input: Buffer): string {
   return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -51,6 +48,7 @@ interface TokenResponse {
   access_token: string
   refresh_token?: string
   expires_in: number
+  scope?: string
   error?: string
   error_description?: string
 }
@@ -90,7 +88,8 @@ export async function exchangeCodeForToken(params: {
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
-    expiresAt: Date.now() + json.expires_in * 1000
+    expiresAt: Date.now() + json.expires_in * 1000,
+    scopes: (json.scope ?? SPOTIFY_SCOPE).split(/\s+/).filter(Boolean)
   }
 }
 

@@ -102,13 +102,9 @@ export interface AmbientClassification {
   motion: AmbientMotion
 }
 
-// Spotify Ambient Companion — maps Moodlight's mood classification to a
-// soundtrack lane and surfaces a matching playlist via Spotify search. No
-// playback-control scopes are requested: "opening" a suggestion hands a
-// standard https://open.spotify.com link to the OS, which plays in whatever
-// Spotify surface (desktop app, web player) the user already has — this works
-// for free-tier accounts too, unlike the Web API's `/me/player` endpoints
-// which require Premium and an active device.
+// Spotify Ambient Companion — maps the visible passage's Moodlight
+// classification to a track, then controls the user's existing Spotify player
+// when their account/device supports it. Fuzzy never streams audio itself.
 export type SpotifyPlaybackMode = 'suggest' | 'auto'
 
 export interface SpotifyStatus {
@@ -116,6 +112,8 @@ export interface SpotifyStatus {
   configured: boolean
   /** Logged in with a valid (or refreshable) token. */
   connected: boolean
+  /** The current login granted Spotify Connect read/write scopes. */
+  playbackControl: boolean
   playbackMode: SpotifyPlaybackMode
   genrePreferences: string[]
 }
@@ -127,12 +125,59 @@ export type SpotifyConnectResult =
 export interface SpotifySuggestion {
   lane: string
   query: string
-  playlistId: string | null
+  trackId: string | null
+  uri: string | null
   name: string | null
   description: string | null
   imageUrl: string | null
   externalUrl: string | null
-  ownerName: string | null
+  artistName: string | null
+}
+
+export interface SpotifySuggestionOptions {
+  excludeUris?: string[]
+}
+
+export interface SpotifyPlaybackSnapshot {
+  uri: string
+  name: string | null
+  artistName: string | null
+  imageUrl: string | null
+  externalUrl: string | null
+  progressMs: number
+}
+
+export type SpotifyPlaybackResult =
+  | {
+      ok: true
+      started: true
+      openedExternal: false
+      previous: SpotifyPlaybackSnapshot | null
+    }
+  | {
+      ok: true
+      started: false
+      openedExternal: true
+      reason: 'reconnect-required' | 'premium-required' | 'no-device' | 'playback-unavailable'
+      message: string
+    }
+  | {
+      ok: false
+      started: false
+      openedExternal: false
+      reason:
+        | 'invalid-suggestion'
+        | 'not-connected'
+        | 'reconnect-required'
+        | 'premium-required'
+        | 'no-device'
+        | 'playback-unavailable'
+      message: string
+    }
+
+export interface SpotifyRestoreResult {
+  ok: boolean
+  message?: string
 }
 
 export interface FuzzyApi {
@@ -361,7 +406,12 @@ export interface FuzzyApi {
     disconnect: () => Promise<SpotifyStatus>
     setPlaybackMode: (mode: SpotifyPlaybackMode) => Promise<SpotifyStatus>
     setGenrePreferences: (genres: string[]) => Promise<SpotifyStatus>
-    suggestForMood: (classification: AmbientClassification) => Promise<SpotifySuggestion | null>
+    suggestForMood: (
+      classification: AmbientClassification,
+      options?: SpotifySuggestionOptions
+    ) => Promise<SpotifySuggestion | null>
+    playSuggestion: (suggestion: SpotifySuggestion) => Promise<SpotifyPlaybackResult>
+    restorePlayback: (snapshot: SpotifyPlaybackSnapshot) => Promise<SpotifyRestoreResult>
     openSuggestion: (suggestion: SpotifySuggestion) => Promise<{ ok: boolean }>
   }
   // Dev-only helpers are only exposed in development builds. Production

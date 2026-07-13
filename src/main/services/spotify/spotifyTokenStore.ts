@@ -1,6 +1,7 @@
 import { safeStorage } from 'electron'
 import { deleteSetting, getSetting, setSetting } from '../../db/repositories/settingsRepository'
 import type { SpotifyPlaybackMode, SpotifyStatus } from '@shared/types/api'
+import { SPOTIFY_SCOPES } from './spotifyOAuth'
 
 // Same discipline as the OpenAI key in settingsService.ts: secrets are
 // encrypted via safeStorage (macOS Keychain-backed) and only ever decrypted
@@ -10,6 +11,7 @@ const KEY_CLIENT_ID = 'spotify.clientId'
 const KEY_ACCESS_TOKEN_ENC = 'spotify.accessToken.enc.b64'
 const KEY_REFRESH_TOKEN_ENC = 'spotify.refreshToken.enc.b64'
 const KEY_EXPIRES_AT = 'spotify.expiresAt'
+const KEY_SCOPES = 'spotify.scopes'
 const KEY_PLAYBACK_MODE = 'spotify.playbackMode'
 const KEY_GENRE_PREFS = 'spotify.genrePreferences'
 
@@ -17,6 +19,7 @@ export interface SpotifyTokens {
   accessToken: string
   refreshToken: string
   expiresAt: number
+  scopes: string[]
 }
 
 function encrypt(value: string): string {
@@ -61,13 +64,15 @@ export function readTokens(): SpotifyTokens | null {
   if (!accessToken || !refreshToken) return null
   const expiresAt = Number(expiresAtRaw)
   if (!Number.isFinite(expiresAt)) return null
-  return { accessToken, refreshToken, expiresAt }
+  const scopes = (getSetting(KEY_SCOPES) ?? '').split(/\s+/).filter(Boolean)
+  return { accessToken, refreshToken, expiresAt, scopes }
 }
 
 export function writeTokens(tokens: SpotifyTokens): void {
   setSetting(KEY_ACCESS_TOKEN_ENC, encrypt(tokens.accessToken))
   setSetting(KEY_REFRESH_TOKEN_ENC, encrypt(tokens.refreshToken))
   setSetting(KEY_EXPIRES_AT, String(tokens.expiresAt))
+  setSetting(KEY_SCOPES, tokens.scopes.join(' '))
 }
 
 // Access tokens rotate on refresh; the refresh token usually doesn't (Spotify
@@ -88,6 +93,7 @@ export function clearTokens(): void {
   deleteSetting(KEY_ACCESS_TOKEN_ENC)
   deleteSetting(KEY_REFRESH_TOKEN_ENC)
   deleteSetting(KEY_EXPIRES_AT)
+  deleteSetting(KEY_SCOPES)
 }
 
 export function readPlaybackMode(): SpotifyPlaybackMode {
@@ -118,9 +124,11 @@ export function writeGenrePreferences(genres: string[]): void {
 }
 
 export function readSpotifyStatus(): SpotifyStatus {
+  const tokens = readTokens()
   return {
     configured: readClientId() !== null,
-    connected: readTokens() !== null,
+    connected: tokens !== null,
+    playbackControl: SPOTIFY_SCOPES.every((scope) => tokens?.scopes.includes(scope)),
     playbackMode: readPlaybackMode(),
     genrePreferences: readGenrePreferences()
   }
