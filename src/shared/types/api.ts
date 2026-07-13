@@ -102,6 +102,39 @@ export interface AmbientClassification {
   motion: AmbientMotion
 }
 
+// Spotify Ambient Companion — maps Moodlight's mood classification to a
+// soundtrack lane and surfaces a matching playlist via Spotify search. No
+// playback-control scopes are requested: "opening" a suggestion hands a
+// standard https://open.spotify.com link to the OS, which plays in whatever
+// Spotify surface (desktop app, web player) the user already has — this works
+// for free-tier accounts too, unlike the Web API's `/me/player` endpoints
+// which require Premium and an active device.
+export type SpotifyPlaybackMode = 'suggest' | 'auto'
+
+export interface SpotifyStatus {
+  /** A Client ID has been saved (does not imply a completed login). */
+  configured: boolean
+  /** Logged in with a valid (or refreshable) token. */
+  connected: boolean
+  playbackMode: SpotifyPlaybackMode
+  genrePreferences: string[]
+}
+
+export type SpotifyConnectResult =
+  | { ok: true; status: SpotifyStatus }
+  | { ok: false; error: string; status: SpotifyStatus }
+
+export interface SpotifySuggestion {
+  lane: string
+  query: string
+  playlistId: string | null
+  name: string | null
+  description: string | null
+  imageUrl: string | null
+  externalUrl: string | null
+  ownerName: string | null
+}
+
 export interface FuzzyApi {
   /** True when the app was launched with FUZZY_E2E=1 (automated smoke tests). */
   e2e: boolean
@@ -320,6 +353,16 @@ export interface FuzzyApi {
       data: Uint8Array
     ) => Promise<{ ok: boolean; method?: 'clipboard-fallback'; error?: string }>
     openTwitterIntent: (text: string) => Promise<{ ok: true }>
+  }
+  spotify: {
+    getStatus: () => Promise<SpotifyStatus>
+    setClientId: (clientId: string) => Promise<SpotifyStatus>
+    connect: () => Promise<SpotifyConnectResult>
+    disconnect: () => Promise<SpotifyStatus>
+    setPlaybackMode: (mode: SpotifyPlaybackMode) => Promise<SpotifyStatus>
+    setGenrePreferences: (genres: string[]) => Promise<SpotifyStatus>
+    suggestForMood: (classification: AmbientClassification) => Promise<SpotifySuggestion | null>
+    openSuggestion: (suggestion: SpotifySuggestion) => Promise<{ ok: boolean }>
   }
   // Dev-only helpers are only exposed in development builds. Production
   // preload omits the field entirely.

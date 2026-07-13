@@ -122,7 +122,11 @@ interface AmbientState {
   classification: AmbientClassification | null
   classificationKey: string | null
   previewForPage: (documentId: string, pageNumber: number, text: string) => void
-  classifyForPage: (documentId: string, pageNumber: number, text: string) => Promise<void>
+  classifyForPage: (
+    documentId: string,
+    pageNumber: number,
+    text: string
+  ) => Promise<AmbientClassification | null>
   live: AmbientLiveState
   setLive: (documentId: string, pageNumber: number, progress: number, velocity?: number) => void
 }
@@ -313,8 +317,8 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
 
     classifyForPage: async (documentId, pageNumber, text) => {
       const { feelingEnabled } = get()
-      if (!feelingEnabled) return
-      if (!text.trim()) return
+      if (!feelingEnabled) return null
+      if (!text.trim()) return null
 
       const cacheKey = excerptCacheKey(documentId, pageNumber, text)
       const cached = classificationCache.get(cacheKey)
@@ -322,7 +326,7 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
         const forceImmediate = get().classificationKey === null
         set({ classificationKey: cacheKey, feelingStatus: 'ready' })
         commitClassification(cached, cacheKey, 'ready', 'cached', forceImmediate)
-        return
+        return cached
       }
 
       if (get().classificationKey !== cacheKey) {
@@ -346,23 +350,25 @@ export const useAmbientStore = create<AmbientState>((set, get) => {
         }
         const result = await request
         classificationRequests.delete(cacheKey)
-        if (!get().feelingEnabled) return
+        if (!get().feelingEnabled) return null
         if (!result) {
           if (get().classificationKey === cacheKey) {
             set({ feelingStatus: 'error' })
           }
-          return
+          return null
         }
         rememberClassification(cacheKey, result)
         if (get().classificationKey === cacheKey) {
           set({ feelingStatus: 'ready' })
           commitClassification(result, cacheKey, 'ready', 'rich')
         }
+        return result
       } catch {
         classificationRequests.delete(cacheKey)
         if (get().classificationKey === cacheKey) {
           set({ feelingStatus: 'error' })
         }
+        return null
       }
     }
   }

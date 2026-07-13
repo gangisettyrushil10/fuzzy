@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PageRecord } from '@shared/types/database'
+import type { AmbientClassification } from '@shared/types/api'
 import { FILE_FORMATS, type FileType } from '@shared/formats'
 import { useDocumentStore } from '../../state/documentStore'
 import { useSelectionStore } from '../../state/selectionStore'
@@ -13,6 +14,7 @@ import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
 import { ReaderTypographyPopover } from './ReaderTypographyPopover'
 import { FeelingModeButton } from './FeelingModeButton'
+import { SoundtrackButton } from './SoundtrackButton'
 import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
@@ -197,6 +199,17 @@ export function ReflowableReader({
   const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
+  const classifyVisiblePassage = useCallback(async (): Promise<AmbientClassification | null> => {
+    if (!current?.textContent) return null
+    const host = scrollRef.current
+    const progress =
+      !host || host.scrollHeight <= host.clientHeight
+        ? 0.5
+        : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
+    const excerpt = excerptForProgress(current.textContent, progress)
+    if (!excerpt) return null
+    return classifyForPage(documentId, current.pageNumber, excerpt)
+  }, [current, classifyForPage, documentId])
   const moodlightResponsiveness = useAmbientStore((s) => s.moodlightPreferences.responsiveness)
   useEffect(() => {
     if (!feelingEnabled || !current?.textContent) return
@@ -406,6 +419,11 @@ export function ReflowableReader({
           status={feelingStatus}
           classification={ambientClassification}
           onToggle={() => setFeelingEnabled(!feelingEnabled)}
+        />
+        <SoundtrackButton
+          classification={ambientClassification}
+          feelingEnabled={feelingEnabled}
+          classifyVisiblePassage={classifyVisiblePassage}
         />
         <ReaderTypographyPopover />
         {sections && sections.length > 1 && (

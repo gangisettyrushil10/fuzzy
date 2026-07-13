@@ -48,7 +48,7 @@ function client(): OpenAI {
   })
 }
 
-function useReal(): boolean {
+function shouldUseRealProvider(): boolean {
   return readSettings().providerMode === 'openai' && !!getDecryptedOpenaiKey()
 }
 
@@ -61,7 +61,7 @@ export async function generateDigest(
   const rep = representativeSlice(documentId)
   if (!rep) throw new Error('Document not found.')
   const targetWords = targetWordsForMinutes(targetMinutes)
-  if (!rep.slice.trim() || !useReal()) {
+  if (!rep.slice.trim() || !shouldUseRealProvider()) {
     return buildMockDigest(documentId, rep.title, rep.slice, targetMinutes)
   }
 
@@ -113,7 +113,7 @@ export async function generateChapterSummaries(
   documentId: string
 ): Promise<ChapterSummariesResult> {
   const chapters = chapterList(documentId)
-  if (chapters.length === 0 || !useReal()) {
+  if (chapters.length === 0 || !shouldUseRealProvider()) {
     return buildMockChapterSummaries(documentId, chapters)
   }
 
