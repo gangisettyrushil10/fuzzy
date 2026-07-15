@@ -46,6 +46,8 @@ const VALIDATE_KEY_TIMEOUT_MS = 5_000
 // are still overridable per-install from Settings (model + base URL).
 const DEFAULT_OPENAI_BASE_URL: string | null = 'https://api.groq.com/openai/v1'
 const DEFAULT_OPENAI_MODEL = 'llama-3.3-70b-versatile'
+const OFFICIAL_OPENAI_BASE_URL = 'https://api.openai.com/v1'
+const OFFICIAL_OPENAI_MODEL = 'gpt-4.1-mini'
 
 // --- Paid OpenAI defaults (commented out — restore both to switch back) ---
 // const DEFAULT_OPENAI_BASE_URL: string | null = null // null = OpenAI endpoint
@@ -127,6 +129,17 @@ export function writeOpenaiKey(plaintextKey: string): AppSettings {
   }
   const enc = safeStorage.encryptString(trimmed)
   setSetting(KEY_OPENAI_API_KEY_ENC, enc.toString('base64'))
+
+  // An official OpenAI key cannot authenticate against Fuzzy's free Groq
+  // defaults. When those defaults are still active, configure a compatible,
+  // low-latency OpenAI model automatically so saving the key is enough.
+  const usingFreeDefaults =
+    getOpenaiBaseUrl() === DEFAULT_OPENAI_BASE_URL && readOpenaiModel() === DEFAULT_OPENAI_MODEL
+  if (/^sk-(?!or-)/.test(trimmed) && usingFreeDefaults) {
+    setSetting(KEY_PROVIDER_MODE, 'openai')
+    setSetting(KEY_OPENAI_BASE_URL, OFFICIAL_OPENAI_BASE_URL)
+    setSetting(KEY_OPENAI_MODEL, OFFICIAL_OPENAI_MODEL)
+  }
   return readSettings()
 }
 

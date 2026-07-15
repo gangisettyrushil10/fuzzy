@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AmbientClassification, SpotifySuggestion } from '../src/shared/types/api'
-import { useSpotifyStore } from '../src/renderer/src/state/spotifyStore'
+import {
+  isMeaningfulSoundtrackShift,
+  useSpotifyStore
+} from '../src/renderer/src/state/spotifyStore'
 
 const calmClassification: AmbientClassification = {
   mood: 'calm',
@@ -17,19 +20,18 @@ function suggestion(name: string): SpotifySuggestion {
   return {
     lane: 'Deep focus',
     query: 'calm instrumental focus',
-    playlistId: name,
+    querySource: 'fallback',
+    trackId: name,
+    uri: `spotify:track:${name}`,
     name,
     description: null,
     imageUrl: null,
-    externalUrl: `https://open.spotify.com/playlist/${name}`,
-    ownerName: null
+    externalUrl: `https://open.spotify.com/track/${name}`,
+    artistName: 'Fuzzy Ensemble'
   }
 }
 
-function deferred<T>(): {
-  promise: Promise<T>
-  resolve: (value: T) => void
-} {
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((done) => {
     resolve = done
@@ -39,24 +41,25 @@ function deferred<T>(): {
 
 describe('spotifyStore', () => {
   const suggestForMood = vi.fn()
+  const playSuggestion = vi.fn()
+  const restorePlayback = vi.fn()
   const openSuggestion = vi.fn(async () => ({ ok: true }))
 
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubGlobal('window', {
-      fuzzy: {
-        spotify: {
-          suggestForMood,
-          openSuggestion
-        }
-      }
+      fuzzy: { spotify: { suggestForMood, playSuggestion, restorePlayback, openSuggestion } }
     })
     useSpotifyStore.setState({
       suggestion: null,
       suggestionStatus: 'idle',
-      lastAutoMood: null,
+      currentClassification: null,
+      recentUris: [],
       lastAutoAt: 0,
-      requesting: false
+      requesting: false,
+      playbackState: 'idle',
+      playbackMessage: null,
+      undoSnapshot: null
     })
   })
 
@@ -80,13 +83,104 @@ describe('spotifyStore', () => {
     expect(useSpotifyStore.getState().suggestionStatus).toBe('ready')
   })
 
-  it('opens the exact suggestion supplied by a fresh manual search', async () => {
-    const current = suggestion('current')
+  it('passes the exact visible excerpt into the next track search', async () => {
+    suggestForMood.mockResolvedValue(suggestion('rain'))
+
+    await useSpotifyStore
+      .getState()
+      .requestSuggestion(calmClassification, 'Rain swept across the empty station.')
+
+    expect(suggestForMood).toHaveBeenCalledWith(calmClassification, {
+      excludeUris: [],
+      passageExcerpt: 'Rain swept across the empty station.'
+    })
+  })
+
+  it('excludes recently rejected tracks from the next passage search', async () => {
+    const rejected = suggestion('rejected')
     const fresh = suggestion('fresh')
-    useSpotifyStore.setState({ suggestion: current, suggestionStatus: 'ready' })
+    useSpotifyStore.setState({ recentUris: [rejected.uri!] })
+    suggestForMood.mockResolvedValue(fresh)
 
-    await useSpotifyStore.getState().openSuggestion(fresh)
+    await useSpotifyStore.getState().requestSuggestion(calmClassification)
 
-    expect(openSuggestion).toHaveBeenCalledWith(fresh)
+    expect(suggestForMood).toHaveBeenCalledWith(calmClassification, {
+      excludeUris: [rejected.uri]
+    })
+    expect(useSpotifyStore.getState().recentUris).toEqual([fresh.uri, rejected.uri])
+  })
+
+  it('captures the previous track so a soundtrack swap can be undone', async () => {
+    const fresh = suggestion('fresh')
+    const previous = {
+      uri: 'spotify:track:previous',
+      name: 'Previous',
+      artistName: 'Earlier Artist',
+      imageUrl: null,
+      externalUrl: 'https://open.spotify.com/track/previous',
+      progressMs: 42_000
+    }
+    playSuggestion.mockResolvedValue({
+      ok: true,
+      started: true,
+      openedExternal: false,
+      previous
+    })
+
+    await useSpotifyStore.getState().playSuggestion(fresh)
+
+    expect(useSpotifyStore.getState().playbackState).toBe('playing')
+    expect(useSpotifyStore.getState().undoSnapshot).toEqual(previous)
+  })
+
+  it('restores the previous track and clears the one-shot undo', async () => {
+    const previous = {
+      uri: 'spotify:track:previous',
+      name: 'Previous',
+      artistName: 'Earlier Artist',
+      imageUrl: null,
+      externalUrl: 'https://open.spotify.com/track/previous',
+      progressMs: 42_000
+    }
+    useSpotifyStore.setState({ undoSnapshot: previous })
+    restorePlayback.mockResolvedValue({ ok: true })
+
+    await useSpotifyStore.getState().undoLastSwap()
+
+    expect(restorePlayback).toHaveBeenCalledWith(previous)
+    expect(useSpotifyStore.getState().suggestion?.uri).toBe(previous.uri)
+    expect(useSpotifyStore.getState().undoSnapshot).toBeNull()
+  })
+})
+
+describe('isMeaningfulSoundtrackShift', () => {
+  it('ignores small intensity drift inside the same scene', () => {
+    expect(
+      isMeaningfulSoundtrackShift(calmClassification, {
+        ...calmClassification,
+        intensity: 0.45
+      })
+    ).toBe(false)
+  })
+
+  it('reacts to mood, scene, or major intensity changes', () => {
+    expect(
+      isMeaningfulSoundtrackShift(calmClassification, {
+        ...calmClassification,
+        mood: 'tension'
+      })
+    ).toBe(true)
+    expect(
+      isMeaningfulSoundtrackShift(calmClassification, {
+        ...calmClassification,
+        sceneTags: ['storm']
+      })
+    ).toBe(true)
+    expect(
+      isMeaningfulSoundtrackShift(calmClassification, {
+        ...calmClassification,
+        intensity: 0.7
+      })
+    ).toBe(true)
   })
 })

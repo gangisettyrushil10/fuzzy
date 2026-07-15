@@ -11,7 +11,7 @@ import { PdfPage } from './PdfPage'
 import { SelectionMenu } from './SelectionMenu'
 import { ReaderTypographyPopover } from '../reader/ReaderTypographyPopover'
 import { FeelingModeButton } from '../reader/FeelingModeButton'
-import { SoundtrackButton } from '../reader/SoundtrackButton'
+import { SoundtrackButton, type VisiblePassageClassification } from '../reader/SoundtrackButton'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { moodlightClassificationDelay, moodlightExcerptChars } from '../../lib/moodlightSampling'
 import { normalizeRectsToPage } from '../../lib/rects'
@@ -85,7 +85,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
 
   const pagesContainerRef = useRef<HTMLDivElement>(null)
 
-  const classifyVisiblePassage = useCallback(async (): Promise<AmbientClassification | null> => {
+  const classifyVisiblePassage = useCallback(async (): Promise<VisiblePassageClassification | null> => {
     if (!pageText) return null
     const host = pagesContainerRef.current
     const progress =
@@ -94,7 +94,8 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
         : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
     const excerpt = excerptForProgress(pageText, progress)
     if (!excerpt) return null
-    return classifyForPage(documentId, currentPage, excerpt)
+    const classification = await classifyForPage(documentId, currentPage, excerpt)
+    return classification ? { classification, excerpt } : null
   }, [pageText, classifyForPage, documentId, currentPage])
 
   useEffect(() => {
@@ -377,7 +378,7 @@ function PdfToolbar({
   feelingEnabled: boolean
   feelingStatus: 'idle' | 'classifying' | 'ready' | 'error'
   ambientClassification: AmbientClassification | null
-  classifyVisiblePassage: () => Promise<AmbientClassification | null>
+  classifyVisiblePassage: () => Promise<VisiblePassageClassification | null>
   onFeelingToggle: () => void
   onPrev: () => void
   onNext: () => void

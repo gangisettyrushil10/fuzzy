@@ -1,13 +1,16 @@
-import { ipcMain, shell } from 'electron'
+import { ipcMain } from 'electron'
 import { IpcChannels } from '@shared/ipc/channels'
 import type {
   AmbientClassification,
   SpotifyPlaybackMode,
-  SpotifySuggestion
+  SpotifyPlaybackResult,
+  SpotifyPlaybackSnapshot,
+  SpotifySuggestion,
+  SpotifySuggestionOptions
 } from '@shared/types/api'
-import { isAllowedExternalScheme } from '../services/urlSafety'
 import { connectSpotify, disconnectSpotify } from '../services/spotify/spotifyAuthFlow'
-import { suggestForMood } from '../services/spotify/spotifyApi'
+import { playSuggestion, restorePlayback, suggestForMood } from '../services/spotify/spotifyApi'
+import { activateSpotifyDesktopApp } from '../services/spotify/spotifyDesktopPlayer'
 import {
   readSpotifyStatus,
   writeClientId,
@@ -47,18 +50,50 @@ export function registerSpotifyIpc(): void {
     return readSpotifyStatus()
   })
 
-  ipcMain.handle(IpcChannels.spotifySuggestForMood, (_e, classification: unknown) => {
-    if (!classification || typeof classification !== 'object') return null
-    return suggestForMood(classification as AmbientClassification)
+  ipcMain.handle(
+    IpcChannels.spotifySuggestForMood,
+    (_e, classification: unknown, options: unknown) => {
+      if (!classification || typeof classification !== 'object') return null
+      const candidate = options as Partial<SpotifySuggestionOptions> | null
+      const excludeUris = Array.isArray(candidate?.excludeUris)
+        ? candidate.excludeUris.filter((uri): uri is string => typeof uri === 'string').slice(0, 12)
+        : []
+      const passageExcerpt =
+        typeof candidate?.passageExcerpt === 'string'
+          ? candidate.passageExcerpt.trim().slice(0, 2_000)
+          : undefined
+      return suggestForMood(classification as AmbientClassification, {
+        excludeUris,
+        passageExcerpt
+      })
+    }
+  )
+
+  ipcMain.handle(IpcChannels.spotifyPlaySuggestion, (_e, suggestion: unknown) => {
+    const candidate = suggestion as Partial<SpotifySuggestion> | null
+    if (!candidate || typeof candidate !== 'object') {
+      return {
+        ok: false,
+        started: false,
+        openedExternal: false,
+        reason: 'invalid-suggestion',
+        message: 'This soundtrack is no longer available.'
+      } satisfies SpotifyPlaybackResult
+    }
+    return playSuggestion(candidate as SpotifySuggestion)
   })
 
-  ipcMain.handle(IpcChannels.spotifyOpenSuggestion, async (_e, suggestion: unknown) => {
-    const s = suggestion as Partial<SpotifySuggestion> | null
-    const url = s?.externalUrl
-    if (typeof url !== 'string' || !isAllowedExternalScheme(url)) {
-      return { ok: false }
+  ipcMain.handle(IpcChannels.spotifyRestorePlayback, (_e, snapshot: unknown) => {
+    const candidate = snapshot as Partial<SpotifyPlaybackSnapshot> | null
+    if (
+      !candidate ||
+      typeof candidate.uri !== 'string' ||
+      !candidate.uri.startsWith('spotify:track:')
+    ) {
+      return { ok: false, message: 'The previous Spotify track is no longer available.' }
     }
-    await shell.openExternal(url)
-    return { ok: true }
+    return restorePlayback(candidate as SpotifyPlaybackSnapshot)
   })
+
+  ipcMain.handle(IpcChannels.spotifyOpenSuggestion, () => activateSpotifyDesktopApp())
 }

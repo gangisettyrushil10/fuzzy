@@ -102,13 +102,8 @@ export interface AmbientClassification {
   motion: AmbientMotion
 }
 
-// Spotify Ambient Companion — maps Moodlight's mood classification to a
-// soundtrack lane and surfaces a matching playlist via Spotify search. No
-// playback-control scopes are requested: "opening" a suggestion hands a
-// standard https://open.spotify.com link to the OS, which plays in whatever
-// Spotify surface (desktop app, web player) the user already has — this works
-// for free-tier accounts too, unlike the Web API's `/me/player` endpoints
-// which require Premium and an active device.
+// Spotify Ambient Companion maps the visible passage's Moodlight classification
+// to a track, then controls the installed Spotify app. Fuzzy never streams audio.
 export type SpotifyPlaybackMode = 'suggest' | 'auto'
 
 export interface SpotifyStatus {
@@ -127,12 +122,53 @@ export type SpotifyConnectResult =
 export interface SpotifySuggestion {
   lane: string
   query: string
-  playlistId: string | null
+  querySource: 'openai' | 'fallback'
+  trackId: string | null
+  uri: string | null
   name: string | null
   description: string | null
   imageUrl: string | null
   externalUrl: string | null
-  ownerName: string | null
+  artistName: string | null
+}
+
+export interface SpotifySuggestionOptions {
+  excludeUris?: string[]
+  passageExcerpt?: string
+}
+
+export interface SpotifyPlaybackSnapshot {
+  uri: string
+  name: string | null
+  artistName: string | null
+  imageUrl: string | null
+  externalUrl: string | null
+  progressMs: number
+}
+
+export type SpotifyPlaybackResult =
+  | {
+      ok: true
+      started: true
+      openedExternal: false
+      previous: SpotifyPlaybackSnapshot | null
+    }
+  | {
+      ok: false
+      started: false
+      openedExternal: false
+      reason:
+        | 'invalid-suggestion'
+        | 'unsupported-platform'
+        | 'spotify-app-unavailable'
+        | 'automation-denied'
+        | 'playback-unavailable'
+      message: string
+    }
+
+export interface SpotifyRestoreResult {
+  ok: boolean
+  message?: string
 }
 
 export interface FuzzyApi {
@@ -361,8 +397,13 @@ export interface FuzzyApi {
     disconnect: () => Promise<SpotifyStatus>
     setPlaybackMode: (mode: SpotifyPlaybackMode) => Promise<SpotifyStatus>
     setGenrePreferences: (genres: string[]) => Promise<SpotifyStatus>
-    suggestForMood: (classification: AmbientClassification) => Promise<SpotifySuggestion | null>
-    openSuggestion: (suggestion: SpotifySuggestion) => Promise<{ ok: boolean }>
+    suggestForMood: (
+      classification: AmbientClassification,
+      options?: SpotifySuggestionOptions
+    ) => Promise<SpotifySuggestion | null>
+    playSuggestion: (suggestion: SpotifySuggestion) => Promise<SpotifyPlaybackResult>
+    restorePlayback: (snapshot: SpotifyPlaybackSnapshot) => Promise<SpotifyRestoreResult>
+    openSuggestion: (suggestion: SpotifySuggestion) => Promise<{ ok: boolean; message?: string }>
   }
   obsidian: {
     getStatus: () => Promise<ObsidianStatus>

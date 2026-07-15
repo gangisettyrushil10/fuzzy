@@ -130,6 +130,8 @@ export const IpcChannels = {
   spotifySetPlaybackMode: 'spotify:setPlaybackMode',
   spotifySetGenrePreferences: 'spotify:setGenrePreferences',
   spotifySuggestForMood: 'spotify:suggestForMood',
+  spotifyPlaySuggestion: 'spotify:playSuggestion',
+  spotifyRestorePlayback: 'spotify:restorePlayback',
   spotifyOpenSuggestion: 'spotify:openSuggestion',
 
   obsidianGetStatus: 'obsidian:getStatus',

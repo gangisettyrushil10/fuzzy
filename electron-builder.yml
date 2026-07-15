@@ -31,8 +31,9 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
   extendInfo:
-    - NSDocumentsFolderUsageDescription: Fuzzy imports PDFs you choose into your local library.
-    - NSDownloadsFolderUsageDescription: Fuzzy can import PDFs from your Downloads folder when you select them.
+    NSDocumentsFolderUsageDescription: Fuzzy imports PDFs you choose into your local library.
+    NSDownloadsFolderUsageDescription: Fuzzy can import PDFs from your Downloads folder when you select them.
+    NSAppleEventsUsageDescription: Fuzzy controls the Spotify app to play a soundtrack that matches the passage you are reading.
   notarize: true
 dmg:
   artifactName: ${name}-${version}.${ext}

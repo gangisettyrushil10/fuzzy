@@ -280,7 +280,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.E
 
         <Section
           title="API key"
-          description="Encrypted on disk via the macOS Keychain; never leaves the main process. Defaults to a free Groq key (gsk_…); use sk-… for OpenAI."
+          description="Encrypted on disk via the macOS Keychain and used only in the main process. Saving an OpenAI sk-… key switches Fuzzy's untouched Groq defaults to OpenAI automatically."
         >
           <div className="flex gap-2">
             <Input
@@ -305,7 +305,10 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): React.JSX.E
           </p>
         </Section>
 
-        <Section title="Model" description="Defaults to the free Llama 3.3 70B on Groq.">
+        <Section
+          title="Model"
+          description="Defaults to Llama 3.3 70B on Groq, or GPT-4.1 mini when an OpenAI key activates the OpenAI preset."
+        >
           <div className="flex gap-2">
             <Input
               value={modelInput}

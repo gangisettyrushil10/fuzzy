@@ -59,10 +59,19 @@ echo "==> Installing to $DEST"
 rm -rf "$DEST"
 ditto "$APP" "$DEST"
 
-echo "==> Stripping extended attributes + ad-hoc signing (deep) in place"
+echo "==> Stripping extended attributes + ad-hoc signing with app entitlements"
 find "$DEST" -name '._*' -delete 2>/dev/null || true
 xattr -cr "$DEST" 2>/dev/null || true
+# Normalize every nested framework/helper to the same ad-hoc identity first.
+# A second, shallow pass adds Fuzzy's app-level entitlements. Local ad-hoc
+# bundles omit hardened runtime because library validation requires one real
+# Developer ID team across Electron's nested frameworks.
 codesign --force --deep --sign - "$DEST"
+codesign \
+  --force \
+  --entitlements "$PWD/build/entitlements.mac.plist" \
+  --sign - \
+  "$DEST"
 codesign --verify --deep --strict "$DEST" && echo "   signature OK"
 
 echo "==> Done. Launch with: open \"$DEST\"  (or Spotlight: \"fuzzy\")"

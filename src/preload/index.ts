@@ -201,8 +201,12 @@ const fuzzy: FuzzyApi = {
     setPlaybackMode: (mode) => ipcRenderer.invoke(IpcChannels.spotifySetPlaybackMode, mode),
     setGenrePreferences: (genres) =>
       ipcRenderer.invoke(IpcChannels.spotifySetGenrePreferences, genres),
-    suggestForMood: (classification) =>
-      ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification),
+    suggestForMood: (classification, options) =>
+      ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification, options),
+    playSuggestion: (suggestion) =>
+      ipcRenderer.invoke(IpcChannels.spotifyPlaySuggestion, suggestion),
+    restorePlayback: (snapshot) =>
+      ipcRenderer.invoke(IpcChannels.spotifyRestorePlayback, snapshot),
     openSuggestion: (suggestion) => ipcRenderer.invoke(IpcChannels.spotifyOpenSuggestion, suggestion)
   },
   obsidian: {

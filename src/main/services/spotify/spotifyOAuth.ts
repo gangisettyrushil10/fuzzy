@@ -7,13 +7,10 @@ import type { SpotifyTokens } from './spotifyTokenStore'
 export const SPOTIFY_LOOPBACK_PORT = 51821
 export const SPOTIFY_REDIRECT_URI = `http://127.0.0.1:${SPOTIFY_LOOPBACK_PORT}/callback`
 
-// Deliberately empty: playlist/track search over Spotify's public catalog
-// needs a valid user token but no specific scope. Keeping this empty means
-// the consent screen asks for nothing beyond "know who's logged in," and we
-// never touch the user's library or playback. See Fuzzy CLAUDE.md notes on
-// the Spotify Ambient Companion feature for why write/playback scopes were
-// deliberately deferred.
-export const SPOTIFY_SCOPE = ''
+// Search does not need Spotify library or player scopes. Playback is sent to
+// the locally installed Spotify app instead of Spotify Connect's web API.
+export const SPOTIFY_SCOPES = [] as const
+export const SPOTIFY_SCOPE = SPOTIFY_SCOPES.join(' ')
 
 function base64url(input: Buffer): string {
   return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')

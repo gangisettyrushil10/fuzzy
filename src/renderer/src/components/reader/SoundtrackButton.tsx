@@ -5,9 +5,13 @@ import { cn } from '../../lib/cn'
 
 type SyncStage = 'idle' | 'reading' | 'finding'
 
-// Sits next to Moodlight in the reader toolbar. Manual clicks are deliberately
-// stronger than auto mode: each click reclassifies the passage at the current
-// scroll position, requests a fresh playlist, and opens that exact result.
+export interface VisiblePassageClassification {
+  classification: AmbientClassification
+  excerpt: string
+}
+
+// A manual press means the current music is not fitting. Re-read the visible
+// passage, avoid recently rejected tracks, and start the replacement at once.
 export function SoundtrackButton({
   classification,
   feelingEnabled,
@@ -15,13 +19,17 @@ export function SoundtrackButton({
 }: {
   classification: AmbientClassification | null
   feelingEnabled: boolean
-  classifyVisiblePassage: () => Promise<AmbientClassification | null>
+  classifyVisiblePassage: () => Promise<VisiblePassageClassification | null>
 }): React.JSX.Element | null {
   const status = useSpotifyStore((s) => s.status)
   const suggestion = useSpotifyStore((s) => s.suggestion)
   const suggestionStatus = useSpotifyStore((s) => s.suggestionStatus)
-  const requestSuggestion = useSpotifyStore((s) => s.requestSuggestion)
+  const playbackState = useSpotifyStore((s) => s.playbackState)
+  const playbackMessage = useSpotifyStore((s) => s.playbackMessage)
+  const undoSnapshot = useSpotifyStore((s) => s.undoSnapshot)
+  const soundtrackPassage = useSpotifyStore((s) => s.soundtrackPassage)
   const maybeAutoSuggest = useSpotifyStore((s) => s.maybeAutoSuggest)
+  const undoLastSwap = useSpotifyStore((s) => s.undoLastSwap)
   const openSuggestion = useSpotifyStore((s) => s.openSuggestion)
   const load = useSpotifyStore((s) => s.load)
   const [syncStage, setSyncStage] = useState<SyncStage>('idle')
@@ -41,37 +49,38 @@ export function SoundtrackButton({
   const onClick = async (): Promise<void> => {
     setScanFailed(false)
     setSyncStage('reading')
-    const freshClassification = await classifyVisiblePassage()
-    if (!freshClassification) {
+    const visiblePassage = await classifyVisiblePassage()
+    if (!visiblePassage) {
       setScanFailed(true)
       setSyncStage('idle')
       return
     }
 
     setSyncStage('finding')
-    const freshSuggestion = await requestSuggestion(freshClassification)
+    await soundtrackPassage(visiblePassage.classification, visiblePassage.excerpt)
     setSyncStage('idle')
-    if (freshSuggestion) await openSuggestion(freshSuggestion)
   }
 
   const manuallySyncing = syncStage !== 'idle'
-  const busy = manuallySyncing || suggestionStatus === 'loading'
+  const busy = manuallySyncing || suggestionStatus === 'loading' || playbackState === 'starting'
   const label =
     syncStage === 'reading'
-      ? 'Reading scene…'
+      ? 'Reading this moment…'
       : syncStage === 'finding' || suggestionStatus === 'loading'
-        ? 'Finding soundtrack…'
-        : scanFailed || suggestionStatus === 'error'
-          ? 'Try sound again'
-          : suggestion?.lane
-            ? suggestion.lane
-            : suggestionStatus === 'empty'
-              ? 'No match'
-              : 'Sync sound'
+        ? 'Finding a track…'
+        : playbackState === 'starting'
+          ? 'Starting track…'
+          : scanFailed || suggestionStatus === 'error'
+            ? 'Try sound again'
+            : playbackState === 'playing' && suggestion?.name
+              ? suggestion.name
+              : suggestionStatus === 'empty'
+                ? 'No match'
+                : 'Soundtrack'
 
   const title = suggestion
-    ? `Rescan this passage and open a new soundtrack. Current match: ${suggestion.name}`
-    : 'Read the passage in view and open a matching Spotify soundtrack'
+    ? `Not fitting? Click to replace ${suggestion.name ?? 'this track'} for the passage in view.`
+    : 'Read the passage in view and immediately start a matching Spotify track'
 
   return (
     <div className="group relative">
@@ -80,15 +89,24 @@ export function SoundtrackButton({
         title={title}
         aria-busy={busy}
         onClick={() => void onClick()}
-        disabled={manuallySyncing}
+        disabled={busy}
         className={cn(
           'flex max-w-[11rem] items-center gap-1.5 rounded-md border border-fz-border px-2 py-1',
           'text-fz-micro text-fz-fg-muted transition hover:border-fz-fg-subtle/40 hover:text-fz-fg',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fz-accent',
-          'disabled:cursor-wait disabled:opacity-60'
+          'disabled:cursor-wait disabled:opacity-60',
+          playbackState === 'playing' && 'border-fz-accent/45 bg-fz-accent/10 text-fz-fg'
         )}
       >
-        <span aria-hidden="true">♪</span>
+        <span
+          className="relative flex h-3 w-3 shrink-0 items-center justify-center"
+          aria-hidden="true"
+        >
+          <span>♪</span>
+          {playbackState === 'playing' && (
+            <span className="absolute inset-0 rounded-full bg-fz-accent/35 animate-ping" />
+          )}
+        </span>
         <span className="truncate" aria-live="polite">
           {label}
         </span>
@@ -119,25 +137,46 @@ export function SoundtrackButton({
             <div className="min-w-0 flex-1">
               <div className="text-[10px] uppercase text-fz-fg-subtle">{suggestion.lane}</div>
               <div className="mt-0.5 truncate text-xs font-medium text-fz-fg">
-                {suggestion.name ?? 'Spotify playlist'}
+                {suggestion.name ?? 'Spotify track'}
               </div>
-              {suggestion.ownerName && (
+              {suggestion.artistName && (
                 <div className="mt-0.5 truncate text-[10px] text-fz-fg-muted">
-                  by {suggestion.ownerName}
+                  {suggestion.artistName}
                 </div>
               )}
             </div>
           </div>
-          <div className="mt-2 truncate text-[10px] text-fz-fg-subtle" title={suggestion.query}>
-            Matched: {suggestion.query}
+          <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-fz-fg-subtle">
+            <span className="truncate" title={suggestion.query}>
+              {suggestion.querySource === 'openai' ? 'AI-scored' : 'Scored'} for {suggestion.lane}
+            </span>
+            {playbackState === 'playing' && (
+              <span className="shrink-0 text-fz-success">Playing</span>
+            )}
           </div>
-          <button
-            type="button"
-            className="mt-2 flex w-full items-center justify-center gap-1 border border-fz-border px-2 py-1 text-[11px] text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg"
-            onClick={() => void openSuggestion(suggestion)}
-          >
-            Open in Spotify <span aria-hidden="true">↗</span>
-          </button>
+          {playbackMessage && (
+            <div className="mt-1.5 text-[10px] leading-relaxed text-fz-fg-muted" aria-live="polite">
+              {playbackMessage}
+            </div>
+          )}
+          <div className="mt-2 flex gap-1.5">
+            {undoSnapshot && (
+              <button
+                type="button"
+                className="flex-1 border border-fz-border px-2 py-1 text-[11px] text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg"
+                onClick={() => void undoLastSwap()}
+              >
+                Undo
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex-1 border border-fz-border px-2 py-1 text-[11px] text-fz-fg-muted hover:bg-fz-bg hover:text-fz-fg"
+              onClick={() => void openSuggestion(suggestion)}
+            >
+              Show Spotify
+            </button>
+          </div>
         </div>
       )}
     </div>

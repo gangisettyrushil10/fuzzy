@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PageRecord } from '@shared/types/database'
-import type { AmbientClassification } from '@shared/types/api'
 import { FILE_FORMATS, type FileType } from '@shared/formats'
 import { useDocumentStore } from '../../state/documentStore'
 import { useReaderLocationStore } from '../../state/readerLocationStore'
@@ -15,7 +14,7 @@ import { SelectionMenu } from '../pdf/SelectionMenu'
 import { TokenizedText } from './TokenizedText'
 import { ReaderTypographyPopover } from './ReaderTypographyPopover'
 import { FeelingModeButton } from './FeelingModeButton'
-import { SoundtrackButton } from './SoundtrackButton'
+import { SoundtrackButton, type VisiblePassageClassification } from './SoundtrackButton'
 import { WordLayer } from '../../lib/domWordWrap'
 import { normalizeRectsToPage } from '../../lib/rects'
 import { tokenize, findWordSequence } from '../../lib/tokenize'
@@ -210,7 +209,7 @@ export function ReflowableReader({
   const previewForPage = useAmbientStore((s) => s.previewForPage)
   const classifyForPage = useAmbientStore((s) => s.classifyForPage)
   const setAmbientLive = useAmbientStore((s) => s.setLive)
-  const classifyVisiblePassage = useCallback(async (): Promise<AmbientClassification | null> => {
+  const classifyVisiblePassage = useCallback(async (): Promise<VisiblePassageClassification | null> => {
     if (!current?.textContent) return null
     const host = scrollRef.current
     const progress =
@@ -219,7 +218,8 @@ export function ReflowableReader({
         : host.scrollTop / Math.max(1, host.scrollHeight - host.clientHeight)
     const excerpt = excerptForProgress(current.textContent, progress)
     if (!excerpt) return null
-    return classifyForPage(documentId, current.pageNumber, excerpt)
+    const classification = await classifyForPage(documentId, current.pageNumber, excerpt)
+    return classification ? { classification, excerpt } : null
   }, [current, classifyForPage, documentId])
   const moodlightResponsiveness = useAmbientStore((s) => s.moodlightPreferences.responsiveness)
   useEffect(() => {
