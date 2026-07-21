@@ -762,6 +762,65 @@ export function normalizeAppearancePrefs(raw: unknown): AppearancePrefs {
 }
 
 // ---------------------------------------------------------------------------
+// Obsidian notes sync — persisted as one JSON blob under the `obsidian.prefs`
+// KV key (mirrors appearance.prefs). `vaultPath` is the folder the user picked;
+// notes are written under `<vaultPath>/<subfolder>/`. `notePaths` is the durable
+// pointer (documentId -> note filename relative to that subfolder) — the note
+// *content* lives only in the vault file. normalizeObsidianPrefs is the single
+// validate path, shared by main (before save) and renderer (after load).
+// ---------------------------------------------------------------------------
+export interface ObsidianPrefs {
+  vaultPath: string | null
+  subfolder: string
+  notePaths: Record<string, string>
+}
+
+export const DEFAULT_OBSIDIAN_PREFS: ObsidianPrefs = {
+  vaultPath: null,
+  subfolder: 'Fuzzy',
+  notePaths: {}
+}
+
+// A mapped note filename is safe iff it stays inside the notes folder: a single
+// path segment with no parent-dir refs. Spaces/hyphens/punctuation are fine.
+// (assertInsideDir in the main service is the authoritative traversal guard;
+// this just keeps obvious junk out of the persisted map.)
+const BACKSLASH = String.fromCharCode(92)
+function isSafeNoteFilename(name: string): boolean {
+  return (
+    name.length > 0 &&
+    name !== '.' &&
+    name !== '..' &&
+    !name.includes('/') &&
+    !name.includes(BACKSLASH) &&
+    !name.includes('..')
+  )
+}
+
+// Path separators + Windows-reserved chars, stripped from a subfolder name.
+const UNSAFE_PATH_SEGMENT_RE = /[\\/:*?"<>|]/g
+
+// Merge an untrusted partial onto defaults, validating every field. Accepts any
+// shape (parsed JSON, partial patch) and always returns a valid ObsidianPrefs.
+export function normalizeObsidianPrefs(raw: unknown): ObsidianPrefs {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<ObsidianPrefs>
+  const d = DEFAULT_OBSIDIAN_PREFS
+  const vaultPath = typeof r.vaultPath === 'string' && r.vaultPath.trim() ? r.vaultPath : null
+  const subRaw =
+    typeof r.subfolder === 'string' ? r.subfolder.replace(UNSAFE_PATH_SEGMENT_RE, '').trim() : ''
+  const subfolder = subRaw || d.subfolder
+  const notePaths: Record<string, string> = {}
+  if (r.notePaths && typeof r.notePaths === 'object') {
+    for (const [k, v] of Object.entries(r.notePaths as Record<string, unknown>)) {
+      if (typeof k === 'string' && typeof v === 'string' && isSafeNoteFilename(v)) {
+        notePaths[k] = v
+      }
+    }
+  }
+  return { vaultPath, subfolder, notePaths }
+}
+
+// ---------------------------------------------------------------------------
 // Thesis Workspace — real lexical search over the library's page text, with
 // citations. AI "reasoning" is mocked; retrieval/ranking is real.
 // ---------------------------------------------------------------------------

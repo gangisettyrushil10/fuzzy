@@ -364,11 +364,28 @@ export interface FuzzyApi {
     suggestForMood: (classification: AmbientClassification) => Promise<SpotifySuggestion | null>
     openSuggestion: (suggestion: SpotifySuggestion) => Promise<{ ok: boolean }>
   }
+  obsidian: {
+    getStatus: () => Promise<ObsidianStatus>
+    pickVault: () => Promise<ObsidianStatus>
+    clearVault: () => Promise<ObsidianStatus>
+    readNote: (documentId: string) => Promise<string>
+    writeNote: (documentId: string, content: string) => Promise<{ ok: true }>
+    appendNote: (documentId: string, block: string) => Promise<{ ok: true }>
+  }
   // Dev-only helpers are only exposed in development builds. Production
   // preload omits the field entirely.
   dev?: {
     seedDocument: () => Promise<DocumentRecord>
   }
+}
+
+// Renderer-facing Obsidian sync status. `vaultPath` is the folder the user
+// picked (notes live under `<vaultPath>/<subfolder>/`); `connected` is just
+// `vaultPath !== null`, surfaced for empty-state UX.
+export interface ObsidianStatus {
+  vaultPath: string | null
+  subfolder: string
+  connected: boolean
 }
 
 export interface HealthPingResult {

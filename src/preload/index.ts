@@ -205,6 +205,16 @@ const fuzzy: FuzzyApi = {
       ipcRenderer.invoke(IpcChannels.spotifySuggestForMood, classification),
     openSuggestion: (suggestion) => ipcRenderer.invoke(IpcChannels.spotifyOpenSuggestion, suggestion)
   },
+  obsidian: {
+    getStatus: () => ipcRenderer.invoke(IpcChannels.obsidianGetStatus),
+    pickVault: () => ipcRenderer.invoke(IpcChannels.obsidianPickVault),
+    clearVault: () => ipcRenderer.invoke(IpcChannels.obsidianClearVault),
+    readNote: (documentId) => ipcRenderer.invoke(IpcChannels.obsidianReadNote, documentId),
+    writeNote: (documentId, content) =>
+      ipcRenderer.invoke(IpcChannels.obsidianWriteNote, documentId, content),
+    appendNote: (documentId, block) =>
+      ipcRenderer.invoke(IpcChannels.obsidianAppendNote, documentId, block)
+  },
   ...(IS_DEV
     ? {
         dev: {

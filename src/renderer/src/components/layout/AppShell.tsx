@@ -24,6 +24,7 @@ import { useOnboardingStore } from '../../state/onboardingStore'
 import { useReaderPrefsStore } from '../../state/readerPrefsStore'
 import { useAppearanceStore } from '../../state/appearanceStore'
 import { useProjectStore } from '../../state/projectStore'
+import { useObsidianStore } from '../../state/obsidianStore'
 import { useFocusSessionStore } from '../../state/focusSessionStore'
 import { usePacerStore } from '../../state/pacerStore'
 import { useAppShortcuts } from '../../hooks/useAppShortcuts'
@@ -68,6 +69,7 @@ export function AppShell(): React.JSX.Element {
   const loadReaderPrefs = useReaderPrefsStore((s) => s.load)
   const loadAppearance = useAppearanceStore((s) => s.load)
   const loadProjects = useProjectStore((s) => s.load)
+  const loadObsidianStatus = useObsidianStore((s) => s.loadStatus)
   const finalizeOpenFocus = useFocusSessionStore((s) => s.finalizeOpenFromCrash)
   const loadStats = useFocusSessionStore((s) => s.loadStats)
   const focusMode = useReaderPrefsStore((s) => s.prefs.focusMode)
@@ -178,6 +180,7 @@ export function AppShell(): React.JSX.Element {
     loadReaderPrefs()
     loadAppearance()
     loadProjects()
+    loadObsidianStatus()
     // Close any focus session left open by a crash, then load stats.
     finalizeOpenFocus().then(() => loadStats())
   }, [
@@ -186,6 +189,7 @@ export function AppShell(): React.JSX.Element {
     loadReaderPrefs,
     loadAppearance,
     loadProjects,
+    loadObsidianStatus,
     finalizeOpenFocus,
     loadStats
   ])

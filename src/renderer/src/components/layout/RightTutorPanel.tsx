@@ -16,10 +16,12 @@ import { TonePanel } from '../tone/TonePanel'
 import { AskPanel } from '../ask/AskPanel'
 import { ArgumentPanel } from '../argument/ArgumentPanel'
 import { GlossaryPanel } from '../glossary/GlossaryPanel'
+import { NotesPanel } from '../notes/NotesPanel'
 
-type PanelTab = 'tutor' | 'thesis' | 'evidence' | 'tone' | 'ask' | 'claims' | 'terms'
+type PanelTab = 'tutor' | 'thesis' | 'evidence' | 'tone' | 'ask' | 'claims' | 'terms' | 'notes'
 const PANEL_TABS = [
   { id: 'tutor' as const, label: 'Tutor' },
+  { id: 'notes' as const, label: 'Notes' },
   { id: 'thesis' as const, label: 'Thesis' },
   { id: 'evidence' as const, label: 'Evidence' },
   { id: 'tone' as const, label: 'Tone' },
@@ -138,6 +140,8 @@ export function RightTutorPanel({
       {tab === 'claims' && <ArgumentPanel />}
 
       {tab === 'terms' && <GlossaryPanel />}
+
+      {tab === 'notes' && <NotesPanel />}
 
       {tab === 'tutor' && providerBanner && (
         <div className="border-b border-fz-warning/30 bg-fz-warning/10 px-3 py-1.5 text-[10px] text-fz-warning">

@@ -6,6 +6,8 @@ import { useStudyPackStore } from '../../state/studyPackStore'
 import { useAppUiStore } from '../../state/appUiStore'
 import { useTutorStore } from '../../state/tutorStore'
 import { useHighlightStore } from '../../state/highlightStore'
+import { useObsidianStore } from '../../state/obsidianStore'
+import { buildAiNoteBlock, buildHighlightBlock } from '@shared/obsidian'
 import type { AnnotationRecord, PageRecord } from '@shared/types/database'
 
 interface Props {
@@ -27,7 +29,9 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
   const packLoading = useStudyPackStore((s) => s.loading)
   const highlightStats = useHighlightStore((s) => s.stats)
   const loadHighlightStats = useHighlightStore((s) => s.loadStats)
+  const obsidianConnected = useObsidianStore((s) => s.status?.connected ?? false)
 
+  const [sentAnnotationId, setSentAnnotationId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [chapterMap, setChapterMap] = useState<Record<string, PageRecord[]>>({})
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set())
@@ -100,6 +104,22 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
     if (rects && rects.length > 0 && page) {
       flashPassage({ pageNumber: page, rectsOnPage: rects, annotationId: a.id })
     }
+  }
+
+  // Append a saved note/highlight into the document's Obsidian note. AI answers
+  // use the AI block; everything else is treated as a highlight of the passage.
+  const sendNoteToObsidian = (a: AnnotationRecord): void => {
+    const block =
+      a.annotationType === 'ai_note'
+        ? buildAiNoteBlock({ text: a.note, selectedText: a.selectedText, pageNumber: a.pageNumber })
+        : buildHighlightBlock({ text: a.selectedText, note: a.note, pageNumber: a.pageNumber })
+    window.fuzzy.obsidian
+      .appendNote(a.documentId, block)
+      .then(() => {
+        setSentAnnotationId(a.id)
+        window.setTimeout(() => setSentAnnotationId((cur) => (cur === a.id ? null : cur)), 1600)
+      })
+      .catch((err) => console.error('[fuzzy] send note to Obsidian failed', err))
   }
 
   return (
@@ -220,7 +240,7 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
         ) : (
           <ul className="space-y-1">
             {annotations.map((a) => (
-              <li key={a.id}>
+              <li key={a.id} className="group relative">
                 <button
                   type="button"
                   onClick={() => navigateToNote(a)}
@@ -238,6 +258,16 @@ export function LeftSidebar({ onOpenStudyPack, onCollapse, style }: Props): Reac
                     {a.selectedText}
                   </div>
                 </button>
+                {obsidianConnected && (
+                  <button
+                    type="button"
+                    onClick={() => sendNoteToObsidian(a)}
+                    className="absolute right-1 top-1 rounded bg-fz-bg/80 px-1.5 py-0.5 text-[10px] text-fz-fg-subtle opacity-0 transition hover:text-fz-fg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-fz-accent group-hover:opacity-100"
+                    title="Append this note to the document's Obsidian note"
+                  >
+                    {sentAnnotationId === a.id ? 'Sent ✓' : 'Obsidian ⤴'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>

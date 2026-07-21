@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { AiActionResult, AiActionType, AnnotationRecord } from '@shared/types/database'
 import type { NormalizedRect, PdfSelection } from './selectionStore'
 import { useAnnotationStore } from './annotationStore'
+import { useObsidianStore } from './obsidianStore'
+import { buildAiNoteBlock } from '@shared/obsidian'
 
 interface TutorRequest {
   documentId: string
@@ -112,9 +114,7 @@ export const useTutorStore = create<TutorState>((set, get) => ({
       set({
         status: 'success',
         result,
-        messages: [
-          { id: nextId(), role: 'assistant', content: result.outputText, action }
-        ]
+        messages: [{ id: nextId(), role: 'assistant', content: result.outputText, action }]
       })
     } catch (err) {
       if (get().request?.startedAt !== request.startedAt) return
@@ -232,6 +232,20 @@ export const useTutorStore = create<TutorState>((set, get) => ({
     })
     set({ savedAnnotationId: ann.id, saveToast: true })
     useAnnotationStore.getState().add(ann)
+    // Mirror the saved answer into the document's Obsidian note when a vault is
+    // configured. Fire-and-forget: a vault hiccup must never fail the save.
+    if (useObsidianStore.getState().status?.connected) {
+      window.fuzzy.obsidian
+        .appendNote(
+          request.documentId,
+          buildAiNoteBlock({
+            text: note,
+            selectedText: request.selectedText,
+            pageNumber: request.pageNumber
+          })
+        )
+        .catch((err) => console.error('[fuzzy] mirror AI note to Obsidian failed', err))
+    }
     window.setTimeout(() => get().clearSaveToast(), 2200)
   },
 

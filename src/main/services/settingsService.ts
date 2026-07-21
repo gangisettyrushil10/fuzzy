@@ -4,15 +4,18 @@ import { deleteSetting, getSetting, setSetting } from '../db/repositories/settin
 import type {
   AppSettings,
   AppearancePrefs,
+  ObsidianPrefs,
   ProviderMode,
   ReaderPrefs,
   StudyPackPrefs
 } from '@shared/types/database'
 import {
   DEFAULT_APPEARANCE_PREFS,
+  DEFAULT_OBSIDIAN_PREFS,
   DEFAULT_READER_PREFS,
   DEFAULT_STUDY_PACK_PREFS,
   normalizeAppearancePrefs,
+  normalizeObsidianPrefs,
   normalizeReaderPrefs,
   normalizeStudyPackPrefs
 } from '@shared/types/database'
@@ -26,6 +29,7 @@ const KEY_LAST_ACTIVE_DOCUMENT_ID = 'reader.lastActiveDocumentId'
 const KEY_READER_PREFS = 'reader.prefs'
 const KEY_APPEARANCE_PREFS = 'appearance.prefs'
 const KEY_STUDY_PACK_PREFS = 'studyPack.prefs'
+const KEY_OBSIDIAN_PREFS = 'obsidian.prefs'
 
 // Lexical sanity guard: rejects obviously-not-a-key strings (whitespace, way
 // too short) before they touch safeStorage. We deliberately DON'T require the
@@ -231,6 +235,24 @@ export function readStudyPackPrefs(): StudyPackPrefs {
 export function writeStudyPackPrefs(patch: Partial<StudyPackPrefs>): StudyPackPrefs {
   const merged = normalizeStudyPackPrefs({ ...readStudyPackPrefs(), ...patch })
   setSetting(KEY_STUDY_PACK_PREFS, JSON.stringify(merged))
+  return merged
+}
+
+// Obsidian notes-sync preferences — vault folder + per-document note filename
+// map, stored as one JSON blob with the same read-through-normalize discipline.
+export function readObsidianPrefs(): ObsidianPrefs {
+  const raw = getSetting(KEY_OBSIDIAN_PREFS)
+  if (!raw) return DEFAULT_OBSIDIAN_PREFS
+  try {
+    return normalizeObsidianPrefs(JSON.parse(raw))
+  } catch {
+    return DEFAULT_OBSIDIAN_PREFS
+  }
+}
+
+export function writeObsidianPrefs(patch: Partial<ObsidianPrefs>): ObsidianPrefs {
+  const merged = normalizeObsidianPrefs({ ...readObsidianPrefs(), ...patch })
+  setSetting(KEY_OBSIDIAN_PREFS, JSON.stringify(merged))
   return merged
 }
 

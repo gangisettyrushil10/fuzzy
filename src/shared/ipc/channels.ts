@@ -130,7 +130,14 @@ export const IpcChannels = {
   spotifySetPlaybackMode: 'spotify:setPlaybackMode',
   spotifySetGenrePreferences: 'spotify:setGenrePreferences',
   spotifySuggestForMood: 'spotify:suggestForMood',
-  spotifyOpenSuggestion: 'spotify:openSuggestion'
+  spotifyOpenSuggestion: 'spotify:openSuggestion',
+
+  obsidianGetStatus: 'obsidian:getStatus',
+  obsidianPickVault: 'obsidian:pickVault',
+  obsidianClearVault: 'obsidian:clearVault',
+  obsidianReadNote: 'obsidian:readNote',
+  obsidianWriteNote: 'obsidian:writeNote',
+  obsidianAppendNote: 'obsidian:appendNote'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

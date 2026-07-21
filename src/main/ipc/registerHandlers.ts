@@ -22,6 +22,7 @@ import { registerGlossaryIpc } from './glossary.ipc'
 import { registerAmbientIpc } from './ambient.ipc'
 import { registerShareIpc } from './share.ipc'
 import { registerSpotifyIpc } from './spotify.ipc'
+import { registerObsidianIpc } from './obsidian.ipc'
 
 // Central registration for all main-process IPC handlers.
 // Each slice adds one call here as it ships.
@@ -50,4 +51,5 @@ export function registerIpcHandlers(): void {
   registerAmbientIpc()
   registerShareIpc()
   registerSpotifyIpc()
+  registerObsidianIpc()
 }
