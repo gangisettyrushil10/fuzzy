@@ -3,6 +3,7 @@ import type { AskResult, RankedPassage } from '@shared/types/database'
 import { useDocumentStore } from './documentStore'
 import { usePdfStore } from './pdfStore'
 import { useAppUiStore } from './appUiStore'
+import { useReaderLocationStore } from './readerLocationStore'
 
 // "Ask the book": RAG chat scoped to the active document, every answer cited and
 // jump-able. spoilerSafe restricts retrieval to pages <= highWaterMark (the
@@ -52,7 +53,14 @@ export const useAskStore = create<AskState>((set, get) => ({
       set({ status: 'error', error: 'Open a document first to ask about it.' })
       return
     }
-    const { currentPage, highWaterMark } = usePdfStore.getState()
+    const pdf = usePdfStore.getState()
+    const location = useReaderLocationStore.getState()
+    const activeLocation = location.documentId === documentId ? location : null
+    const currentPage = activeLocation?.currentPage ?? pdf.currentPage
+    const highWaterMark = activeLocation?.highWaterMark ?? pdf.highWaterMark
+    const currentPageText = activeLocation
+      ? activeLocation.currentPageText
+      : (pdf.pageTexts.get(currentPage) ?? null)
     const token = ++runCounter
     activeRun = token
     set({ status: 'asking', error: null })
@@ -62,7 +70,9 @@ export const useAskStore = create<AskState>((set, get) => ({
         question,
         spoilerSafe,
         webSearch,
-        currentPage: spoilerSafe ? highWaterMark : currentPage
+        currentPage,
+        currentPageText,
+        spoilerMaxPage: spoilerSafe ? highWaterMark : null
       })
       if (activeRun !== token) return
       set({ status: 'done', result })

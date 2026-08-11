@@ -4,6 +4,7 @@ import { runAsk } from '../services/ask/askService'
 import type { AskRequest } from '@shared/types/database'
 
 const MAX_QUESTION_CHARS = 500
+const MAX_CONTEXT_CHARS = 60_000
 
 function validate(input: unknown): AskRequest {
   if (!input || typeof input !== 'object') throw new Error('Invalid ask request.')
@@ -15,6 +16,9 @@ function validate(input: unknown): AskRequest {
     question: r.question.slice(0, MAX_QUESTION_CHARS),
     spoilerSafe: r.spoilerSafe === true,
     currentPage: typeof r.currentPage === 'number' ? r.currentPage : null,
+    currentPageText:
+      typeof r.currentPageText === 'string' ? r.currentPageText.slice(0, MAX_CONTEXT_CHARS) : null,
+    spoilerMaxPage: typeof r.spoilerMaxPage === 'number' ? r.spoilerMaxPage : null,
     limit: typeof r.limit === 'number' ? r.limit : undefined,
     webSearch: r.webSearch === true
   }

@@ -10,9 +10,12 @@ import { hybridSearchDoc } from '../retrieval/hybridSearch'
 import { resolveProviderMode } from '../ai/provider'
 import { getDecryptedOpenaiKey, getOpenaiBaseUrl, readSettings } from '../settingsService'
 import { getPageByNumber } from '../../db/repositories/pageRepository'
+import { getDocument } from '../../db/repositories/documentRepository'
+import { formatAllCitations } from '../thesis/citationFormatter'
 import { buildExtractiveAnswer, buildPassageBlock } from './askMock'
 import { webSearchModels, extractWebSources, compactPassageBlock } from './askWeb'
 import { detectAskIntent, extractiveSummary } from './askIntent'
+import { buildCurrentPagePassages, mergeLocalFirstPassages } from './askContext'
 
 const MAX_TOKENS = 700
 const WEB_MAX_TOKENS = 900
@@ -44,6 +47,7 @@ async function answerWithWebSearch(
     'You have two sources:',
     '(1) passages from the document the user is reading — cite these by page, e.g. (p. 42);',
     '(2) the live web — cite web sources by their URL.',
+    'When the first document passages are from the reader\'s current page or chapter, use them first to interpret vague or local questions.',
     'Decide per question: for questions about THIS book/story, lead with the document. For general-knowledge or definitional questions (e.g. "what is a patronus") whose answer is outside the document, SEARCH THE WEB and answer from it — do not just say the document does not define it.',
     'When both apply, give the real-world definition from the web AND note how the document uses it. Make clear which claims are from the document and which from the web. Never invent facts or citations. Be concise: 2–6 sentences.',
     SAFETY
@@ -110,6 +114,7 @@ async function answerWithLLM(question: string, passages: RankedPassage[]): Promi
   const client = new OpenAI({ apiKey: key, timeout: REQUEST_TIMEOUT_MS, baseURL: getOpenaiBaseUrl() ?? undefined })
   const system = [
     'You answer questions about a document using ONLY the supplied passages.',
+    'When the first passages are from the reader\'s current page or chapter, use them first to interpret vague or local questions, then use later passages from the rest of the document only as support.',
     'If the passages do not contain the answer, say so plainly — never invent facts.',
     'Cite the passages you used by their page numbers in parentheses, e.g. (p. 42).',
     'Be concise: 2-5 sentences.',
@@ -133,6 +138,31 @@ async function answerWithLLM(question: string, passages: RankedPassage[]): Promi
   }
 }
 
+function currentPageText(request: AskRequest): string | null {
+  const supplied = request.currentPageText?.trim()
+  if (supplied) return supplied
+  if (request.currentPage == null) return null
+  return getPageByNumber(request.documentId, request.currentPage)?.textContent?.trim() ?? null
+}
+
+function currentPagePassages(request: AskRequest): RankedPassage[] {
+  if (request.currentPage == null) return []
+  const doc = getDocument(request.documentId)
+  if (!doc) return []
+  const text = currentPageText(request)
+  if (!text) return []
+  return buildCurrentPagePassages(request.question, {
+    documentId: request.documentId,
+    documentTitle: doc.title,
+    pageNumber: request.currentPage,
+    text,
+    citations: formatAllCitations(
+      { title: doc.title, author: doc.author, year: doc.year, publisher: doc.publisher },
+      request.currentPage
+    )
+  })
+}
+
 export async function runAsk(request: AskRequest): Promise<AskResult> {
   const spoilerSafe = request.spoilerSafe === true
   const provider = resolveProviderMode()
@@ -147,11 +177,17 @@ export async function runAsk(request: AskRequest): Promise<AskResult> {
     // If we couldn't resolve a chapter (no page known), fall through to Q&A.
   }
 
-  const maxPage = spoilerSafe ? (request.currentPage ?? null) : null
-  const sources = await hybridSearchDoc(request.documentId, request.question, {
+  const maxPage = spoilerSafe ? (request.spoilerMaxPage ?? request.currentPage ?? null) : null
+  const retrievedSources = await hybridSearchDoc(request.documentId, request.question, {
     limit: request.limit ?? 8,
     maxPage
   })
+  const localSources = currentPagePassages(request)
+  const sources = mergeLocalFirstPassages(
+    localSources,
+    retrievedSources,
+    Math.max(request.limit ?? 8, Math.min(12, localSources.length + 4))
+  )
 
   // Web search and spoiler-safe are mutually exclusive — the web doesn't know
   // where you are in the book, so it can't honor the reading-position cutoff.

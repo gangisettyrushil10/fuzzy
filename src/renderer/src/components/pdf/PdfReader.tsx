@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { usePdfStore } from '../../state/pdfStore'
+import { useReaderLocationStore } from '../../state/readerLocationStore'
 import { useSelectionStore } from '../../state/selectionStore'
 import { useDocumentStore } from '../../state/documentStore'
 import { usePacerStore } from '../../state/pacerStore'
@@ -29,8 +30,10 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     setPage,
     setScale,
     markPagePersisted,
-    isPagePersisted
+    isPagePersisted,
+    highWaterMark
   } = usePdfStore()
+  const setReaderLocation = useReaderLocationStore((s) => s.setLocation)
 
   const documents = useDocumentStore((s) => s.documents)
   const activeDoc = useMemo(
@@ -46,6 +49,15 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const pacerVisible = usePacerStore((s) => s.visible)
   const loadPacerSource = usePacerStore((s) => s.loadSource)
   const pageText = usePdfStore((s) => s.pageTexts.get(currentPage))
+
+  useEffect(() => {
+    setReaderLocation({
+      documentId,
+      currentPage,
+      highWaterMark,
+      currentPageText: pageText ?? null
+    })
+  }, [documentId, currentPage, highWaterMark, pageText, setReaderLocation])
 
   useEffect(() => {
     if (!pacerVisible || !pageText) return

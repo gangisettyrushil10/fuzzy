@@ -3,6 +3,7 @@ import type { PageRecord } from '@shared/types/database'
 import type { AmbientClassification } from '@shared/types/api'
 import { FILE_FORMATS, type FileType } from '@shared/formats'
 import { useDocumentStore } from '../../state/documentStore'
+import { useReaderLocationStore } from '../../state/readerLocationStore'
 import { useSelectionStore } from '../../state/selectionStore'
 import { usePacerStore } from '../../state/pacerStore'
 import { useReaderPrefsStore } from '../../state/readerPrefsStore'
@@ -44,6 +45,7 @@ export function ReflowableReader({
   )
   const setSelection = useSelectionStore((s) => s.setSelection)
   const clearSelection = useSelectionStore((s) => s.clear)
+  const setReaderLocation = useReaderLocationStore((s) => s.setLocation)
 
   // WPM pacer integration (word-by-word sweep over this section's text).
   const pacerVisible = usePacerStore((s) => s.visible)
@@ -131,6 +133,15 @@ export function ReflowableReader({
   }, [index, sections])
 
   const current = sections && sections.length > 0 ? sections[index] : null
+
+  useEffect(() => {
+    if (!current) return
+    setReaderLocation({
+      documentId,
+      currentPage: current.pageNumber,
+      currentPageText: current.textContent ?? null
+    })
+  }, [documentId, current, setReaderLocation])
 
   // Rich (HTML) sections render sanitized book formatting; we then wrap their
   // words into a data-token-index span layer (WordLayer) so the pacer /

@@ -1163,7 +1163,13 @@ export interface AskRequest {
   documentId: string
   question: string
   spoilerSafe?: boolean
+  // The reader's visible page/section. Used to interpret vague questions from
+  // the local passage before consulting the whole document.
   currentPage?: number | null
+  currentPageText?: string | null
+  // Spoiler-safe cutoff can differ from currentPage because users may jump back
+  // to reread an earlier page after reaching further into the document.
+  spoilerMaxPage?: number | null
   limit?: number
   // Opt-in: let the model search the live web to supplement the document.
   // Mutually exclusive with spoilerSafe (the web doesn't respect your reading
