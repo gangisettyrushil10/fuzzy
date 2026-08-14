@@ -23,6 +23,7 @@ import { isCommonWord } from '../../lib/frequencyList'
 import { cn } from '../../lib/cn'
 import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { moodlightClassificationDelay, moodlightExcerptChars } from '../../lib/moodlightSampling'
+import { visibleTextFromViewport } from '../../lib/visibleText'
 
 // One reader for every reflowable format (epub, txt, md, docx, mobi). It does
 // NOT parse the source file — the main-process extractor already turned it into
@@ -212,6 +213,12 @@ export function ReflowableReader({
   const classifyVisiblePassage = useCallback(async (): Promise<VisiblePassageClassification | null> => {
     if (!current?.textContent) return null
     const host = scrollRef.current
+    const visibleExcerpt = visibleTextFromViewport(contentRef.current, host)
+    if (visibleExcerpt) {
+      const classification = await classifyForPage(documentId, current.pageNumber, visibleExcerpt)
+      return classification ? { classification, excerpt: visibleExcerpt } : null
+    }
+
     const progress =
       !host || host.scrollHeight <= host.clientHeight
         ? 0.5

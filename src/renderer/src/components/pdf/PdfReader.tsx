@@ -15,6 +15,7 @@ import { SoundtrackButton, type VisiblePassageClassification } from '../reader/S
 import { excerptForProgress } from '../../lib/ambientExcerpt'
 import { moodlightClassificationDelay, moodlightExcerptChars } from '../../lib/moodlightSampling'
 import { normalizeRectsToPage } from '../../lib/rects'
+import { visibleTextFromViewport } from '../../lib/visibleText'
 
 // Renders the active PDF, paginated. One page at a time keeps render work
 // bounded and lets the selection menu reason about a single page's text.
@@ -88,6 +89,15 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
   const classifyVisiblePassage = useCallback(async (): Promise<VisiblePassageClassification | null> => {
     if (!pageText) return null
     const host = pagesContainerRef.current
+    const pageRoot = host?.querySelector<HTMLElement>(
+      `[data-page-number="${currentPage}"] .textLayer`
+    )
+    const visibleExcerpt = visibleTextFromViewport(pageRoot ?? null, host)
+    if (visibleExcerpt) {
+      const classification = await classifyForPage(documentId, currentPage, visibleExcerpt)
+      return classification ? { classification, excerpt: visibleExcerpt } : null
+    }
+
     const progress =
       !host || host.scrollHeight <= host.clientHeight
         ? 0.5
