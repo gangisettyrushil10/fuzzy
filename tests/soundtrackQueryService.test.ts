@@ -25,6 +25,7 @@ vi.mock('../src/main/services/spotify/spotifyTokenStore', () => ({
 
 import {
   clearSoundtrackQueryCache,
+  fallbackSoundtrackQuery,
   planSoundtrackQuery
 } from '../src/main/services/spotify/soundtrackQueryService'
 
@@ -82,6 +83,9 @@ describe('soundtrackQueryService', () => {
     expect(JSON.stringify(mocks.createResponse.mock.calls[0][0].input)).toContain(
       'footsteps stopped outside'
     )
+    expect(JSON.stringify(mocks.createResponse.mock.calls[0][0].input)).toContain(
+      'Use ONLY the visible passage text'
+    )
   })
 
   it('uses the deterministic mood mapping when OpenAI is unavailable', async () => {
@@ -93,6 +97,29 @@ describe('soundtrackQueryService', () => {
     expect(plan.query).toContain('jazz')
     expect(plan.query).not.toContain('playlist')
     expect(mocks.createResponse).not.toHaveBeenCalled()
+  })
+
+  it('uses visible narrative pressure instead of broad genre fallback terms', async () => {
+    const plan = fallbackSoundtrackQuery(
+      {
+        ...classification,
+        mood: 'wonder',
+        genre: 'fantasy',
+        sceneTags: ['magic'],
+        intensity: 0.64
+      },
+      [],
+      [
+        'The rent is due, I have thirteen dollars, and no one will hire me.',
+        'My criminal record follows me everywhere, even though I am great with hacked phones.',
+        'Panic tightens as every decent option disappears.'
+      ].join(' ')
+    )
+
+    expect(plan.source).toBe('fallback')
+    expect(plan.lane).not.toMatch(/fantasy|wonder/i)
+    expect(plan.query).toMatch(/electronic|synth|noir|tension|pressure/)
+    expect(plan.query).not.toMatch(/fantasy|dream|sleep|magical/)
   })
 
   it('rejects AI plans that ask Spotify for a playlist', async () => {
