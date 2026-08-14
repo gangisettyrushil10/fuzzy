@@ -5,7 +5,8 @@ import type {
   SpotifyPlaybackResult,
   SpotifyPlaybackSnapshot,
   SpotifyStatus,
-  SpotifySuggestion
+  SpotifySuggestion,
+  SpotifySuggestionOptions
 } from '@shared/types/api'
 
 type SuggestionStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
@@ -48,11 +49,11 @@ interface SpotifyState {
   undoSnapshot: SpotifyPlaybackSnapshot | null
   requestSuggestion: (
     classification: AmbientClassification,
-    passageExcerpt?: string
+    options?: Omit<SpotifySuggestionOptions, 'excludeUris'>
   ) => Promise<SpotifySuggestion | null>
   soundtrackPassage: (
     classification: AmbientClassification,
-    passageExcerpt?: string
+    options?: Omit<SpotifySuggestionOptions, 'excludeUris'>
   ) => Promise<SpotifyPlaybackResult | null>
   maybeAutoSuggest: (classification: AmbientClassification) => Promise<void>
   playSuggestion: (suggestion?: SpotifySuggestion | null) => Promise<SpotifyPlaybackResult | null>
@@ -116,14 +117,14 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
   playbackMessage: null,
   undoSnapshot: null,
 
-  requestSuggestion: async (classification, passageExcerpt) => {
+  requestSuggestion: async (classification, options) => {
     const requestId = ++suggestionRequestId
     const excludeUris = get().recentUris
     set({ requesting: true, suggestionStatus: 'loading', playbackMessage: null })
     try {
       const suggestion = await window.fuzzy.spotify.suggestForMood(classification, {
         excludeUris,
-        ...(passageExcerpt ? { passageExcerpt } : {})
+        ...(options ?? {})
       })
       if (requestId === suggestionRequestId) {
         const recentUris = suggestion?.uri
@@ -175,8 +176,8 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
     }
   },
 
-  soundtrackPassage: async (classification, passageExcerpt) => {
-    const suggestion = await get().requestSuggestion(classification, passageExcerpt)
+  soundtrackPassage: async (classification, options) => {
+    const suggestion = await get().requestSuggestion(classification, options)
     if (!suggestion) return null
     const result = await get().playSuggestion(suggestion)
     if (result?.ok) set({ currentClassification: classification, lastAutoAt: Date.now() })

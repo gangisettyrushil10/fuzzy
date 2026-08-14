@@ -9,6 +9,7 @@ import type {
 import { getValidAccessToken } from './spotifyAuthFlow'
 import { playSpotifyDesktopTrack, restoreSpotifyDesktopTrack } from './spotifyDesktopPlayer'
 import { planSoundtrackQuery } from './soundtrackQueryService'
+import type { SoundtrackQueryPlan } from './soundtrackTypes'
 
 const REQUEST_TIMEOUT_MS = 8_000
 const SEARCH_RESULT_LIMIT = '10'
@@ -89,11 +90,30 @@ export async function suggestForMood(
   classification: AmbientClassification,
   options: SpotifySuggestionOptions = {}
 ): Promise<SpotifySuggestion | null> {
-  const plan = await planSoundtrackQuery(classification, options.passageExcerpt)
-  const result = await searchTrack(plan.query, options.excludeUris ?? [])
+  const plan = await planSoundtrackQuery(classification, {
+    passageExcerpt: options.passageExcerpt,
+    documentId: options.documentId,
+    pageNumber: options.pageNumber
+  })
+  const result = await searchPlan(plan, options.excludeUris ?? [])
   return result
     ? { ...result, lane: plan.lane, query: plan.query, querySource: plan.source }
     : null
+}
+
+async function searchPlan(
+  plan: SoundtrackQueryPlan,
+  excludedUris: readonly string[]
+): Promise<SpotifySuggestion | null> {
+  const queries = [plan.query, ...(plan.queries ?? [])].filter(
+    (query, index, all): query is string =>
+      typeof query === 'string' && query.trim().length > 0 && all.indexOf(query) === index
+  )
+  for (const query of queries) {
+    const result = await searchTrack(query, excludedUris)
+    if (result) return result
+  }
+  return null
 }
 
 export async function playSuggestion(

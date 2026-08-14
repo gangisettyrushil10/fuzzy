@@ -62,9 +62,19 @@ export function registerSpotifyIpc(): void {
         typeof candidate?.passageExcerpt === 'string'
           ? candidate.passageExcerpt.trim().slice(0, 2_000)
           : undefined
+      const documentId =
+        typeof candidate?.documentId === 'string' && candidate.documentId.trim()
+          ? candidate.documentId.trim()
+          : undefined
+      const pageNumber =
+        typeof candidate?.pageNumber === 'number' && candidate.pageNumber >= 1
+          ? Math.floor(candidate.pageNumber)
+          : undefined
       return suggestForMood(classification as AmbientClassification, {
         excludeUris,
-        passageExcerpt
+        passageExcerpt,
+        documentId,
+        pageNumber
       })
     }
   )

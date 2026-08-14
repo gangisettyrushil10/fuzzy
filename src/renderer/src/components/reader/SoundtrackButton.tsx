@@ -6,6 +6,8 @@ import { cn } from '../../lib/cn'
 type SyncStage = 'idle' | 'reading' | 'finding'
 
 export interface VisiblePassageClassification {
+  documentId: string
+  pageNumber: number
   classification: AmbientClassification
   excerpt: string
 }
@@ -57,7 +59,11 @@ export function SoundtrackButton({
     }
 
     setSyncStage('finding')
-    await soundtrackPassage(visiblePassage.classification, visiblePassage.excerpt)
+    await soundtrackPassage(visiblePassage.classification, {
+      passageExcerpt: visiblePassage.excerpt,
+      documentId: visiblePassage.documentId,
+      pageNumber: visiblePassage.pageNumber
+    })
     setSyncStage('idle')
   }
 
@@ -148,7 +154,12 @@ export function SoundtrackButton({
           </div>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-fz-fg-subtle">
             <span className="truncate" title={suggestion.query}>
-              {suggestion.querySource === 'openai' ? 'AI-scored' : 'Scored'} for {suggestion.lane}
+              {suggestion.querySource === 'embedding'
+                ? 'Embedding-scored'
+                : suggestion.querySource === 'openai'
+                  ? 'AI-scored'
+                  : 'Scored'}{' '}
+              for {suggestion.lane}
             </span>
             {playbackState === 'playing' && (
               <span className="shrink-0 text-fz-success">Playing</span>

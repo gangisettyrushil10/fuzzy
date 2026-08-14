@@ -109,18 +109,63 @@ describe('Spotify track search and native playback', () => {
     } as const
 
     const result = await suggestForMood(classification, {
-      passageExcerpt: 'Rain ran down the glass as the footsteps stopped outside.'
+      passageExcerpt: 'Rain ran down the glass as the footsteps stopped outside.',
+      documentId: 'doc-1',
+      pageNumber: 12
     })
 
-    expect(mocks.planSoundtrackQuery).toHaveBeenCalledWith(
-      classification,
-      'Rain ran down the glass as the footsteps stopped outside.'
-    )
+    expect(mocks.planSoundtrackQuery).toHaveBeenCalledWith(classification, {
+      passageExcerpt: 'Rain ran down the glass as the footsteps stopped outside.',
+      documentId: 'doc-1',
+      pageNumber: 12
+    })
     expect(result?.uri).toBe('spotify:track:rain')
     expect(result?.querySource).toBe('openai')
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('type=track'),
       expect.any(Object)
     )
+  })
+
+  it('tries alternate embedding queries when the first catalog search is empty', async () => {
+    mocks.planSoundtrackQuery.mockResolvedValueOnce({
+      lane: 'Trapped desperation',
+      query: 'tense minimal noir pressure instrumental score',
+      queries: [
+        'tense minimal noir pressure instrumental score',
+        'minimal cyber noir electronic tension instrumental'
+      ],
+      source: 'embedding'
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ tracks: { items: [] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ tracks: { items: [track('semantic')] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await suggestForMood({
+      mood: 'tension',
+      secondaryMood: 'fear',
+      genre: 'literary',
+      type: 'fiction',
+      intensity: 0.75,
+      sceneTags: [],
+      paletteHints: [],
+      motion: 'pulse'
+    })
+
+    expect(result?.uri).toBe('spotify:track:semantic')
+    expect(result?.querySource).toBe('embedding')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

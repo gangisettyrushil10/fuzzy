@@ -95,7 +95,9 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     const visibleExcerpt = visibleTextFromViewport(pageRoot ?? null, host)
     if (visibleExcerpt) {
       const classification = await classifyForPage(documentId, currentPage, visibleExcerpt)
-      return classification ? { classification, excerpt: visibleExcerpt } : null
+      return classification
+        ? { documentId, pageNumber: currentPage, classification, excerpt: visibleExcerpt }
+        : null
     }
 
     const progress =
@@ -105,7 +107,7 @@ export function PdfReader({ documentId }: { documentId: string }): React.JSX.Ele
     const excerpt = excerptForProgress(pageText, progress)
     if (!excerpt) return null
     const classification = await classifyForPage(documentId, currentPage, excerpt)
-    return classification ? { classification, excerpt } : null
+    return classification ? { documentId, pageNumber: currentPage, classification, excerpt } : null
   }, [pageText, classifyForPage, documentId, currentPage])
 
   useEffect(() => {

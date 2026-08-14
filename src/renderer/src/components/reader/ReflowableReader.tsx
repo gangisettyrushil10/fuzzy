@@ -216,7 +216,9 @@ export function ReflowableReader({
     const visibleExcerpt = visibleTextFromViewport(contentRef.current, host)
     if (visibleExcerpt) {
       const classification = await classifyForPage(documentId, current.pageNumber, visibleExcerpt)
-      return classification ? { classification, excerpt: visibleExcerpt } : null
+      return classification
+        ? { documentId, pageNumber: current.pageNumber, classification, excerpt: visibleExcerpt }
+        : null
     }
 
     const progress =
@@ -226,7 +228,9 @@ export function ReflowableReader({
     const excerpt = excerptForProgress(current.textContent, progress)
     if (!excerpt) return null
     const classification = await classifyForPage(documentId, current.pageNumber, excerpt)
-    return classification ? { classification, excerpt } : null
+    return classification
+      ? { documentId, pageNumber: current.pageNumber, classification, excerpt }
+      : null
   }, [current, classifyForPage, documentId])
   const moodlightResponsiveness = useAmbientStore((s) => s.moodlightPreferences.responsiveness)
   useEffect(() => {

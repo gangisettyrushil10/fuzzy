@@ -122,7 +122,7 @@ export type SpotifyConnectResult =
 export interface SpotifySuggestion {
   lane: string
   query: string
-  querySource: 'openai' | 'fallback'
+  querySource: 'embedding' | 'openai' | 'fallback'
   trackId: string | null
   uri: string | null
   name: string | null
@@ -135,6 +135,8 @@ export interface SpotifySuggestion {
 export interface SpotifySuggestionOptions {
   excludeUris?: string[]
   passageExcerpt?: string
+  documentId?: string
+  pageNumber?: number
 }
 
 export interface SpotifyPlaybackSnapshot {

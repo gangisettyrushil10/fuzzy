@@ -88,11 +88,17 @@ describe('spotifyStore', () => {
 
     await useSpotifyStore
       .getState()
-      .requestSuggestion(calmClassification, 'Rain swept across the empty station.')
+      .requestSuggestion(calmClassification, {
+        passageExcerpt: 'Rain swept across the empty station.',
+        documentId: 'doc-1',
+        pageNumber: 7
+      })
 
     expect(suggestForMood).toHaveBeenCalledWith(calmClassification, {
       excludeUris: [],
-      passageExcerpt: 'Rain swept across the empty station.'
+      passageExcerpt: 'Rain swept across the empty station.',
+      documentId: 'doc-1',
+      pageNumber: 7
     })
   })
 

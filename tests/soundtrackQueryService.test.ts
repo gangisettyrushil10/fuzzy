@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   getDecryptedOpenaiKey: vi.fn(),
   getOpenaiBaseUrl: vi.fn(),
   readSettings: vi.fn(),
-  readGenrePreferences: vi.fn()
+  readGenrePreferences: vi.fn(),
+  planEmbeddingSoundtrackQuery: vi.fn()
 }))
 
 vi.mock('openai', () => ({
@@ -22,10 +23,12 @@ vi.mock('../src/main/services/settingsService', () => ({
 vi.mock('../src/main/services/spotify/spotifyTokenStore', () => ({
   readGenrePreferences: mocks.readGenrePreferences
 }))
+vi.mock('../src/main/services/spotify/embeddingSoundtrackService', () => ({
+  planEmbeddingSoundtrackQuery: mocks.planEmbeddingSoundtrackQuery
+}))
 
 import {
   clearSoundtrackQueryCache,
-  fallbackSoundtrackQuery,
   planSoundtrackQuery
 } from '../src/main/services/spotify/soundtrackQueryService'
 
@@ -54,6 +57,7 @@ describe('soundtrackQueryService', () => {
       lastActiveDocumentId: null
     })
     mocks.readGenrePreferences.mockReturnValue(['jazz'])
+    mocks.planEmbeddingSoundtrackQuery.mockResolvedValue(null)
   })
 
   it('turns the visible passage into a structured track-search plan', async () => {
@@ -66,7 +70,7 @@ describe('soundtrackQueryService', () => {
 
     const plan = await planSoundtrackQuery(
       classification,
-      'Rain ran down the glass as the footsteps stopped outside.'
+      { passageExcerpt: 'Rain ran down the glass as the footsteps stopped outside.' }
     )
 
     expect(plan).toEqual({
@@ -91,7 +95,7 @@ describe('soundtrackQueryService', () => {
   it('uses the deterministic mood mapping when OpenAI is unavailable', async () => {
     mocks.getDecryptedOpenaiKey.mockReturnValue(null)
 
-    const plan = await planSoundtrackQuery(classification, 'A tense rain scene.')
+    const plan = await planSoundtrackQuery(classification, { passageExcerpt: 'A tense rain scene.' })
 
     expect(plan.source).toBe('fallback')
     expect(plan.query).toContain('jazz')
@@ -99,27 +103,34 @@ describe('soundtrackQueryService', () => {
     expect(mocks.createResponse).not.toHaveBeenCalled()
   })
 
-  it('uses visible narrative pressure instead of broad genre fallback terms', async () => {
-    const plan = fallbackSoundtrackQuery(
-      {
-        ...classification,
-        mood: 'wonder',
-        genre: 'fantasy',
-        sceneTags: ['magic'],
-        intensity: 0.64
-      },
-      [],
-      [
-        'The rent is due, I have thirteen dollars, and no one will hire me.',
-        'My criminal record follows me everywhere, even though I am great with hacked phones.',
-        'Panic tightens as every decent option disappears.'
-      ].join(' ')
-    )
+  it('uses the embedding scene plan as the fallback when document vectors are available', async () => {
+    mocks.getDecryptedOpenaiKey.mockReturnValue(null)
+    mocks.planEmbeddingSoundtrackQuery.mockResolvedValue({
+      lane: 'Trapped desperation',
+      query: 'tense minimal noir pressure instrumental score',
+      queries: [
+        'tense minimal noir pressure instrumental score',
+        'minimal cyber noir electronic tension instrumental'
+      ],
+      source: 'embedding'
+    })
 
-    expect(plan.source).toBe('fallback')
-    expect(plan.lane).not.toMatch(/fantasy|wonder/i)
-    expect(plan.query).toMatch(/electronic|synth|noir|tension|pressure/)
-    expect(plan.query).not.toMatch(/fantasy|dream|sleep|magical/)
+    const plan = await planSoundtrackQuery(classification, {
+      documentId: 'doc-1',
+      pageNumber: 4,
+      passageExcerpt: 'I cannot pay rent and panic keeps closing every door.'
+    })
+
+    expect(plan).toEqual(
+      expect.objectContaining({
+        lane: 'Trapped desperation',
+        query: 'tense minimal noir pressure instrumental score',
+        source: 'embedding'
+      })
+    )
+    expect(mocks.planEmbeddingSoundtrackQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: 'doc-1', pageNumber: 4 })
+    )
   })
 
   it('rejects AI plans that ask Spotify for a playlist', async () => {
@@ -127,7 +138,7 @@ describe('soundtrackQueryService', () => {
       output_text: JSON.stringify({ lane: 'Suspense', query: 'dark suspense playlist' })
     })
 
-    const plan = await planSoundtrackQuery(classification, 'A tense rain scene.')
+    const plan = await planSoundtrackQuery(classification, { passageExcerpt: 'A tense rain scene.' })
 
     expect(plan.source).toBe('fallback')
     expect(plan.query).not.toContain('playlist')
