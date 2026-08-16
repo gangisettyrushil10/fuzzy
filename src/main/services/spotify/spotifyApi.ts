@@ -12,7 +12,38 @@ import { planSoundtrackQuery } from './soundtrackQueryService'
 import type { SoundtrackQueryPlan } from './soundtrackTypes'
 
 const REQUEST_TIMEOUT_MS = 8_000
-const SEARCH_RESULT_LIMIT = '10'
+const SEARCH_RESULT_LIMIT = '30'
+const READING_FRIENDLY_TERMS = [
+  'instrumental',
+  'score',
+  'soundtrack',
+  'ambient',
+  'cinematic',
+  'lofi',
+  'lo-fi',
+  'downtempo',
+  'piano',
+  'strings',
+  'orchestral',
+  'electronic',
+  'synth',
+  'focus',
+  'beats'
+]
+const READING_HOSTILE_TERMS = [
+  'party',
+  'rave',
+  'club',
+  'workout',
+  'dancefloor',
+  'festival',
+  'sleep',
+  'lullaby',
+  'baby',
+  'dreamland',
+  'karaoke',
+  'remix'
+]
 
 interface SpotifyImage {
   url: string
@@ -33,6 +64,31 @@ interface SpotifyTrackItem {
 
 interface SearchResponse {
   tracks?: { items: Array<SpotifyTrackItem | null> }
+}
+
+function normalize(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function scoreTrack(item: SpotifyTrackItem, query: string, index: number): number {
+  const haystack = normalize(
+    [item.name, item.album.name, item.artists.map((artist) => artist.name).join(' ')].join(' ')
+  )
+  const qTerms = normalize(query)
+    .split(' ')
+    .filter((term) => term.length >= 4)
+  let score = 0
+  for (const term of qTerms) {
+    if (haystack.includes(term)) score += 1.4
+  }
+  for (const term of READING_FRIENDLY_TERMS) {
+    if (haystack.includes(term)) score += 2
+  }
+  for (const term of READING_HOSTILE_TERMS) {
+    if (haystack.includes(term)) score -= 4
+  }
+  if (/feat|ft\./i.test(item.name)) score -= 0.8
+  return score - index * 0.05
 }
 
 async function spotifyFetch(token: string, path: string): Promise<Response> {
@@ -64,9 +120,12 @@ export async function searchTrack(
     }
     const json = (await res.json()) as SearchResponse
     const excluded = new Set(excludedUris)
-    const match = json.tracks?.items.find(
+    const candidates = (json.tracks?.items ?? []).filter(
       (item): item is SpotifyTrackItem => item != null && !excluded.has(item.uri)
     )
+    const match = candidates
+      .map((item, index) => ({ item, score: scoreTrack(item, query, index) }))
+      .sort((a, b) => b.score - a.score)[0]?.item
     if (!match) return null
     return {
       lane: '',

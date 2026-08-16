@@ -20,13 +20,19 @@ vi.mock('../src/main/services/spotify/soundtrackQueryService', () => ({
 
 import { playSuggestion, searchTrack, suggestForMood } from '../src/main/services/spotify/spotifyApi'
 
-function track(id: string): Record<string, unknown> {
+function track(
+  id: string,
+  overrides: { name?: string; album?: string; artist?: string } = {}
+): Record<string, unknown> {
   return {
     id,
-    name: `Track ${id}`,
+    name: overrides.name ?? `Track ${id}`,
     uri: `spotify:track:${id}`,
-    artists: [{ name: `Artist ${id}` }],
-    album: { name: `Album ${id}`, images: [{ url: `https://images.example/${id}.jpg` }] },
+    artists: [{ name: overrides.artist ?? `Artist ${id}` }],
+    album: {
+      name: overrides.album ?? `Album ${id}`,
+      images: [{ url: `https://images.example/${id}.jpg` }]
+    },
     external_urls: { spotify: `https://open.spotify.com/track/${id}` },
     type: 'track'
   }
@@ -71,7 +77,35 @@ describe('Spotify track search and native playback', () => {
 
     expect(result?.uri).toBe('spotify:track:fresh')
     expect(result?.artistName).toBe('Artist fresh')
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('limit=10'), expect.any(Object))
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('limit=30'), expect.any(Object))
+  })
+
+  it('reranks Spotify candidates toward reading-friendly instrumental tracks', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          tracks: {
+            items: [
+              track('sleep', { name: 'Fantasy Ambient Dreamland Sleep' }),
+              track('rave', { name: 'Cyber Party Rave Remix' }),
+              track('focus', {
+                name: 'Cyber Noir Lofi Instrumental',
+                album: 'Downtempo Electronic Focus'
+              })
+            ]
+          }
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await searchTrack('cyber lofi electronic instrumental focus')
+
+    expect(result?.uri).toBe('spotify:track:focus')
   })
 
   it('sends the selected track URI to the installed Spotify app controller', async () => {

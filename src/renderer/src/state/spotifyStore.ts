@@ -13,7 +13,8 @@ type SuggestionStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 export type SpotifyPlaybackState = 'idle' | 'starting' | 'playing' | 'error'
 
 const AUTO_COOLDOWN_MS = 45_000
-const RECENT_TRACK_LIMIT = 8
+const RECENT_TRACK_LIMIT = 30
+const RECENT_TRACKS_KEY = 'fuzzy.spotify.recentUris.v1'
 let suggestionRequestId = 0
 
 function sceneKey(classification: AmbientClassification): string {
@@ -28,6 +29,25 @@ export function isMeaningfulSoundtrackShift(
   if (previous.mood !== next.mood) return true
   if (sceneKey(previous) !== sceneKey(next)) return true
   return Math.abs(previous.intensity - next.intensity) >= 0.3
+}
+
+function loadRecentUris(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_TRACKS_KEY) ?? '[]') as unknown
+    return Array.isArray(raw)
+      ? raw.filter((value): value is string => typeof value === 'string').slice(0, RECENT_TRACK_LIMIT)
+      : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentUris(uris: readonly string[]): void {
+  try {
+    localStorage.setItem(RECENT_TRACKS_KEY, JSON.stringify(uris.slice(0, RECENT_TRACK_LIMIT)))
+  } catch {
+    /* keep in-memory recency only */
+  }
 }
 
 interface SpotifyState {
@@ -110,7 +130,7 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
   suggestion: null,
   suggestionStatus: 'idle',
   currentClassification: null,
-  recentUris: [],
+  recentUris: loadRecentUris(),
   lastAutoAt: 0,
   requesting: false,
   playbackState: 'idle',
@@ -133,6 +153,7 @@ export const useSpotifyStore = create<SpotifyState>((set, get) => ({
               RECENT_TRACK_LIMIT
             )
           : excludeUris
+        saveRecentUris(recentUris)
         set({
           suggestion,
           suggestionStatus: suggestion ? 'ready' : 'empty',

@@ -2,8 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getVectors: vi.fn(),
-  embedQuery: vi.fn(),
-  hybridSearchDoc: vi.fn()
+  embedQuery: vi.fn()
 }))
 
 vi.mock('../src/main/db/repositories/embeddingRepository', () => ({
@@ -11,9 +10,6 @@ vi.mock('../src/main/db/repositories/embeddingRepository', () => ({
 }))
 vi.mock('../src/main/services/embeddings/embeddingService', () => ({
   embedQuery: mocks.embedQuery
-}))
-vi.mock('../src/main/services/retrieval/hybridSearch', () => ({
-  hybridSearchDoc: mocks.hybridSearchDoc
 }))
 
 import {
@@ -45,26 +41,21 @@ describe('embeddingSoundtrackService', () => {
         chunkIndex: 0,
         textHash: 'hash',
         model: 'test-embedding-model',
-        vector: new Float32Array([1, 0])
-      }
-    ])
-    mocks.hybridSearchDoc.mockResolvedValue([
-      {
-        id: 'doc-1:9:0',
-        documentId: 'doc-1',
-        pageNumber: 9,
-        snippet: 'The room feels impossible to escape, and every option is closing.'
+        vector: new Float32Array([0, 1, 0])
       }
     ])
     mocks.embedQuery.mockImplementation(async (text: string) => {
-      if (text.includes('A character feels trapped by money')) return new Float32Array([1, 0])
-      if (text.includes('Technology, hacking')) return new Float32Array([0.7, 0.3])
-      if (text.includes('cannot pay rent')) return new Float32Array([1, 0])
-      return new Float32Array([0, 1])
+      if (text.includes('A character feels trapped by money')) return new Float32Array([1, 0, 0])
+      if (text.includes('A contemporary or futuristic story world of gaming')) {
+        return new Float32Array([0, 1, 0])
+      }
+      if (text.includes('A magical or mythic story world')) return new Float32Array([0, 0, 1])
+      if (text.includes('cannot pay rent')) return new Float32Array([1, 0, 0])
+      return new Float32Array([0, 0, 0])
     })
   })
 
-  it('scores the visible passage against generic scene anchors in the document embedding space', async () => {
+  it('uses book-world vectors to steer a tense scene toward a tech/lofi palette', async () => {
     const plan = await planEmbeddingSoundtrackQuery({
       classification,
       documentId: 'doc-1',
@@ -75,18 +66,40 @@ describe('embeddingSoundtrackService', () => {
 
     expect(plan).toEqual(
       expect.objectContaining({
-        lane: 'Trapped desperation',
+        lane: 'Cyber lofi · Trapped desperation',
         source: 'embedding'
       })
     )
-    expect(plan?.query).toContain('instrumental')
+    expect(plan?.query).toContain('downtempo electronic lofi beats')
     expect(plan?.queries?.length).toBeGreaterThan(1)
     expect(mocks.getVectors).toHaveBeenCalledWith('doc-1')
-    expect(mocks.hybridSearchDoc).toHaveBeenCalledWith('doc-1', expect.any(String), {
-      limit: 3,
-      maxPage: 9
-    })
     expect(mocks.embedQuery).toHaveBeenCalledWith(expect.any(String), 'test-embedding-model')
+  })
+
+  it('keeps the same tense scene orchestral when the book-world vector is fantasy', async () => {
+    mocks.getVectors.mockReturnValue([
+      {
+        id: 'doc-2:9:0',
+        documentId: 'doc-2',
+        pageNumber: 9,
+        chunkIndex: 0,
+        textHash: 'hash',
+        model: 'test-embedding-model',
+        vector: new Float32Array([0, 0, 1])
+      }
+    ])
+
+    const plan = await planEmbeddingSoundtrackQuery({
+      classification,
+      documentId: 'doc-2',
+      pageNumber: 9,
+      passageExcerpt: 'I cannot pay rent, and panic keeps closing every possible door.',
+      taste: []
+    })
+
+    expect(plan?.lane).toBe('Orchestral fantasy · Trapped desperation')
+    expect(plan?.query).toContain('orchestral fantasy strings')
+    expect(plan?.query).not.toContain('cyber')
   })
 
   it('does not plan without cached ingestion vectors', async () => {
