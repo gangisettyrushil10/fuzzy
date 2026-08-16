@@ -13,6 +13,7 @@ import type { SoundtrackQueryPlan } from './soundtrackTypes'
 
 const REQUEST_TIMEOUT_MS = 8_000
 const SEARCH_RESULT_LIMIT = '30'
+const MIN_RELAXED_QUERY_TERMS = 3
 const READING_FRIENDLY_TERMS = [
   'instrumental',
   'score',
@@ -29,6 +30,25 @@ const READING_FRIENDLY_TERMS = [
   'synth',
   'focus',
   'beats'
+]
+const CORE_QUERY_TERMS = [
+  ...READING_FRIENDLY_TERMS,
+  'cyber',
+  'fantasy',
+  'noir',
+  'mystery',
+  'suspense',
+  'tension',
+  'pressure',
+  'melancholy',
+  'reflective',
+  'urban',
+  'night',
+  'chamber',
+  'adventure',
+  'minimal',
+  'dark',
+  'soft'
 ]
 const READING_HOSTILE_TERMS = [
   'party',
@@ -91,6 +111,41 @@ function scoreTrack(item: SpotifyTrackItem, query: string, index: number): numbe
   return score - index * 0.05
 }
 
+function compactQuery(query: string, maxTerms: number): string {
+  const seen = new Set<string>()
+  const terms = normalize(query)
+    .split(' ')
+    .filter((term) => {
+      if (seen.has(term)) return false
+      seen.add(term)
+      return CORE_QUERY_TERMS.includes(term) || term.length >= 5
+    })
+  return terms.slice(0, maxTerms).join(' ')
+}
+
+function fallbackQueries(plan: SoundtrackQueryPlan): string[] {
+  const queries = [plan.query, ...(plan.queries ?? [])]
+  const relaxed = queries.flatMap((query) => {
+    const eight = compactQuery(query, 8)
+    const five = compactQuery(query, 5)
+    const three = compactQuery(query, 3)
+    return [
+      query,
+      eight,
+      five,
+      three.split(' ').length >= MIN_RELAXED_QUERY_TERMS ? three : ''
+    ]
+  })
+  return [
+    ...relaxed,
+    'instrumental score reading focus',
+    'ambient instrumental focus'
+  ].filter(
+    (query, index, all): query is string =>
+      typeof query === 'string' && query.trim().length > 0 && all.indexOf(query) === index
+  )
+}
+
 async function spotifyFetch(token: string, path: string): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -104,41 +159,55 @@ async function spotifyFetch(token: string, path: string): Promise<Response> {
   }
 }
 
+function suggestionFromTrack(match: SpotifyTrackItem, query: string): SpotifySuggestion {
+  return {
+    lane: '',
+    query,
+    querySource: 'fallback',
+    trackId: match.id,
+    uri: match.uri,
+    name: match.name,
+    description: match.album.name,
+    imageUrl: match.album.images?.[0]?.url ?? null,
+    externalUrl: match.external_urls.spotify ?? null,
+    artistName: match.artists.map((artist) => artist.name).join(', ') || null
+  }
+}
+
+async function bestTrackForQuery(
+  query: string,
+  excludedUris: readonly string[]
+): Promise<{ fresh: SpotifySuggestion | null; fallback: SpotifySuggestion | null }> {
+  const token = await getValidAccessToken()
+  if (!token) return { fresh: null, fallback: null }
+
+  const params = new URLSearchParams({ q: query, type: 'track', limit: SEARCH_RESULT_LIMIT })
+  const res = await spotifyFetch(token, `/search?${params.toString()}`)
+  if (!res.ok) {
+    console.warn('[fuzzy spotify] search failed', res.status, await res.text().catch(() => ''))
+    return { fresh: null, fallback: null }
+  }
+  const json = (await res.json()) as SearchResponse
+  const excluded = new Set(excludedUris)
+  const ranked = (json.tracks?.items ?? [])
+    .filter((item): item is SpotifyTrackItem => item != null)
+    .map((item, index) => ({ item, score: scoreTrack(item, query, index) }))
+    .sort((a, b) => b.score - a.score)
+  const fresh = ranked.find(({ item }) => !excluded.has(item.uri))?.item ?? null
+  const fallback = ranked[0]?.item ?? null
+  return {
+    fresh: fresh ? suggestionFromTrack(fresh, query) : null,
+    fallback: fallback ? suggestionFromTrack(fallback, query) : null
+  }
+}
+
 export async function searchTrack(
   query: string,
   excludedUris: readonly string[] = []
 ): Promise<SpotifySuggestion | null> {
-  const token = await getValidAccessToken()
-  if (!token) return null
-
-  const params = new URLSearchParams({ q: query, type: 'track', limit: SEARCH_RESULT_LIMIT })
   try {
-    const res = await spotifyFetch(token, `/search?${params.toString()}`)
-    if (!res.ok) {
-      console.warn('[fuzzy spotify] search failed', res.status, await res.text().catch(() => ''))
-      return null
-    }
-    const json = (await res.json()) as SearchResponse
-    const excluded = new Set(excludedUris)
-    const candidates = (json.tracks?.items ?? []).filter(
-      (item): item is SpotifyTrackItem => item != null && !excluded.has(item.uri)
-    )
-    const match = candidates
-      .map((item, index) => ({ item, score: scoreTrack(item, query, index) }))
-      .sort((a, b) => b.score - a.score)[0]?.item
-    if (!match) return null
-    return {
-      lane: '',
-      query,
-      querySource: 'fallback',
-      trackId: match.id,
-      uri: match.uri,
-      name: match.name,
-      description: match.album.name,
-      imageUrl: match.album.images?.[0]?.url ?? null,
-      externalUrl: match.external_urls.spotify ?? null,
-      artistName: match.artists.map((artist) => artist.name).join(', ') || null
-    }
+    const result = await bestTrackForQuery(query, excludedUris)
+    return result.fresh ?? result.fallback
   } catch (err) {
     console.warn('[fuzzy spotify] search request failed', err)
     return null
@@ -164,15 +233,17 @@ async function searchPlan(
   plan: SoundtrackQueryPlan,
   excludedUris: readonly string[]
 ): Promise<SpotifySuggestion | null> {
-  const queries = [plan.query, ...(plan.queries ?? [])].filter(
-    (query, index, all): query is string =>
-      typeof query === 'string' && query.trim().length > 0 && all.indexOf(query) === index
-  )
-  for (const query of queries) {
-    const result = await searchTrack(query, excludedUris)
-    if (result) return result
+  let fallback: SpotifySuggestion | null = null
+  for (const query of fallbackQueries(plan)) {
+    try {
+      const result = await bestTrackForQuery(query, excludedUris)
+      if (result.fresh) return result.fresh
+      fallback ??= result.fallback
+    } catch (err) {
+      console.warn('[fuzzy spotify] search request failed', err)
+    }
   }
-  return null
+  return fallback
 }
 
 export async function playSuggestion(

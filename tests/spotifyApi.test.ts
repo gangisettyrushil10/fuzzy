@@ -80,6 +80,20 @@ describe('Spotify track search and native playback', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('limit=30'), expect.any(Object))
   })
 
+  it('falls back to the best matching track when every catalog result was recently used', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ tracks: { items: [track('old')] } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await searchTrack('calm instrumental', ['spotify:track:old'])
+
+    expect(result?.uri).toBe('spotify:track:old')
+  })
+
   it('reranks Spotify candidates toward reading-friendly instrumental tracks', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -201,5 +215,48 @@ describe('Spotify track search and native playback', () => {
     expect(result?.uri).toBe('spotify:track:semantic')
     expect(result?.querySource).toBe('embedding')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('relaxes over-specific embedding queries before reporting no match', async () => {
+    mocks.planSoundtrackQuery.mockResolvedValueOnce({
+      lane: 'Cyber lofi · Trapped desperation',
+      query:
+        'downtempo electronic lofi beats cyber instrumental focus high tension tense minimal noir pressure instrumental score reading instrumental',
+      queries: [
+        'downtempo electronic lofi beats cyber instrumental focus high tension tense minimal noir pressure instrumental score reading instrumental'
+      ],
+      source: 'embedding'
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ tracks: { items: [] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ tracks: { items: [track('relaxed')] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await suggestForMood({
+      mood: 'tension',
+      secondaryMood: 'fear',
+      genre: 'sci-fi',
+      type: 'fiction',
+      intensity: 0.78,
+      sceneTags: [],
+      paletteHints: [],
+      motion: 'pulse'
+    })
+
+    expect(result?.uri).toBe('spotify:track:relaxed')
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+      'downtempo+electronic+lofi+beats+cyber+instrumental+focus'
+    )
   })
 })
